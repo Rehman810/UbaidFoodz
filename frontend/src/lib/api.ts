@@ -1,0 +1,53 @@
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("uff_token") : null;
+  const headers: Record<string, string> = {
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  if (!res.ok) {
+    let message = "Request failed";
+    try {
+      const data = await res.json();
+      message = data.error || message;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(message, res.status);
+  }
+  if (res.headers.get("content-type")?.includes("application/json")) {
+    return res.json() as Promise<T>;
+  }
+  return undefined as T;
+}
+
+export function invoiceUrl(orderId: string) {
+  return `${API_URL}/invoices/${orderId}/download`;
+}
+
+export async function downloadInvoice(orderId: string) {
+  const token = localStorage.getItem("uff_token");
+  const res = await fetch(invoiceUrl(orderId), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error("Could not download invoice");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `invoice-${orderId}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}

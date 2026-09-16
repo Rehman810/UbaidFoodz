@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ubaidfastfoodz-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ubaid
+      POSTGRES_PASSWORD: ubaid
+      POSTGRES_DB: ubaidfastfoodz
+    ports:
+      - "5432:5432"
+    volumes:
+      - ubaidfastfoodz_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ubaid -d ubaidfastfoodz"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  ubaidfastfoodz_pg:

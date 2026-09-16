@@ -1,0 +1,36 @@
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import { authRouter } from "./routes/auth";
+import { menuRouter } from "./routes/menu";
+import { ordersRouter } from "./routes/orders";
+import { riderRouter } from "./routes/rider";
+import { adminRouter } from "./routes/admin";
+import { invoicesRouter } from "./routes/invoices";
+
+const app = express();
+const PORT = Number(process.env.PORT || 4000);
+
+app.use(
+  cors({
+    origin: true,
+  })
+);
+app.use(express.json({ limit: "2mb" }));
+
+app.get("/health", (_req, res) => res.json({ ok: true }));
+app.use("/auth", authRouter);
+app.use("/menu", menuRouter);
+app.use("/orders", ordersRouter);
+app.use("/rider", riderRouter);
+app.use("/admin", adminRouter);
+app.use("/invoices", invoicesRouter);
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err);
+  res.status(500).json({ error: "Something went wrong." });
+});
+
+app.listen(PORT, () => {
+  console.log(`Ubaid Fast Foodz API on http://localhost:${PORT}`);
+});

@@ -1,0 +1,17 @@
+{
+  "name": "ubaidfastfoodz",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Ubaid Fast Foodz — multi-role restaurant ordering demo",
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:backend": "npm run dev -w ubaidfastfoodz-api",
+    "dev:frontend": "npm run dev -w ubaidfastfoodz-web",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "prisma:migrate": "npm run prisma:migrate -w ubaidfastfoodz-api",
+    "prisma:seed": "npm run prisma:seed -w ubaidfastfoodz-api",
+    "prisma:studio": "npm run prisma:studio -w ubaidfastfoodz-api"
+  }
+}
