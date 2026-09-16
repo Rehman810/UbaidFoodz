@@ -5,8 +5,8 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
+    "build": "prisma generate && tsc",
+    "start": "prisma migrate deploy && tsx prisma/seed.ts && tsx src/index.ts",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio"
@@ -22,7 +22,9 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "pdfkit": "^0.15.1"
+    "pdfkit": "^0.15.1",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -32,8 +34,6 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.2",
     "@types/pdfkit": "^0.13.5",
-    "prisma": "^5.22.0",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }

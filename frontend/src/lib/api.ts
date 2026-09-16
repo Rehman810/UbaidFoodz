@@ -1,4 +1,7 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+// Live: set NEXT_PUBLIC_API_URL=https://ubaidfoodz.onrender.com on Vercel/Netlify.
+// Local: falls back to localhost.
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:4000";
 
 export class ApiError extends Error {
   status: number;
@@ -16,7 +19,19 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...options, headers, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new ApiError("Server took too long to respond. Is the API running?", 0);
+    }
+    throw new ApiError("Cannot reach API. Start the backend or check NEXT_PUBLIC_API_URL.", 0);
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     let message = "Request failed";
     try {

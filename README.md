@@ -63,4 +63,31 @@ npm run dev:frontend
 - Payment is a **Cash on Delivery** placeholder (no gateway).  
 - Menu images are from Unsplash.  
 - Invoices are generated with PDFKit into `backend/invoices/` when an order is marked delivered.
-# UbaidFoodz
+
+## Deploy (Render + Vercel, no paid Shell)
+
+### Backend on Render
+
+1. Create a **Web Service** from this repo.
+2. Set **Root Directory** to `backend`.
+3. **Build command:** `npm install && npx prisma generate`
+4. **Start command** (runs migrate + seed automatically — no Shell needed):
+
+   ```bash
+   npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx src/index.ts
+   ```
+
+5. Add env vars:
+   - `DATABASE_URL` — from Neon (or your Postgres host)
+   - `JWT_SECRET` — any long random string
+   - `CLIENT_URL` — your Vercel frontend URL (e.g. `https://your-app.vercel.app`)
+
+The seed script skips if demo data already exists. To reset, set `FORCE_SEED=1` and redeploy.
+
+### Frontend on Vercel
+
+1. Import repo, set **Root Directory** to `frontend`.
+2. Add env var: `NEXT_PUBLIC_API_URL=https://ubaidfoodz.onrender.com` (your Render URL).
+3. Redeploy.
+
+Free Render instances sleep after ~15 min — open the site a minute before a client demo.

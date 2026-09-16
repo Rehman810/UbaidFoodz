@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingBag, Flame } from "lucide-react";
+import { ShoppingBag, Flame, Menu, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cartCount, useCart } from "@/lib/cart";
 
@@ -13,6 +14,7 @@ export function Navbar() {
   const items = useCart((s) => s.items);
   const bounce = useCart((s) => s.bounce);
   const count = cartCount(items);
+  const [open, setOpen] = useState(false);
 
   const links = [
     { href: "/", label: "Home", match: (p: string) => p === "/" },
@@ -25,75 +27,135 @@ export function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-orange-100 bg-[#fffaf5]/95 backdrop-blur-xl">
-      <div className="mx-auto grid h-[72px] max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6">
-        <Link href="/" className="flex min-w-0 items-center gap-3 justify-self-start">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-600 text-white">
-            <Flame size={18} strokeWidth={2.2} />
-          </span>
-          <span className="truncate text-[15px] font-extrabold tracking-tight text-ink sm:text-base">
-            Ubaid Fast Foodz
-          </span>
-        </Link>
-
-        <nav className="hidden items-center gap-1 md:flex">
-          {links.map((l) => {
-            const active = l.match(path);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold leading-none ${
-                  active ? "bg-brand-50 text-brand-800" : "text-stone-600 hover:bg-white hover:text-ink"
-                }`}
-              >
-                {l.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="flex items-center justify-end gap-2 justify-self-end">
-          <Link
-            href="/menu"
-            className="inline-flex h-10 items-center rounded-full px-3 text-sm font-semibold text-stone-600 md:hidden"
-          >
-            Menu
+    <>
+      <header className="sticky top-0 z-40 border-b border-orange-100 bg-[#fffaf5]/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:h-[72px] sm:px-6">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-600 text-white sm:h-10 sm:w-10">
+              <Flame size={17} strokeWidth={2.2} />
+            </span>
+            <span className="truncate text-sm font-extrabold tracking-tight text-ink sm:text-base">
+              Ubaid Fast Foodz
+            </span>
           </Link>
-          <button
-            onClick={() => useCart.getState().setDrawer(true)}
-            className={`relative grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-ink transition ${
-              bounce ? "scale-105" : ""
-            }`}
-            aria-label="Open cart"
-          >
-            <ShoppingBag size={18} strokeWidth={2} />
-            {count > 0 && (
-              <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-bold leading-none text-white">
-                {count}
-              </span>
-            )}
-          </button>
-          {user ? (
+
+          <nav className="hidden items-center gap-1 md:flex">
+            {links.map((l) => {
+              const active = l.match(path);
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold leading-none ${
+                    active ? "bg-brand-50 text-brand-800" : "text-stone-600 hover:bg-white hover:text-ink"
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button
-              onClick={() => {
-                logout();
-                router.push("/");
-              }}
-              className="inline-flex h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-semibold leading-none text-ink"
+              onClick={() => setOpen(true)}
+              className="grid h-9 w-9 place-items-center rounded-full border border-stone-200 bg-white text-ink md:hidden"
+              aria-label="Open menu"
             >
-              Sign out
+              <Menu size={18} />
             </button>
-          ) : (
-            <Link
-              href="/login"
-              className="inline-flex h-10 items-center rounded-full bg-brand-600 px-4 text-sm font-semibold leading-none text-white hover:bg-brand-700"
+            <button
+              onClick={() => useCart.getState().setDrawer(true)}
+              className={`relative grid h-9 w-9 place-items-center rounded-full border border-stone-200 bg-white text-ink transition sm:h-10 sm:w-10 ${
+                bounce ? "scale-105" : ""
+              }`}
+              aria-label="Open cart"
             >
-              Sign in
-            </Link>
-          )}
+              <ShoppingBag size={17} strokeWidth={2} />
+              {count > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-bold leading-none text-white">
+                  {count}
+                </span>
+              )}
+            </button>
+            {user ? (
+              <button
+                onClick={() => {
+                  logout();
+                  router.push("/");
+                }}
+                className="hidden h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-semibold leading-none text-ink sm:inline-flex"
+              >
+                Sign out
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="hidden h-9 items-center rounded-full bg-brand-600 px-3 text-xs font-semibold leading-none text-white hover:bg-brand-700 sm:inline-flex sm:h-10 sm:px-4 sm:text-sm"
+              >
+                Sign in
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {open && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+          />
+          <aside className="absolute right-0 top-0 flex h-full w-[min(100%,280px)] flex-col bg-[#fffaf5] shadow-float">
+            <div className="flex items-center justify-between border-b border-orange-100 px-4 py-4">
+              <p className="font-display text-lg">Menu</p>
+              <button
+                onClick={() => setOpen(false)}
+                className="grid h-9 w-9 place-items-center rounded-full border border-stone-200 bg-white"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <nav className="flex flex-col gap-1 p-3">
+              {links.map((l) => {
+                const active = l.match(path);
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className={`rounded-2xl px-4 py-3.5 text-base font-semibold ${
+                      active ? "bg-brand-600 text-white" : "text-stone-700 hover:bg-brand-50"
+                    }`}
+                  >
+                    {l.label}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="mt-auto border-t border-orange-100 p-4">
+              {user ? (
+                <button
+                  onClick={() => {
+                    logout();
+                    setOpen(false);
+                    router.push("/");
+                  }}
+                  className="btn-ghost w-full"
+                >
+                  Sign out
+                </button>
+              ) : (
+                <Link href="/login" onClick={() => setOpen(false)} className="btn-primary w-full">
+                  Sign in
+                </Link>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
