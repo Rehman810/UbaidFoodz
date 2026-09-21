@@ -1,5 +1,8 @@
-import "dotenv/config";
+import path from "path";
+import dotenv from "dotenv";
 import express from "express";
+
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 import cors from "cors";
 import { authRouter } from "./routes/auth";
 import { menuRouter } from "./routes/menu";

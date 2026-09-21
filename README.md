@@ -15,6 +15,9 @@ You need **Node.js 18+** and **Docker** (for PostgreSQL).
 
 ```bash
 npm install
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+docker compose up -d
 npm run dev
 ```
 

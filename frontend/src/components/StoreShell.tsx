@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
 
 export function StoreShell({ children }: { children: React.ReactNode }) {
@@ -5,10 +6,33 @@ export function StoreShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col">
       <Navbar />
       <main className="flex-1">{children}</main>
-      <footer className="border-t border-orange-100 bg-white py-12">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 text-sm text-stone-500 md:flex-row">
-          <p className="font-display text-lg text-ink">Ubaid Fast Foodz</p>
-          <p>Demo prototype · Cash on delivery across Karachi</p>
+      <footer className="border-t border-orange-100 bg-stone-950 text-stone-400">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <p className="font-display text-2xl text-white">Ubaid Fast Foodz</p>
+            <p className="mt-2 max-w-sm text-sm leading-relaxed">
+              Karachi&apos;s go-to for zinger, biryani and broast — fired fresh, delivered fast.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-brand-400">Quick links</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li><Link href="/menu" className="hover:text-white">Full menu</Link></li>
+              <li><Link href="/orders" className="hover:text-white">Track order</Link></li>
+              <li><Link href="/login" className="hover:text-white">Staff login</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-brand-400">Contact</p>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>0321-5556677</li>
+              <li>DHA Phase 6, Karachi</li>
+              <li>Cash on delivery</li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-white/10 py-5 text-center text-xs">
+          © {new Date().getFullYear()} Ubaid Fast Foodz · Demo prototype
         </div>
       </footer>
     </div>
