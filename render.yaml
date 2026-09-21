@@ -3,8 +3,10 @@ services:
     name: ubaidfastfoodz-api
     runtime: node
     rootDir: backend
+    healthCheckPath: /health
     buildCommand: npm install && npx prisma generate
-    startCommand: npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx src/index.ts
+    # Do not run seed on every wake — it slows cold starts (UptimeRobot timeout).
+    startCommand: npx prisma migrate deploy && npx tsx src/index.ts
     envVars:
       - key: DATABASE_URL
         sync: false

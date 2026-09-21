@@ -3,6 +3,7 @@
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { CartDrawer } from "./CartDrawer";
 import { FulfillmentModal } from "./FulfillmentModal";
+import { KeepAlive } from "./KeepAlive";
 
 function CustomerOverlays() {
   const { user, loading } = useAuth();
@@ -19,6 +20,7 @@ function CustomerOverlays() {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
+      <KeepAlive />
       {children}
       <CustomerOverlays />
     </AuthProvider>

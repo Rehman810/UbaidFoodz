@@ -93,4 +93,11 @@ The seed script skips if demo data already exists. To reset, set `FORCE_SEED=1` 
 2. Add env var: `NEXT_PUBLIC_API_URL=https://ubaidfoodz.onrender.com` (your Render URL).
 3. Redeploy.
 
-Free Render instances sleep after ~15 min — open the site a minute before a client demo.
+**Keep Render awake (free tier):** Render sleeps after ~15 min idle. This repo includes:
+- **Vercel Cron** — `vercel.json` pings `/api/keep-alive` every 10 min (works when frontend is on Vercel).
+- **GitHub Actions** — `.github/workflows/keep-render-awake.yml` pings `/health` every 10 min (enable by pushing to GitHub; optional secret `RENDER_API_URL`).
+- **Browser** — frontend pings `/health` every 10 min while any tab is open.
+
+You can also use [UptimeRobot](https://uptimerobot.com) (free) to monitor `https://your-api.onrender.com/health` every 5 minutes. Set **request timeout to 60 seconds** (Render free cold starts can take ~30s). Optional keyword: `"ok":true`.
+
+**Seed data on Render (one-time):** In Render Shell run `npx tsx prisma/seed.ts`, or temporarily add it to start command for first deploy only.

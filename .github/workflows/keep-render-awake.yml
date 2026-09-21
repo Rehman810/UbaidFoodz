@@ -1,0 +1,20 @@
+name: Keep Render API awake
+
+on:
+  schedule:
+    # Every 10 minutes — Render free tier sleeps after ~15 min idle
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        env:
+          API_URL: ${{ secrets.RENDER_API_URL }}
+        run: |
+          URL="${API_URL:-https://ubaidfoodz.onrender.com}"
+          echo "Pinging ${URL}/health"
+          curl -fsS --max-time 30 "${URL}/health"
+          echo "OK"
