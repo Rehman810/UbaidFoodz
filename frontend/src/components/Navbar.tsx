@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingBag, Flame, Menu, X } from "lucide-react";
+import { ShoppingBag, Flame, Menu, MapPin, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cartCount, useCart } from "@/lib/cart";
+import { useFulfillment } from "@/lib/fulfillment";
 
 export function Navbar() {
   const path = usePathname();
@@ -14,6 +15,7 @@ export function Navbar() {
   const items = useCart((s) => s.items);
   const bounce = useCart((s) => s.bounce);
   const count = cartCount(items);
+  const { mode, areaName, setOpenModal } = useFulfillment();
   const [open, setOpen] = useState(false);
 
   const isCustomer = !user || user.role === "CUSTOMER";
@@ -64,6 +66,16 @@ export function Navbar() {
             >
               <Menu size={18} />
             </button>
+            {isCustomer && (
+              <button
+                onClick={() => setOpenModal(true)}
+                className="hidden h-9 max-w-[120px] items-center gap-1.5 truncate rounded-full border border-stone-200 bg-white px-3 text-xs font-semibold text-ink sm:inline-flex sm:h-10"
+                title="Change delivery or pickup"
+              >
+                <MapPin size={14} className="shrink-0 text-brand-600" />
+                <span className="truncate">{mode === "PICKUP" ? "Pickup" : areaName || "Delivery"}</span>
+              </button>
+            )}
             {isCustomer && (
               <button
                 onClick={() => useCart.getState().setDrawer(true)}

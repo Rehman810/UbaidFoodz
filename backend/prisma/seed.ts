@@ -4,6 +4,11 @@ import bcrypt from "bcryptjs";
 import fs from "fs";
 import path from "path";
 import { generateInvoicePdf } from "../src/lib/invoice";
+import {
+  DEFAULT_DELIVERING_AREAS,
+  KARACHI_AREAS,
+  defaultChargeForArea,
+} from "../src/lib/karachi-areas";
 
 const prisma = new PrismaClient();
 
@@ -146,7 +151,26 @@ const MENU = [
   },
 ];
 
+async function seedDeliveryAreas() {
+  const count = await prisma.deliveryArea.count();
+  if (count > 0) return;
+  for (let i = 0; i < KARACHI_AREAS.length; i++) {
+    const name = KARACHI_AREAS[i];
+    await prisma.deliveryArea.create({
+      data: {
+        name,
+        deliveryCharge: defaultChargeForArea(name),
+        isDelivering: DEFAULT_DELIVERING_AREAS.has(name),
+        sortOrder: i + 1,
+      },
+    });
+  }
+  console.log(`Seeded ${KARACHI_AREAS.length} Karachi delivery areas.`);
+}
+
 async function main() {
+  await seedDeliveryAreas();
+
   const already = await prisma.user.findUnique({
     where: { email: "admin@ubaidfastfoodz.com" },
   });
@@ -160,6 +184,7 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.deliveryArea.deleteMany();
   await prisma.dealItem.deleteMany();
   await prisma.deal.deleteMany();
   await prisma.menuItem.deleteMany();
@@ -190,6 +215,18 @@ async function main() {
   ];
   for (let i = 0; i < categorySeed.length; i++) {
     await prisma.category.create({ data: { ...categorySeed[i], sortOrder: i + 1 } });
+  }
+
+  for (let i = 0; i < KARACHI_AREAS.length; i++) {
+    const name = KARACHI_AREAS[i];
+    await prisma.deliveryArea.create({
+      data: {
+        name,
+        deliveryCharge: defaultChargeForArea(name),
+        isDelivering: DEFAULT_DELIVERING_AREAS.has(name),
+        sortOrder: i + 1,
+      },
+    });
   }
 
   const [customer, admin, rider, rider2] = await Promise.all([
@@ -392,6 +429,8 @@ async function main() {
         customerId: customer.id,
         riderId: s.riderId,
         status: s.status,
+        subtotal: total,
+        deliveryCharge: 0,
         total,
         deliveryAddress: s.address,
         notes: s.notes,

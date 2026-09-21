@@ -3,26 +3,43 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Bike, MapPin, ShieldCheck, Store } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { useAuth } from "@/lib/auth";
 import { cartTotal, useCart } from "@/lib/cart";
 import { api } from "@/lib/api";
+import { saveGuestOrderToken } from "@/lib/guest-order";
+import { PICKUP_LOCATION, useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
 import { Order } from "@/lib/types";
-import { Banknote } from "lucide-react";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
-  const total = cartTotal(items);
+  const subtotal = cartTotal(items);
+  const {
+    hasChosen,
+    mode,
+    areaId,
+    areaName,
+    deliveryCharge,
+    setOpenModal,
+  } = useFulfillment();
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const isDelivery = mode === "DELIVERY";
+  const grandTotal = subtotal + (isDelivery ? deliveryCharge : 0);
+
+  useEffect(() => {
+    if (!hasChosen) setOpenModal(true);
+  }, [hasChosen, setOpenModal]);
 
   useEffect(() => {
     if (user) {
@@ -34,11 +51,16 @@ export default function CheckoutPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!user) {
-      router.push("/login?next=/checkout");
+    if (items.length === 0) return;
+    if (!hasChosen) {
+      setOpenModal(true);
       return;
     }
-    if (items.length === 0) return;
+    if (isDelivery && !areaId) {
+      setError("Please select a delivery area.");
+      setOpenModal(true);
+      return;
+    }
     setBusy(true);
     try {
       const order = await api<Order>("/orders", {
@@ -46,7 +68,9 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customerName: name,
           customerPhone: phone,
-          deliveryAddress: address,
+          deliveryAddress: isDelivery ? address : PICKUP_LOCATION,
+          fulfillmentType: mode,
+          deliveryAreaId: isDelivery ? areaId : undefined,
           notes,
           items: items
             .filter((i) => !i.kind || i.kind === "item")
@@ -57,7 +81,12 @@ export default function CheckoutPage() {
         }),
       });
       clear();
-      router.push(`/orders/${order.id}`);
+      if (order.guestAccessToken) {
+        saveGuestOrderToken(order.id, order.guestAccessToken);
+        router.push(`/orders/${order.id}?token=${encodeURIComponent(order.guestAccessToken)}`);
+      } else {
+        router.push(`/orders/${order.id}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not place order");
     } finally {
@@ -70,37 +99,70 @@ export default function CheckoutPage() {
       <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[1.1fr_0.9fr]">
         <form onSubmit={onSubmit} className="space-y-4">
           <h1 className="font-display text-4xl">Checkout</h1>
-          <p className="text-sm text-stone-500">Cash on delivery · no card needed for this demo.</p>
+          <p className="text-sm text-stone-500">No account needed — just your details.</p>
           {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-          {!user && (
-            <p className="rounded-2xl bg-brand-50 px-4 py-3 text-sm text-brand-900">
-              Sign in as the demo customer to place an order.
-            </p>
-          )}
+
+          <button
+            type="button"
+            onClick={() => setOpenModal(true)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-orange-100 bg-white p-4 text-left transition hover:border-brand-200"
+          >
+            {isDelivery ? (
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-100 text-brand-700">
+                <Bike size={18} />
+              </span>
+            ) : (
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-stone-100 text-stone-700">
+                <Store size={18} />
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{isDelivery ? "Delivery" : "Pickup"}</p>
+              <p className="truncate text-xs text-stone-500">
+                {isDelivery ? areaName || "Select area" : PICKUP_LOCATION}
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-brand-700">Change</span>
+          </button>
+
+          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <ShieldCheck className="mt-0.5 shrink-0 text-emerald-600" size={18} />
+            <p>Your details are stored securely and only used for your order.</p>
+          </div>
+
           <input className="input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
-          <input className="input" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-          <textarea
-            className="input min-h-24"
-            placeholder="Delivery address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
+          <input
+            className="input"
+            placeholder="Phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             required
           />
+          {isDelivery ? (
+            <textarea
+              className="input min-h-24"
+              placeholder="House / street / landmark in your area"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              required
+            />
+          ) : (
+            <div className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+              <MapPin className="mt-0.5 shrink-0 text-brand-600" size={16} />
+              <p>Pickup from <strong>{PICKUP_LOCATION}</strong>. We will call when your order is ready.</p>
+            </div>
+          )}
           <textarea
             className="input min-h-20"
             placeholder="Order notes (optional)"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
-          <div className="flex items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3">
-            <Banknote className="text-brand-700" />
-            <div>
-              <p className="text-sm font-semibold">Cash on Delivery</p>
-              <p className="text-xs text-stone-500">Pay the rider when your bag arrives.</p>
-            </div>
-          </div>
           <button className="btn-primary h-12 w-full" disabled={busy || items.length === 0}>
-            {busy ? "Placing…" : `Place order · ${pkr(total)}`}
+            {busy ? "Placing…" : `Place order · ${pkr(grandTotal)}`}
           </button>
         </form>
         <aside className="card h-fit p-5">
@@ -127,9 +189,21 @@ export default function CheckoutPage() {
               ))}
             </ul>
           )}
-          <div className="mt-4 flex justify-between border-t border-orange-100 pt-4 font-semibold">
-            <span>Total</span>
-            <span className="text-brand-700">{pkr(total)}</span>
+          <div className="mt-4 space-y-2 border-t border-orange-100 pt-4 text-sm">
+            <div className="flex justify-between">
+              <span className="text-stone-500">Subtotal</span>
+              <span>{pkr(subtotal)}</span>
+            </div>
+            {isDelivery && deliveryCharge > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-500">Delivery ({areaName})</span>
+                <span>{pkr(deliveryCharge)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold">
+              <span>Total</span>
+              <span className="text-brand-700">{pkr(grandTotal)}</span>
+            </div>
           </div>
         </aside>
       </div>

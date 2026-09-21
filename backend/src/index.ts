@@ -13,6 +13,7 @@ import { invoicesRouter } from "./routes/invoices";
 import { uploadRouter } from "./routes/upload";
 import { categoriesRouter } from "./routes/categories";
 import { dealsRouter } from "./routes/deals";
+import { deliveryAreasRouter } from "./routes/delivery-areas";
 import { UPLOAD_DIR } from "./lib/uploads";
 
 const app = express();
@@ -32,6 +33,7 @@ app.use("/auth", authRouter);
 app.use("/menu", menuRouter);
 app.use("/categories", categoriesRouter);
 app.use("/deals", dealsRouter);
+app.use("/delivery-areas", deliveryAreasRouter);
 app.use("/orders", ordersRouter);
 app.use("/rider", riderRouter);
 app.use("/admin", adminRouter);

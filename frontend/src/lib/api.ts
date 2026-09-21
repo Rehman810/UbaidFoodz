@@ -73,13 +73,15 @@ export async function apiUpload(path: string, file: File): Promise<{ url: string
   return res.json() as Promise<{ url: string }>;
 }
 
-export function invoiceUrl(orderId: string) {
-  return `${API_URL}/invoices/${orderId}/download`;
+export function invoiceUrl(orderId: string, guestToken?: string | null) {
+  const base = `${API_URL}/invoices/${orderId}/download`;
+  if (!guestToken) return base;
+  return `${base}?token=${encodeURIComponent(guestToken)}`;
 }
 
-export async function downloadInvoice(orderId: string) {
+export async function downloadInvoice(orderId: string, guestToken?: string | null) {
   const token = localStorage.getItem("uff_token");
-  const res = await fetch(invoiceUrl(orderId), {
+  const res = await fetch(invoiceUrl(orderId, guestToken), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error("Could not download invoice");

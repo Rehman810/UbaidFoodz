@@ -1,15 +1,20 @@
 import { Router } from "express";
-import { OrderStatus, Role } from "@prisma/client";
+import crypto from "crypto";
+import { FulfillmentType, OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { canAccessOrder, stripGuestToken } from "../lib/order-access";
+import { optionalAuth, requireAuth, requireRole } from "../middleware/auth";
 import { generateInvoicePdf } from "../lib/invoice";
 
 export const ordersRouter = Router();
+
+const PICKUP_ADDRESS = "Ubaid Fast Foodz — Boat Basin, Clifton Block 5, Karachi";
 
 const include = {
   items: true,
   rider: { select: { id: true, name: true, phone: true } },
   invoice: true,
+  deliveryArea: { select: { id: true, name: true, deliveryCharge: true } },
 };
 
 async function nextOrderNumber() {
@@ -21,20 +26,66 @@ async function nextOrderNumber() {
   return `UF-${n + 1}`;
 }
 
-ordersRouter.post("/", requireAuth, requireRole(Role.CUSTOMER, Role.ADMIN), async (req, res) => {
-  const { items, deals, deliveryAddress, notes, customerName, customerPhone } = req.body as {
+function normalizePhone(phone: string) {
+  const cleaned = phone.replace(/[^\d+]/g, "").trim();
+  return cleaned.length >= 10 ? cleaned : "";
+}
+
+ordersRouter.post("/", optionalAuth, async (req, res) => {
+  const {
+    items,
+    deals,
+    deliveryAddress,
+    notes,
+    customerName,
+    customerPhone,
+    fulfillmentType,
+    deliveryAreaId,
+  } = req.body as {
     items?: { menuItemId: string; quantity: number }[];
     deals?: { dealId: string; quantity: number }[];
     deliveryAddress?: string;
     notes?: string;
     customerName?: string;
     customerPhone?: string;
+    fulfillmentType?: FulfillmentType;
+    deliveryAreaId?: string;
   };
   const cartItems = items ?? [];
   const cartDeals = deals ?? [];
-  if ((!cartItems.length && !cartDeals.length) || !deliveryAddress || !customerName || !customerPhone) {
-    return res.status(400).json({ error: "Cart, name, phone and address are required." });
+  const phone = normalizePhone(String(customerPhone || ""));
+  const trimmedName = String(customerName || "").trim();
+  const mode: FulfillmentType =
+    fulfillmentType === FulfillmentType.PICKUP ? FulfillmentType.PICKUP : FulfillmentType.DELIVERY;
+  const trimmedAddress =
+    mode === FulfillmentType.PICKUP
+      ? PICKUP_ADDRESS
+      : String(deliveryAddress || "").trim();
+
+  if ((!cartItems.length && !cartDeals.length) || !trimmedName || !phone) {
+    return res.status(400).json({ error: "Cart, name and phone are required." });
   }
+  if (mode === FulfillmentType.DELIVERY && !trimmedAddress) {
+    return res.status(400).json({ error: "Delivery address is required." });
+  }
+  if (mode === FulfillmentType.DELIVERY && !deliveryAreaId) {
+    return res.status(400).json({ error: "Please select a delivery area." });
+  }
+
+  let deliveryCharge = 0;
+  let areaId: string | null = null;
+  if (mode === FulfillmentType.DELIVERY) {
+    const area = await prisma.deliveryArea.findUnique({ where: { id: deliveryAreaId } });
+    if (!area || !area.isDelivering) {
+      return res.status(400).json({ error: "Selected area is not available for delivery." });
+    }
+    deliveryCharge = Number(area.deliveryCharge);
+    areaId = area.id;
+  }
+
+  const user = req.user;
+  const isRegisteredCustomer = user?.role === Role.CUSTOMER || user?.role === Role.ADMIN;
+  const guestAccessToken = isRegisteredCustomer ? null : crypto.randomBytes(32).toString("base64url");
 
   const menuItems = await prisma.menuItem.findMany({
     where: { id: { in: cartItems.map((i) => i.menuItemId) } },
@@ -103,20 +154,33 @@ ordersRouter.post("/", requireAuth, requireRole(Role.CUSTOMER, Role.ADMIN), asyn
     }
   }
 
+  const subtotal = total;
+  const grandTotal = subtotal + deliveryCharge;
+
   const order = await prisma.order.create({
     data: {
       orderNumber: await nextOrderNumber(),
-      customerId: req.user!.id,
-      total,
-      deliveryAddress,
-      notes,
-      customerName,
-      customerPhone,
+      customerId: isRegisteredCustomer ? user!.id : null,
+      guestAccessToken,
+      fulfillmentType: mode,
+      deliveryAreaId: areaId,
+      subtotal,
+      deliveryCharge,
+      total: grandTotal,
+      deliveryAddress: trimmedAddress,
+      notes: notes ? String(notes).trim() : null,
+      customerName: trimmedName,
+      customerPhone: phone,
       items: { create: lines },
     },
     include,
   });
-  res.status(201).json(order);
+
+  const safeOrder = stripGuestToken(order);
+  if (guestAccessToken) {
+    return res.status(201).json({ ...safeOrder, guestAccessToken });
+  }
+  res.status(201).json(safeOrder);
 });
 
 ordersRouter.get("/mine", requireAuth, async (req, res) => {
@@ -136,19 +200,17 @@ ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) =>
   res.json(orders);
 });
 
-ordersRouter.get("/:id", requireAuth, async (req, res) => {
+ordersRouter.get("/:id", optionalAuth, async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token : null;
   const order = await prisma.order.findUnique({
     where: { id: req.params.id },
     include: { ...include, customer: { select: { id: true, name: true, email: true } } },
   });
   if (!order) return res.status(404).json({ error: "Order not found" });
-  const u = req.user!;
-  const allowed =
-    u.role === Role.ADMIN ||
-    order.customerId === u.id ||
-    order.riderId === u.id;
-  if (!allowed) return res.status(403).json({ error: "Forbidden" });
-  res.json(order);
+  if (!canAccessOrder(order, req.user, token)) {
+    return res.status(403).json({ error: "You do not have access to this order." });
+  }
+  res.json(stripGuestToken(order));
 });
 
 ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN), async (req, res) => {

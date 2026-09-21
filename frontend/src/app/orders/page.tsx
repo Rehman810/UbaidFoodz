@@ -26,10 +26,15 @@ export default function OrdersPage() {
         {loading && <div className="skeleton mt-6 h-40" />}
         {!loading && !user && (
           <p className="mt-4 text-sm text-stone-500">
+            Guest orders are tracked from your confirmation page.{" "}
+            <Link href="/menu" className="font-semibold text-brand-700">
+              Order again
+            </Link>
+            , or{" "}
             <Link href="/login?next=/orders" className="font-semibold text-brand-700">
-              Sign in
+              sign in
             </Link>{" "}
-            to see your orders.
+            if you have an account.
           </p>
         )}
         {orders && orders.length === 0 && (

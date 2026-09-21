@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogOut,
   Map,
+  MapPinned,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const NAV = [
   { href: "/admin/tracking", label: "Live tracking", icon: Map },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+  { href: "/admin/areas", label: "Areas", icon: MapPinned },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/riders", label: "Riders", icon: Bike },
 ];

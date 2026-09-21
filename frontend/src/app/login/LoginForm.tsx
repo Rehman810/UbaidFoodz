@@ -6,7 +6,6 @@ import { Flame } from "lucide-react";
 import { homeFor, resolveLoginRedirect, useAuth } from "@/lib/auth";
 
 const DEMOS = [
-  { role: "Customer", email: "customer@ubaidfastfoodz.com", password: "demo123" },
   { role: "Admin", email: "admin@ubaidfastfoodz.com", password: "demo123" },
   { role: "Rider", email: "rider@ubaidfastfoodz.com", password: "demo123" },
 ];
@@ -59,7 +58,7 @@ export default function LoginForm() {
       <div className="flex items-center justify-center px-6 py-12">
         <form onSubmit={onSubmit} className="w-full max-w-md space-y-4">
           <h1 className="font-display text-4xl">Welcome back</h1>
-          <p className="text-sm text-stone-500">Use a demo account to tour the full system.</p>
+          <p className="text-sm text-stone-500">Staff sign-in for admin and rider dashboards.</p>
           {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
           <input

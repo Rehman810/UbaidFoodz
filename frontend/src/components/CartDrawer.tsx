@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { cartTotal, useCart } from "@/lib/cart";
+import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
 
 const CLOSE_MS = 340;
@@ -15,7 +16,10 @@ export function CartDrawer() {
   const items = useCart((s) => s.items);
   const setQty = useCart((s) => s.setQty);
   const remove = useCart((s) => s.remove);
-  const total = cartTotal(items);
+  const subtotal = cartTotal(items);
+  const { mode, deliveryCharge, areaName } = useFulfillment();
+  const deliveryFee = mode === "DELIVERY" ? deliveryCharge : 0;
+  const total = subtotal + deliveryFee;
 
   const [render, setRender] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -134,9 +138,21 @@ export function CartDrawer() {
           )}
         </div>
         <div className="border-t border-orange-100 p-5">
-          <div className="mb-3 flex justify-between text-sm">
-            <span className="text-stone-500">Subtotal</span>
-            <span className="font-semibold">{pkr(total)}</span>
+          <div className="mb-2 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-stone-500">Subtotal</span>
+              <span>{pkr(subtotal)}</span>
+            </div>
+            {deliveryFee > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-500">Delivery{areaName ? ` · ${areaName}` : ""}</span>
+                <span>{pkr(deliveryFee)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold">
+              <span>Total</span>
+              <span>{pkr(total)}</span>
+            </div>
           </div>
           <Link
             href="/checkout"

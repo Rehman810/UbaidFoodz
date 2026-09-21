@@ -13,17 +13,19 @@ import { HowItWorks } from "@/components/home/HowItWorks";
 import { Reveal } from "@/components/home/Reveal";
 import { DealCard } from "@/components/DealCard";
 import { api } from "@/lib/api";
-import { Deal } from "@/lib/types";
-
-const ZONES = ["DHA & Clifton", "PECHS", "North Nazimabad", "Gulshan", "Bahria Town", "Malir Cantt", "Boat Basin", "Shahrah-e-Faisal"];
+import { Deal, DeliveryArea } from "@/lib/types";
 
 export default function HomePage() {
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [zones, setZones] = useState<string[]>([]);
 
   useEffect(() => {
     api<Deal[]>("/deals?active=true")
       .then(setDeals)
       .catch(() => setDeals([]));
+    api<DeliveryArea[]>("/delivery-areas")
+      .then((areas) => setZones(areas.map((a) => a.name)))
+      .catch(() => setZones([]));
   }, []);
 
   return (
@@ -153,7 +155,7 @@ export default function HomePage() {
               </div>
               <h2 className="font-display mt-2 text-4xl">We ride across Karachi</h2>
               <div className="mt-6 flex flex-wrap gap-2">
-                {ZONES.map((z) => (
+                {(zones.length ? zones : ["Loading areas…"]).map((z) => (
                   <span key={z} className="rounded-full bg-white/15 px-4 py-2 text-sm font-medium backdrop-blur">
                     {z}
                   </span>

@@ -64,6 +64,15 @@ export async function generateInvoicePdf(orderId: string) {
     y += 12;
     doc.moveTo(48, y).lineTo(548, y).strokeColor("#FED7AA").stroke();
     y += 16;
+    doc.font("Helvetica").fontSize(10).fillColor("#1c1917");
+    doc.text("Subtotal", 400, y);
+    doc.text(money(Number(order.subtotal)), 480, y);
+    y += 18;
+    if (Number(order.deliveryCharge) > 0) {
+      doc.text("Delivery", 400, y);
+      doc.text(money(Number(order.deliveryCharge)), 480, y);
+      y += 18;
+    }
     doc.font("Helvetica-Bold").fontSize(13).fillColor("#C2410C");
     doc.text("Total", 400, y);
     doc.text(money(Number(order.total)), 480, y);

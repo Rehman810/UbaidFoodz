@@ -1,22 +1,23 @@
 import { Router } from "express";
 import fs from "fs";
 import path from "path";
-import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { requireAuth } from "../middleware/auth";
+import { canAccessOrder } from "../lib/order-access";
+import { optionalAuth } from "../middleware/auth";
 import { generateInvoicePdf } from "../lib/invoice";
 
 export const invoicesRouter = Router();
 
-invoicesRouter.get("/:orderId/download", requireAuth, async (req, res) => {
+invoicesRouter.get("/:orderId/download", optionalAuth, async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token : null;
   const order = await prisma.order.findUnique({
     where: { id: req.params.orderId },
     include: { invoice: true },
   });
   if (!order) return res.status(404).json({ error: "Order not found" });
-  const u = req.user!;
-  const allowed = u.role === Role.ADMIN || order.customerId === u.id || order.riderId === u.id;
-  if (!allowed) return res.status(403).json({ error: "Forbidden" });
+  if (!canAccessOrder(order, req.user, token)) {
+    return res.status(403).json({ error: "You do not have access to this invoice." });
+  }
   if (order.status !== "DELIVERED" && !order.invoice) {
     return res.status(400).json({ error: "Invoice is available after delivery." });
   }

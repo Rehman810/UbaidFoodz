@@ -55,14 +55,30 @@ export type OrderItem = {
   nameAtOrder: string;
 };
 
+export type FulfillmentType = "DELIVERY" | "PICKUP";
+
+export type DeliveryArea = {
+  id: string;
+  name: string;
+  deliveryCharge: string | number;
+  isDelivering: boolean;
+  sortOrder: number;
+};
+
 export type OrderStatus = "PENDING" | "PREPARING" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
 
 export type Order = {
   id: string;
   orderNumber: string;
-  customerId: string;
+  customerId?: string | null;
+  guestAccessToken?: string;
   riderId?: string | null;
   status: OrderStatus;
+  fulfillmentType?: FulfillmentType;
+  deliveryAreaId?: string | null;
+  deliveryArea?: { id: string; name: string; deliveryCharge?: string | number } | null;
+  subtotal?: string | number;
+  deliveryCharge?: string | number;
   total: string | number;
   deliveryAddress: string;
   notes?: string | null;

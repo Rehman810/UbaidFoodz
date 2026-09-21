@@ -1,24 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Download, CheckCircle2 } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { StatusTrack } from "@/components/StatusTrack";
 import { api, downloadInvoice } from "@/lib/api";
+import { getGuestOrderToken, orderApiPath, saveGuestOrderToken } from "@/lib/guest-order";
 import { eta, formatWhen, pkr } from "@/lib/format";
 import { Order } from "@/lib/types";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
+  const [guestToken, setGuestToken] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Order>(`/orders/${id}`)
+    const fromUrl = searchParams.get("token");
+    const fromSession = getGuestOrderToken(id);
+    const token = fromUrl || fromSession;
+    if (fromUrl) saveGuestOrderToken(id, fromUrl);
+    setGuestToken(token);
+
+    api<Order>(orderApiPath(id, token))
       .then(setOrder)
       .catch((e) => setError(e.message));
-  }, [id]);
+  }, [id, searchParams]);
 
   return (
     <StoreShell>
@@ -51,14 +60,33 @@ export default function OrderDetailPage() {
                 </li>
               ))}
             </ul>
-            <div className="mt-3 flex justify-between font-semibold">
-              <span>Total</span>
-              <span className="text-brand-700">{pkr(order.total)}</span>
+            <div className="mt-3 space-y-1 text-sm">
+              {order.subtotal !== undefined && (
+                <div className="flex justify-between">
+                  <span className="text-stone-500">Subtotal</span>
+                  <span>{pkr(order.subtotal)}</span>
+                </div>
+              )}
+              {Number(order.deliveryCharge || 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-stone-500">
+                    Delivery{order.deliveryArea?.name ? ` · ${order.deliveryArea.name}` : ""}
+                  </span>
+                  <span>{pkr(order.deliveryCharge!)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span className="text-brand-700">{pkr(order.total)}</span>
+              </div>
             </div>
-            <p className="mt-4 text-sm text-stone-500">{order.deliveryAddress}</p>
-            {order.notes && <p className="mt-1 text-sm italic text-stone-500">“{order.notes}”</p>}
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-700">
+              {order.fulfillmentType === "PICKUP" ? "Pickup" : "Delivery"}
+            </p>
+            <p className="mt-1 text-sm text-stone-500">{order.deliveryAddress}</p>
+            {order.notes && <p className="mt-1 text-sm italic text-stone-500">"{order.notes}"</p>}
             {(order.status === "DELIVERED" || order.invoice) && (
-              <button className="btn-primary mt-6 w-full" onClick={() => downloadInvoice(order.id)}>
+              <button className="btn-primary mt-6 w-full" onClick={() => downloadInvoice(order.id, guestToken)}>
                 <Download size={16} /> Download invoice
               </button>
             )}
