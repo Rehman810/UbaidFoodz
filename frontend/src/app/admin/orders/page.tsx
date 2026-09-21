@@ -1,18 +1,41 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ClipboardList, RefreshCw, Search, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
+import { pkr } from "@/lib/format";
+import {
+  formatDateSpanLabel,
+  orderInDateSpan,
+  QuickDatePreset,
+  quickPresetRange,
+} from "@/lib/order-dates";
+import { STATUS_THEME } from "@/lib/admin-status";
 import { AdminStats } from "@/lib/admin-types";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
+import { OrderDateFilter } from "@/components/admin/OrderDateFilter";
 import { OrderPanel } from "@/components/admin/OrderPanel";
 
 const FILTERS: (OrderStatus | "ALL")[] = ["ALL", "PENDING", "PREPARING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"];
 
+const FILTER_THEME: Record<OrderStatus | "ALL", { dot: string; active: string; idle: string }> = {
+  ALL: { dot: "bg-brand-500", active: "bg-stone-900 text-white shadow-md", idle: "bg-white text-stone-700 ring-stone-200" },
+  PENDING: { dot: STATUS_THEME.PENDING.dot, active: "bg-amber-500 text-white shadow-md shadow-amber-200", idle: "bg-white text-amber-800 ring-amber-200" },
+  PREPARING: { dot: STATUS_THEME.PREPARING.dot, active: "bg-blue-500 text-white shadow-md shadow-blue-200", idle: "bg-white text-blue-800 ring-blue-200" },
+  OUT_FOR_DELIVERY: { dot: STATUS_THEME.OUT_FOR_DELIVERY.dot, active: "bg-violet-500 text-white shadow-md shadow-violet-200", idle: "bg-white text-violet-800 ring-violet-200" },
+  DELIVERED: { dot: STATUS_THEME.DELIVERED.dot, active: "bg-emerald-500 text-white shadow-md shadow-emerald-200", idle: "bg-white text-emerald-800 ring-emerald-200" },
+  CANCELLED: { dot: STATUS_THEME.CANCELLED.dot, active: "bg-stone-500 text-white shadow-md", idle: "bg-white text-stone-600 ring-stone-200" },
+};
+
+const DEFAULT_RANGE = quickPresetRange("today");
+
 export default function AdminOrders() {
   const [filter, setFilter] = useState<OrderStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState(DEFAULT_RANGE.from);
+  const [dateTo, setDateTo] = useState(DEFAULT_RANGE.to);
+  const [datePreset, setDatePreset] = useState<QuickDatePreset | null>("today");
 
   const load = useCallback(async () => {
     const [orders, stats] = await Promise.all([
@@ -34,9 +57,19 @@ export default function AdminOrders() {
     refresh();
   }
 
-  const filtered = useMemo(() => {
+  function handleDateChange(from: string, to: string, preset: QuickDatePreset | null) {
+    setDateFrom(from);
+    setDateTo(to);
+    setDatePreset(preset);
+  }
+
+  const dateFiltered = useMemo(() => {
     if (!data) return [];
-    let list = data.orders;
+    return data.orders.filter((o) => orderInDateSpan(o.createdAt, dateFrom, dateTo));
+  }, [data, dateFrom, dateTo]);
+
+  const filtered = useMemo(() => {
+    let list = dateFiltered;
     if (filter !== "ALL") list = list.filter((o) => o.status === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -49,61 +82,122 @@ export default function AdminOrders() {
       );
     }
     return list;
-  }, [data, filter, search]);
+  }, [dateFiltered, filter, search]);
 
   const counts = useMemo(() => {
-    if (!data) return {};
-    const c: Record<string, number> = { ALL: data.orders.length };
-    for (const o of data.orders) c[o.status] = (c[o.status] || 0) + 1;
+    const c: Record<string, number> = { ALL: dateFiltered.length };
+    for (const o of dateFiltered) c[o.status] = (c[o.status] || 0) + 1;
     return c;
-  }, [data]);
+  }, [dateFiltered]);
+
+  const activeCount = (counts.PENDING || 0) + (counts.PREPARING || 0) + (counts.OUT_FOR_DELIVERY || 0);
+  const filteredRevenue = filtered.reduce((sum, o) => sum + Number(o.total), 0);
+  const periodLabel = formatDateSpanLabel(dateFrom, dateTo);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">Orders</h1>
-        <p className="mt-1 text-sm text-stone-500">Manage incoming orders, update status, assign riders.</p>
+      {/* Header */}
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100">
+              <ClipboardList size={20} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-stone-900">Orders</h1>
+              <p className="mt-0.5 text-sm text-stone-500">
+                {periodLabel} · refreshes every 10s
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="rounded-xl bg-amber-50 px-3 py-2 ring-1 ring-amber-100">
+              <p className="text-[11px] font-medium text-stone-500">Active</p>
+              <p className="text-lg font-semibold text-amber-800">{activeCount}</p>
+            </div>
+            <div className="rounded-xl bg-stone-50 px-3 py-2 ring-1 ring-stone-200">
+              <p className="text-[11px] font-medium text-stone-500">Showing</p>
+              <p className="text-lg font-semibold text-stone-900">{filtered.length}</p>
+            </div>
+            <div className="rounded-xl bg-brand-50 px-3 py-2 ring-1 ring-brand-100">
+              <p className="text-[11px] font-medium text-stone-500">Value</p>
+              <p className="text-lg font-semibold text-brand-800">{pkr(filteredRevenue)}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
+      <OrderDateFilter
+        from={dateFrom}
+        to={dateTo}
+        activePreset={datePreset}
+        onChange={handleDateChange}
+        orderCount={dateFiltered.length}
+      />
+
+      {/* Search + refresh */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
-            className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-2xl border border-stone-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm outline-none transition placeholder:text-stone-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             placeholder="Search order #, name, phone, address…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button onClick={refresh} className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-stone-50">
-          Refresh
+        <button
+          onClick={refresh}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-brand-200 transition hover:bg-brand-500"
+        >
+          <RefreshCw size={16} /> Refresh
         </button>
       </div>
 
+      {/* Status filters */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
-              filter === f ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
-            }`}
-          >
-            {f === "ALL" ? "All" : STATUS_LABEL[f]} ({counts[f] ?? 0})
-          </button>
-        ))}
+        {FILTERS.map((f) => {
+          const t = FILTER_THEME[f];
+          const active = filter === f;
+          return (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold ring-1 transition ${
+                active ? t.active : `${t.idle} hover:bg-stone-50`
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${active && f !== "ALL" ? "bg-white/90" : t.dot}`} />
+              {f === "ALL" ? "All" : STATUS_LABEL[f]}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-white/20" : "bg-stone-100 text-stone-500"}`}>
+                {counts[f] ?? 0}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {loading && <div className="skeleton h-40" />}
-
-      {!loading && filtered.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center">
-          <p className="text-lg font-semibold text-stone-700">No orders match</p>
-          <p className="mt-1 text-sm text-stone-500">Try a different filter or place a test order from the storefront.</p>
+      {loading && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-72 rounded-2xl" />
+          ))}
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {!loading && filtered.length === 0 && (
+        <div className="rounded-3xl border border-dashed border-stone-300 bg-white px-6 py-20 text-center shadow-sm">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 text-stone-400">
+            <Sparkles size={24} />
+          </div>
+          <p className="mt-4 text-lg font-semibold text-stone-800">No orders match</p>
+          <p className="mt-1 text-sm text-stone-500">
+            Try a different date range, status filter, or place a test order from the storefront.
+          </p>
+        </div>
+      )}
+
+      <div className="grid gap-5 lg:grid-cols-2">
         {filtered.map((o) => (
           <OrderPanel key={o.id} order={o} riders={data?.riders || []} onStatus={setStatus} onAssign={assign} />
         ))}

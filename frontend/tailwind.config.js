@@ -19,8 +19,8 @@ module.exports = {
         ink: "#1c1917",
       },
       fontFamily: {
-        sans: ["var(--font-plus-jakarta)", "system-ui", "sans-serif"],
-        display: ["var(--font-fraunces)", "Georgia", "serif"],
+        sans: ["var(--font-dm-sans)", "system-ui", "-apple-system", "sans-serif"],
+        display: ["var(--font-dm-sans)", "system-ui", "-apple-system", "sans-serif"],
       },
       boxShadow: {
         card: "0 12px 40px -18px rgba(154, 52, 18, 0.35)",

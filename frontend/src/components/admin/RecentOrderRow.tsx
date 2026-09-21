@@ -2,9 +2,16 @@
 
 import { pkr, formatWhen } from "@/lib/format";
 import { Rider } from "@/lib/admin-types";
+import { STATUS_THEME } from "@/lib/admin-status";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { StatusBadge } from "./StatusBadge";
 import { AdminSelect } from "./AdminSelect";
+
+const STATUS_OPTIONS = Object.entries(STATUS_LABEL).map(([k, v]) => ({
+  value: k,
+  label: v,
+  status: k as OrderStatus,
+}));
 
 export function RecentOrderRow({
   order,
@@ -18,11 +25,15 @@ export function RecentOrderRow({
   onAssign: (id: string, riderId: string) => void;
 }) {
   const showRider = order.status !== "DELIVERED" && order.status !== "CANCELLED";
+  const theme = STATUS_THEME[order.status];
 
   return (
-    <div className="relative overflow-visible rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-        {/* Left: order info */}
+    <div
+      className={`group relative overflow-visible rounded-2xl border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${theme.border}`}
+    >
+      <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full ${theme.stripe}`} />
+
+      <div className="flex flex-col gap-3 pl-3 lg:flex-row lg:items-center lg:gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-bold text-stone-900">{order.orderNumber}</p>
@@ -34,22 +45,23 @@ export function RecentOrderRow({
           <p className="text-xs text-stone-400">{formatWhen(order.createdAt)}</p>
         </div>
 
-        {/* Right: price + actions */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 lg:shrink-0">
-          <p className="text-xl font-bold text-brand-700 sm:min-w-[100px] sm:text-right">{pkr(order.total)}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4 lg:shrink-0">
+          <p className="font-display text-xl font-bold text-brand-700 sm:min-w-[100px] sm:text-right">{pkr(order.total)}</p>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-end gap-2">
             <AdminSelect
               value={order.status}
+              label="Status"
               aria-label="Order status"
               minWidth="min-w-[160px]"
-              options={Object.entries(STATUS_LABEL).map(([k, v]) => ({ value: k, label: v }))}
+              options={STATUS_OPTIONS}
               onChange={(v) => onStatus(order.id, v as OrderStatus)}
             />
 
             {showRider && (
               <AdminSelect
                 value={order.riderId || ""}
+                label="Rider"
                 aria-label="Assign rider"
                 minWidth="min-w-[130px]"
                 placeholder="Assign rider"

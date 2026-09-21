@@ -49,7 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-[#f4f2ef] lg:flex">
       {/* Sidebar */}
-      <aside className="lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-64 lg:flex-col">
+      <aside className="lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
         <div className="flex h-full flex-col border-b border-stone-800 bg-stone-950 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-3 px-5 py-5">
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-600 text-white">
@@ -96,7 +96,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main */}
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
+      <div className="flex min-h-screen flex-1 flex-col lg:pl-72">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-stone-200/80 bg-[#f4f2ef]/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
           <p className="text-sm text-stone-500">
             {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}

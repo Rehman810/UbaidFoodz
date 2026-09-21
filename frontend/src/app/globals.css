@@ -1,12 +1,11 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-plus-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-fraunces: "Fraunces", Georgia, serif;
+  --font-dm-sans: "DM Sans", system-ui, -apple-system, sans-serif;
 }
 
 html {
@@ -14,7 +13,14 @@ html {
 }
 
 body {
-  @apply bg-[#fffaf5] text-ink antialiased;
+  @apply bg-[#fffaf5] text-[15px] leading-relaxed text-ink antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  @apply font-semibold tracking-tight text-ink;
 }
 
 .btn-primary {
@@ -125,6 +131,40 @@ body {
 }
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.kanban-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #fdba74 transparent;
+}
+.kanban-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.kanban-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+.kanban-scroll::-webkit-scrollbar-thumb {
+  background: #fdba74;
+  border-radius: 99px;
+}
+.kanban-scroll::-webkit-scrollbar-thumb:hover {
+  background: #fb923c;
+}
+
+/* Kanban — earlier columns look inactive while dragging forward */
+.kanban-col-disabled {
+  opacity: 0.42;
+  filter: grayscale(0.85) saturate(0.6);
+}
+
+/* Drawer slide-in */
+.drawer-backdrop {
+  transition: opacity 0.34s ease;
+}
+.drawer-panel {
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
 }
 
 ::-webkit-scrollbar {

@@ -20,3 +20,12 @@ export function formatWhen(iso: string) {
     minute: "2-digit",
   });
 }
+
+export function formatElapsed(iso: string) {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m ago`;
+  return formatWhen(iso);
+}

@@ -1,16 +1,15 @@
 import { OrderStatus, STATUS_LABEL } from "@/lib/types";
+import { STATUS_THEME } from "@/lib/admin-status";
 
-const STYLES: Record<OrderStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800 ring-amber-200",
-  PREPARING: "bg-blue-100 text-blue-800 ring-blue-200",
-  OUT_FOR_DELIVERY: "bg-violet-100 text-violet-800 ring-violet-200",
-  DELIVERED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  CANCELLED: "bg-stone-100 text-stone-600 ring-stone-200",
-};
-
-export function StatusBadge({ status }: { status: OrderStatus }) {
+export function StatusBadge({ status, size = "sm" }: { status: OrderStatus; size?: "sm" | "md" }) {
+  const t = STATUS_THEME[status];
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ${STYLES[status]}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full font-medium ring-1 ring-inset ${t.bg} ${t.text} ${t.ring} ${
+        size === "md" ? "px-3 py-1 text-xs" : "px-2.5 py-1 text-xs"
+      }`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} />
       {STATUS_LABEL[status]}
     </span>
   );

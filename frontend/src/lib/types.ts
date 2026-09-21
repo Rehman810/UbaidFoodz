@@ -61,3 +61,24 @@ export const STATUS_FLOW: OrderStatus[] = [
   "OUT_FOR_DELIVERY",
   "DELIVERED",
 ];
+
+/** Kanban / pipeline: orders may only advance, never move back. */
+export function canMoveForward(from: OrderStatus, to: OrderStatus): boolean {
+  const fromIdx = STATUS_FLOW.indexOf(from);
+  const toIdx = STATUS_FLOW.indexOf(to);
+  if (fromIdx < 0 || toIdx < 0) return false;
+  return toIdx > fromIdx;
+}
+
+export function isBackwardMove(from: OrderStatus, to: OrderStatus): boolean {
+  const fromIdx = STATUS_FLOW.indexOf(from);
+  const toIdx = STATUS_FLOW.indexOf(to);
+  if (fromIdx < 0 || toIdx < 0) return false;
+  return toIdx < fromIdx;
+}
+
+export function forwardStatusOptions(current: OrderStatus) {
+  const idx = STATUS_FLOW.indexOf(current);
+  if (idx < 0) return STATUS_FLOW;
+  return STATUS_FLOW.slice(idx);
+}
