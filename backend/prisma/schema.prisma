@@ -34,17 +34,50 @@ model User {
   assignedOrders Order[] @relation("RiderOrders")
 }
 
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  tagline   String   @default("")
+  imageUrl  String   @default("")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
 model MenuItem {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   name        String
   description String
-  price       Decimal  @db.Decimal(10, 2)
+  price       Decimal    @db.Decimal(10, 2)
   category    String
   imageUrl    String
-  isAvailable Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isAvailable Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   orderItems  OrderItem[]
+  dealItems   DealItem[]
+}
+
+model Deal {
+  id          String     @id @default(uuid())
+  title       String
+  description String     @default("")
+  dealPrice   Decimal    @db.Decimal(10, 2)
+  imageUrl    String     @default("")
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  items       DealItem[]
+}
+
+model DealItem {
+  id         String   @id @default(uuid())
+  dealId     String
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int      @default(1)
+
+  @@unique([dealId, menuItemId])
 }
 
 model Order {

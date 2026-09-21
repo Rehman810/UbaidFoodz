@@ -2,19 +2,23 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { MenuItem } from "./types";
+import { Deal, MenuItem } from "./types";
 
 export type CartLine = {
   id: string;
+  kind?: "item" | "deal";
   name: string;
   price: number;
   imageUrl: string;
   quantity: number;
+  dealId?: string;
+  dealItems?: { menuItemId: string; quantity: number }[];
 };
 
 type CartState = {
   items: CartLine[];
   add: (item: MenuItem) => void;
+  addDeal: (deal: Deal) => void;
   setQty: (id: string, qty: number) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -42,10 +46,35 @@ export const useCart = create<CartState>()(
         else
           items.push({
             id: item.id,
+            kind: "item",
             name: item.name,
             price: Number(item.price),
             imageUrl: item.imageUrl,
             quantity: 1,
+          });
+        set({ items });
+        get().ping();
+      },
+      addDeal: (deal) => {
+        const id = `deal:${deal.id}`;
+        const imageUrl =
+          deal.imageUrl || deal.items[0]?.menuItem.imageUrl || "";
+        const items = [...get().items];
+        const i = items.findIndex((x) => x.id === id);
+        if (i >= 0) items[i] = { ...items[i], quantity: items[i].quantity + 1 };
+        else
+          items.push({
+            id,
+            kind: "deal",
+            dealId: deal.id,
+            name: deal.title,
+            price: Number(deal.dealPrice),
+            imageUrl,
+            quantity: 1,
+            dealItems: deal.items.map((row) => ({
+              menuItemId: row.menuItemId,
+              quantity: row.quantity,
+            })),
           });
         set({ items });
         get().ping();

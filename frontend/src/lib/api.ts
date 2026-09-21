@@ -48,6 +48,31 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   return undefined as T;
 }
 
+export async function apiUpload(path: string, file: File): Promise<{ url: string }> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("uff_token") : null;
+  const body = new FormData();
+  body.append("image", file);
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body,
+  });
+
+  if (!res.ok) {
+    let message = "Upload failed";
+    try {
+      const data = await res.json();
+      message = data.error || message;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(message, res.status);
+  }
+
+  return res.json() as Promise<{ url: string }>;
+}
+
 export function invoiceUrl(orderId: string) {
   return `${API_URL}/invoices/${orderId}/download`;
 }

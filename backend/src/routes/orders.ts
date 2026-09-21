@@ -22,25 +22,34 @@ async function nextOrderNumber() {
 }
 
 ordersRouter.post("/", requireAuth, requireRole(Role.CUSTOMER, Role.ADMIN), async (req, res) => {
-  const { items, deliveryAddress, notes, customerName, customerPhone } = req.body as {
+  const { items, deals, deliveryAddress, notes, customerName, customerPhone } = req.body as {
     items?: { menuItemId: string; quantity: number }[];
+    deals?: { dealId: string; quantity: number }[];
     deliveryAddress?: string;
     notes?: string;
     customerName?: string;
     customerPhone?: string;
   };
-  if (!items?.length || !deliveryAddress || !customerName || !customerPhone) {
+  const cartItems = items ?? [];
+  const cartDeals = deals ?? [];
+  if ((!cartItems.length && !cartDeals.length) || !deliveryAddress || !customerName || !customerPhone) {
     return res.status(400).json({ error: "Cart, name, phone and address are required." });
   }
 
   const menuItems = await prisma.menuItem.findMany({
-    where: { id: { in: items.map((i) => i.menuItemId) } },
+    where: { id: { in: cartItems.map((i) => i.menuItemId) } },
   });
   const byId = new Map(menuItems.map((m) => [m.id, m]));
 
-  const lines = [];
+  const lines: {
+    menuItemId: string;
+    quantity: number;
+    priceAtOrder: number;
+    nameAtOrder: string;
+  }[] = [];
   let total = 0;
-  for (const row of items) {
+
+  for (const row of cartItems) {
     const menu = byId.get(row.menuItemId);
     if (!menu || !menu.isAvailable) {
       return res.status(400).json({ error: `Item unavailable: ${row.menuItemId}` });
@@ -54,6 +63,44 @@ ordersRouter.post("/", requireAuth, requireRole(Role.CUSTOMER, Role.ADMIN), asyn
       priceAtOrder: price,
       nameAtOrder: menu.name,
     });
+  }
+
+  for (const row of cartDeals) {
+    const deal = await prisma.deal.findUnique({
+      where: { id: row.dealId },
+      include: {
+        items: { include: { menuItem: true } },
+      },
+    });
+    if (!deal || !deal.isActive) {
+      return res.status(400).json({ error: "Deal unavailable." });
+    }
+    const dealQty = Math.max(1, Number(row.quantity) || 1);
+    const dealPrice = Number(deal.dealPrice) * dealQty;
+    total += dealPrice;
+
+    const regular = deal.items.reduce(
+      (sum, item) => sum + Number(item.menuItem.price) * item.quantity,
+      0
+    );
+
+    for (const item of deal.items) {
+      if (!item.menuItem.isAvailable) {
+        return res.status(400).json({ error: `${item.menuItem.name} in this deal is unavailable.` });
+      }
+      const share =
+        regular > 0
+          ? (Number(item.menuItem.price) * item.quantity) / regular
+          : 1 / deal.items.length;
+      const lineTotal = dealPrice * share;
+      const lineQty = item.quantity * dealQty;
+      lines.push({
+        menuItemId: item.menuItemId,
+        quantity: lineQty,
+        priceAtOrder: lineTotal / lineQty,
+        nameAtOrder: `${deal.title} · ${item.menuItem.name}`,
+      });
+    }
   }
 
   const order = await prisma.order.create({

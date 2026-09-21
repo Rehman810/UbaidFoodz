@@ -6,7 +6,7 @@ import { requireAuth, requireRole } from "../middleware/auth";
 export const menuRouter = Router();
 
 menuRouter.get("/", async (_req, res) => {
-  const items = await prisma.menuItem.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
+  const items = await prisma.menuItem.findMany({ orderBy: { createdAt: "desc" } });
   res.json(items);
 });
 

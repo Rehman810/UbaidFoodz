@@ -35,7 +35,14 @@ export function AdminSelect({
   "aria-label": ariaLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [menuRect, setMenuRect] = useState<{
+    left: number;
+    width: number;
+    maxHeight: number;
+    placement: "bottom" | "top";
+    top?: number;
+    bottom?: number;
+  } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -43,13 +50,32 @@ export function AdminSelect({
   const display = selected?.label ?? placeholder;
   const selectedTheme = selected?.status ? STATUS_THEME[selected.status] : null;
 
+  const MENU_GAP = 6;
+  const VIEWPORT_PAD = 12;
+  const PREFERRED_MAX = 280;
+
   function updateMenuPosition() {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
+    const viewportH = window.innerHeight;
+
+    const spaceBelow = viewportH - rect.bottom - MENU_GAP - VIEWPORT_PAD;
+    const spaceAbove = rect.top - MENU_GAP - VIEWPORT_PAD;
+    const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+
+    const maxHeight = Math.min(
+      PREFERRED_MAX,
+      Math.max(120, openUp ? spaceAbove : spaceBelow)
+    );
+
     setMenuRect({
-      top: rect.bottom + 6,
       left: rect.left,
       width: rect.width,
+      maxHeight,
+      placement: openUp ? "top" : "bottom",
+      ...(openUp
+        ? { bottom: viewportH - rect.top + MENU_GAP }
+        : { top: rect.bottom + MENU_GAP }),
     });
   }
 
@@ -107,12 +133,15 @@ export function AdminSelect({
             aria-label={ariaLabel}
             style={{
               position: "fixed",
-              top: menuRect.top,
               left: menuRect.left,
               width: menuRect.width,
-              zIndex: 9999,
+              maxHeight: menuRect.maxHeight,
+              zIndex: 10050,
+              ...(menuRect.placement === "top"
+                ? { bottom: menuRect.bottom }
+                : { top: menuRect.top }),
             }}
-            className="max-h-60 overflow-auto rounded-xl border border-stone-200/80 bg-white p-1.5 shadow-2xl shadow-stone-900/15 ring-1 ring-stone-900/5"
+            className="overflow-y-auto overscroll-contain rounded-xl border border-stone-200/80 bg-white p-1.5 shadow-2xl shadow-stone-900/15 ring-1 ring-stone-900/5"
           >
             {options.map((opt) => {
               const active = opt.value === value;

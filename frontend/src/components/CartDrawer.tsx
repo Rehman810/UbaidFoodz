@@ -49,6 +49,9 @@ export function CartDrawer() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{item.name}</p>
+                    {item.kind === "deal" ? (
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">Combo deal</p>
+                    ) : null}
                     <p className="text-sm text-brand-700">{pkr(item.price)}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <button className="grid h-7 w-7 place-items-center rounded-full bg-brand-50" onClick={() => setQty(item.id, item.quantity - 1)}>

@@ -48,7 +48,12 @@ export default function CheckoutPage() {
           customerPhone: phone,
           deliveryAddress: address,
           notes,
-          items: items.map((i) => ({ menuItemId: i.id, quantity: i.quantity })),
+          items: items
+            .filter((i) => !i.kind || i.kind === "item")
+            .map((i) => ({ menuItemId: i.id, quantity: i.quantity })),
+          deals: items
+            .filter((i) => i.kind === "deal" && i.dealId)
+            .map((i) => ({ dealId: i.dealId!, quantity: i.quantity })),
         }),
       });
       clear();
@@ -111,6 +116,9 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex-1 text-sm">
                     <p className="font-medium">{i.name}</p>
+                    {i.kind === "deal" && (
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">Combo deal</p>
+                    )}
                     <p className="text-stone-500">
                       {i.quantity} × {pkr(i.price)}
                     </p>

@@ -16,6 +16,35 @@ export type MenuItem = {
   category: string;
   imageUrl: string;
   isAvailable: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type Category = {
+  id: string;
+  name: string;
+  tagline?: string;
+  imageUrl?: string;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export type DealItem = {
+  id: string;
+  menuItemId: string;
+  quantity: number;
+  menuItem: Pick<MenuItem, "id" | "name" | "price" | "imageUrl" | "category">;
+};
+
+export type Deal = {
+  id: string;
+  title: string;
+  description: string;
+  dealPrice: string | number;
+  imageUrl: string;
+  isActive: boolean;
+  createdAt: string;
+  items: DealItem[];
 };
 
 export type OrderItem = {

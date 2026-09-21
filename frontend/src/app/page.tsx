@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Bike, Clock, Flame, MapPin, Phone, ShieldCheck, Sparkles, Star } from "lucide-react";
@@ -10,16 +11,21 @@ import { Reviews } from "@/components/home/Reviews";
 import { Faq } from "@/components/home/Faq";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { Reveal } from "@/components/home/Reveal";
-
-const DEALS = [
-  { title: "Family Feast", off: "15% off", desc: "2 burgers + biryani + 4 drinks", code: "FAMILY15" },
-  { title: "Midnight Munch", off: "Free fries", desc: "On orders above Rs 1,500 after 11pm", code: "NIGHT" },
-  { title: "First Order", off: "Rs 200 off", desc: "New customers — demo offer", code: "WELCOME" },
-];
+import { DealCard } from "@/components/DealCard";
+import { api } from "@/lib/api";
+import { Deal } from "@/lib/types";
 
 const ZONES = ["DHA & Clifton", "PECHS", "North Nazimabad", "Gulshan", "Bahria Town", "Malir Cantt", "Boat Basin", "Shahrah-e-Faisal"];
 
 export default function HomePage() {
+  const [deals, setDeals] = useState<Deal[]>([]);
+
+  useEffect(() => {
+    api<Deal[]>("/deals?active=true")
+      .then(setDeals)
+      .catch(() => setDeals([]));
+  }, []);
+
   return (
     <StoreShell>
       {/* Hero */}
@@ -107,31 +113,27 @@ export default function HomePage() {
       <Marquee />
 
       {/* Deals */}
-      <section className="bg-white py-14 sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <Reveal>
-            <div className="flex items-center gap-2 text-brand-600">
-              <Sparkles size={18} />
-              <p className="text-xs font-bold uppercase tracking-[0.25em]">Tonight&apos;s deals</p>
+      {deals.length > 0 && (
+        <section className="bg-white py-14 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <Reveal>
+              <div className="flex items-center gap-2 text-brand-600">
+                <Sparkles size={18} />
+                <p className="text-xs font-bold uppercase tracking-[0.25em]">Tonight&apos;s deals</p>
+              </div>
+              <h2 className="font-display mt-2 text-3xl sm:text-4xl">Save on your bag</h2>
+              <p className="mt-2 max-w-lg text-stone-600">Combo deals with everything included — add straight to your bag.</p>
+            </Reveal>
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {deals.map((deal, i) => (
+                <Reveal key={deal.id} delay={i * 80}>
+                  <DealCard deal={deal} />
+                </Reveal>
+              ))}
             </div>
-            <h2 className="font-display mt-2 text-3xl sm:text-4xl">Save on your bag</h2>
-          </Reveal>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            {DEALS.map((d, i) => (
-              <Reveal key={d.title} delay={i * 80}>
-                <div className="group relative overflow-hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-brand-50 to-white p-6 transition hover:-translate-y-1 hover:shadow-card">
-                  <p className="text-2xl font-extrabold text-brand-600">{d.off}</p>
-                  <h3 className="mt-1 font-display text-xl">{d.title}</h3>
-                  <p className="mt-1 text-sm text-stone-500">{d.desc}</p>
-                  <p className="mt-4 inline-block rounded-full bg-brand-600 px-3 py-1 text-xs font-bold text-white">
-                    {d.code}
-                  </p>
-                </div>
-              </Reveal>
-            ))}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Live menu by category */}
       <HomeMenu />

@@ -160,8 +160,37 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.dealItem.deleteMany();
+  await prisma.deal.deleteMany();
   await prisma.menuItem.deleteMany();
+  await prisma.category.deleteMany();
   await prisma.user.deleteMany();
+
+  const categorySeed = [
+    {
+      name: "Starters",
+      tagline: "Crispy beginnings",
+      imageUrl: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=1200&q=80",
+    },
+    {
+      name: "Main Course",
+      tagline: "The main event",
+      imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80",
+    },
+    {
+      name: "Beverages",
+      tagline: "Ice-cold sips",
+      imageUrl: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=1200&q=80",
+    },
+    {
+      name: "Desserts",
+      tagline: "Sweet finish",
+      imageUrl: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=1200&q=80",
+    },
+  ];
+  for (let i = 0; i < categorySeed.length; i++) {
+    await prisma.category.create({ data: { ...categorySeed[i], sortOrder: i + 1 } });
+  }
 
   const [customer, admin, rider, rider2] = await Promise.all([
     prisma.user.create({
@@ -204,9 +233,29 @@ async function main() {
 
   void admin;
 
-  const items = [];
+  const items: { id: string; name: string; imageUrl: string }[] = [];
   for (const m of MENU) {
     items.push(await prisma.menuItem.create({ data: m }));
+  }
+
+  const biryani = items.find((i) => i.name.includes("Biryani"));
+  const lassi = items.find((i) => i.name.includes("Lassi"));
+  if (biryani && lassi) {
+    await prisma.deal.create({
+      data: {
+        title: "Biryani + Lassi Combo",
+        description: "2 chicken biryanis and 2 mango lassis — perfect for sharing.",
+        dealPrice: 2200,
+        imageUrl: biryani.imageUrl,
+        isActive: true,
+        items: {
+          create: [
+            { menuItemId: biryani.id, quantity: 2 },
+            { menuItemId: lassi.id, quantity: 2 },
+          ],
+        },
+      },
+    });
   }
 
   const pick = (...idxs: number[]) =>

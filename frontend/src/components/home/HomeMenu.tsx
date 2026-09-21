@@ -7,27 +7,9 @@ import { Plus, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { useCart } from "@/lib/cart";
-import { CATEGORIES, MenuItem } from "@/lib/types";
+import { CATEGORIES as DEFAULT_CATEGORIES, Category, MenuItem } from "@/lib/types";
+import { DEFAULT_CATEGORY_BANNER, enrichCategories } from "@/lib/category-meta";
 import { Reveal } from "./Reveal";
-
-const CAT_META: Record<string, { img: string; tag: string }> = {
-  Starters: {
-    img: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=1200&q=80",
-    tag: "Crispy beginnings",
-  },
-  "Main Course": {
-    img: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1200&q=80",
-    tag: "The main event",
-  },
-  Beverages: {
-    img: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=1200&q=80",
-    tag: "Ice-cold sips",
-  },
-  Desserts: {
-    img: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=1200&q=80",
-    tag: "Sweet finish",
-  },
-};
 
 function slug(cat: string) {
   return cat.toLowerCase().replace(/\s+/g, "-");
@@ -35,26 +17,44 @@ function slug(cat: string) {
 
 export function HomeMenu() {
   const [items, setItems] = useState<MenuItem[] | null>(null);
+  const [categories, setCategories] = useState<Category[]>(
+    enrichCategories(
+      DEFAULT_CATEGORIES.map((name, i) => ({
+        id: `default-${i}`,
+        name,
+        tagline: "",
+        imageUrl: "",
+        sortOrder: i + 1,
+        createdAt: "",
+      }))
+    )
+  );
   const [error, setError] = useState("");
   const [active, setActive] = useState("All");
   const add = useCart((s) => s.add);
 
   useEffect(() => {
-    api<MenuItem[]>("/menu")
-      .then(setItems)
+    Promise.all([
+      api<MenuItem[]>("/menu"),
+      api<Category[]>("/categories").catch(() => []),
+    ])
+      .then(([menu, cats]) => {
+        setItems(menu);
+        if (cats.length > 0) setCategories(enrichCategories(cats));
+      })
       .catch((e) => setError(e.message));
   }, []);
 
   const grouped = useMemo(() => {
     if (!items) return {};
     const map: Record<string, MenuItem[]> = {};
-    for (const c of CATEGORIES) map[c] = [];
+    for (const c of categories) map[c.name] = [];
     for (const item of items) {
       if (!map[item.category]) map[item.category] = [];
       map[item.category].push(item);
     }
     return map;
-  }, [items]);
+  }, [items, categories]);
 
   const scrollTo = (cat: string) => {
     setActive(cat);
@@ -85,7 +85,7 @@ export function HomeMenu() {
 
         <div className="sticky top-16 z-30 -mx-4 mt-8 border-b border-orange-100 bg-[#fffaf5]/95 px-4 py-3 backdrop-blur-md sm:top-[72px] sm:-mx-6 sm:px-6">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {["All", ...CATEGORIES].map((c) => (
+            {["All", ...categories.map((c) => c.name)].map((c) => (
               <button
                 key={c}
                 onClick={() => scrollTo(c)}
@@ -117,20 +117,21 @@ export function HomeMenu() {
 
         {items && (
           <div className="mt-10 space-y-16 sm:space-y-20">
-            {CATEGORIES.map((cat, ci) => {
-              const list = grouped[cat] || [];
+            {categories.map((cat, ci) => {
+              const list = grouped[cat.name] || [];
               if (!list.length) return null;
-              const meta = CAT_META[cat];
+              const banner = cat.imageUrl || DEFAULT_CATEGORY_BANNER;
+              const tagline = cat.tagline || cat.name;
               return (
-                <div key={cat} id={`cat-${slug(cat)}`} className="scroll-mt-36">
+                <div key={cat.id} id={`cat-${slug(cat.name)}`} className="scroll-mt-36">
                   <Reveal delay={ci * 80}>
                     <div className="relative mb-6 overflow-hidden rounded-3xl">
                       <div className="relative h-36 sm:h-44">
-                        <Image src={meta.img} alt="" fill className="object-cover" sizes="100vw" />
+                        <Image src={banner} alt="" fill className="object-cover" sizes="100vw" />
                         <div className="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-950/50 to-transparent" />
                         <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-7">
-                          <p className="text-xs font-bold uppercase tracking-widest text-brand-300">{meta.tag}</p>
-                          <h3 className="font-display text-3xl text-white sm:text-4xl">{cat}</h3>
+                          <p className="text-xs font-bold uppercase tracking-widest text-brand-300">{tagline}</p>
+                          <h3 className="font-display text-3xl text-white sm:text-4xl">{cat.name}</h3>
                           <p className="mt-1 text-sm text-orange-100">{list.length} items</p>
                         </div>
                       </div>

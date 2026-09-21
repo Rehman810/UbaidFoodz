@@ -10,6 +10,10 @@ import { ordersRouter } from "./routes/orders";
 import { riderRouter } from "./routes/rider";
 import { adminRouter } from "./routes/admin";
 import { invoicesRouter } from "./routes/invoices";
+import { uploadRouter } from "./routes/upload";
+import { categoriesRouter } from "./routes/categories";
+import { dealsRouter } from "./routes/deals";
+import { UPLOAD_DIR } from "./lib/uploads";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -20,10 +24,14 @@ app.use(
   })
 );
 app.use(express.json({ limit: "2mb" }));
+app.use("/uploads", express.static(UPLOAD_DIR));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+app.use("/upload", uploadRouter);
 app.use("/auth", authRouter);
 app.use("/menu", menuRouter);
+app.use("/categories", categoriesRouter);
+app.use("/deals", dealsRouter);
 app.use("/orders", ordersRouter);
 app.use("/rider", riderRouter);
 app.use("/admin", adminRouter);

@@ -4,23 +4,33 @@ import { useEffect, useMemo, useState } from "react";
 import { StoreShell } from "@/components/StoreShell";
 import { MenuCard } from "@/components/MenuCard";
 import { api } from "@/lib/api";
-import { CATEGORIES, MenuItem } from "@/lib/types";
+import { CATEGORIES as DEFAULT_CATEGORIES, Category, MenuItem } from "@/lib/types";
 
 export default function MenuPage() {
   const [items, setItems] = useState<MenuItem[] | null>(null);
+  const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [cat, setCat] = useState<string>("All");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api<MenuItem[]>("/menu")
-      .then(setItems)
+    Promise.all([
+      api<MenuItem[]>("/menu"),
+      api<Category[]>("/categories").catch(() => []),
+    ])
+      .then(([menu, cats]) => {
+        setItems(menu);
+        if (cats.length > 0) setCategories(cats.map((c) => c.name));
+      })
       .catch((e) => setError(e.message));
   }, []);
 
   const filtered = useMemo(() => {
     if (!items) return [];
-    if (cat === "All") return items;
-    return items.filter((i) => i.category === cat);
+    const sorted = [...items].sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+    if (cat === "All") return sorted;
+    return sorted.filter((i) => i.category === cat);
   }, [items, cat]);
 
   return (
@@ -29,7 +39,7 @@ export default function MenuPage() {
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Full menu</p>
         <h1 className="font-display mt-1 text-4xl">What are you craving?</h1>
         <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
-          {["All", ...CATEGORIES].map((c) => (
+          {["All", ...categories].map((c) => (
             <button
               key={c}
               onClick={() => setCat(c)}
