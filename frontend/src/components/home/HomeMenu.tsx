@@ -125,13 +125,20 @@ export function HomeMenu() {
               return (
                 <div key={cat.id} id={`cat-${slug(cat.name)}`} className="scroll-mt-36">
                   <Reveal delay={ci * 80}>
-                    <div className="relative mb-6 overflow-hidden rounded-3xl">
-                      <div className="relative h-36 sm:h-44">
+                    {/* Mobile: text-only category header */}
+                    <div className="mb-4 sm:hidden">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand-600">{tagline}</p>
+                      <h3 className="font-display text-2xl text-stone-900">{cat.name}</h3>
+                      <p className="mt-0.5 text-xs text-stone-500">{list.length} items</p>
+                    </div>
+                    {/* Tablet+: image banner */}
+                    <div className="relative mb-6 hidden overflow-hidden rounded-3xl sm:block">
+                      <div className="relative h-44">
                         <Image src={banner} alt="" fill className="object-cover" sizes="100vw" />
                         <div className="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-950/50 to-transparent" />
-                        <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-7">
+                        <div className="absolute inset-0 flex flex-col justify-end p-7">
                           <p className="text-xs font-bold uppercase tracking-widest text-brand-300">{tagline}</p>
-                          <h3 className="font-display text-3xl text-white sm:text-4xl">{cat.name}</h3>
+                          <h3 className="font-display text-4xl text-white">{cat.name}</h3>
                           <p className="mt-1 text-sm text-orange-100">{list.length} items</p>
                         </div>
                       </div>

@@ -13,7 +13,6 @@ function dealImage(deal: Deal) {
 
 export function DealCard({ deal }: { deal: Deal }) {
   const addDeal = useCart((s) => s.addDeal);
-  const setDrawer = useCart((s) => s.setDrawer);
 
   const regular = deal.items.reduce(
     (sum, row) => sum + Number(row.menuItem.price) * row.quantity,
@@ -81,10 +80,7 @@ export function DealCard({ deal }: { deal: Deal }) {
           </div>
           <button
             type="button"
-            onClick={() => {
-              addDeal(deal);
-              setDrawer(true);
-            }}
+            onClick={() => addDeal(deal)}
             className="btn-primary shrink-0 py-2.5 text-sm"
           >
             <Plus size={15} /> Add to bag

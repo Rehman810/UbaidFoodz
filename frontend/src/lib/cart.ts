@@ -52,7 +52,7 @@ export const useCart = create<CartState>()(
             imageUrl: item.imageUrl,
             quantity: 1,
           });
-        set({ items });
+        set({ items, drawerOpen: true });
         get().ping();
       },
       addDeal: (deal) => {
@@ -76,7 +76,7 @@ export const useCart = create<CartState>()(
               quantity: row.quantity,
             })),
           });
-        set({ items });
+        set({ items, drawerOpen: true });
         get().ping();
       },
       setQty: (id, qty) => {

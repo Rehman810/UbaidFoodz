@@ -2,9 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { cartTotal, useCart } from "@/lib/cart";
 import { pkr } from "@/lib/format";
+
+const CLOSE_MS = 340;
 
 export function CartDrawer() {
   const open = useCart((s) => s.drawerOpen);
@@ -14,18 +17,77 @@ export function CartDrawer() {
   const remove = useCart((s) => s.remove);
   const total = cartTotal(items);
 
-  if (!open) return null;
+  const [render, setRender] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+
+  const close = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    setVisible(false);
+    window.setTimeout(() => {
+      closingRef.current = false;
+      setDrawer(false);
+      setClosing(false);
+      setRender(false);
+      document.body.style.overflow = "";
+    }, CLOSE_MS);
+  }, [setDrawer]);
+
+  const closeRef = useRef(close);
+  closeRef.current = close;
+
+  useEffect(() => {
+    if (!open) return;
+
+    setRender(true);
+    setClosing(false);
+    document.body.style.overflow = "hidden";
+
+    const r1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setVisible(true));
+    });
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") closeRef.current();
+    }
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      cancelAnimationFrame(r1);
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  if (!render) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <button className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onClick={() => setDrawer(false)} />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-[#fffaf5] shadow-float">
+    <div className="fixed inset-0 z-50 flex justify-end" aria-hidden={closing}>
+      <button
+        type="button"
+        aria-label="Close cart"
+        className={`drawer-backdrop absolute inset-0 bg-stone-900/40 backdrop-blur-sm ${
+          visible && !closing ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={close}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label="Your bag"
+        className={`drawer-panel relative flex h-full w-full max-w-md flex-col bg-[#fffaf5] shadow-float ${
+          visible && !closing ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="flex items-center justify-between border-b border-orange-100 px-5 py-4">
           <div>
             <p className="font-display text-2xl">Your bag</p>
             <p className="text-xs text-stone-500">{items.length} item(s)</p>
           </div>
-          <button onClick={() => setDrawer(false)} className="btn-ghost h-10 px-3">
+          <button onClick={close} className="btn-ghost h-10 px-3">
             Close
           </button>
         </div>
@@ -78,7 +140,7 @@ export function CartDrawer() {
           </div>
           <Link
             href="/checkout"
-            onClick={() => setDrawer(false)}
+            onClick={close}
             className={`btn-primary w-full ${items.length === 0 ? "pointer-events-none opacity-50" : ""}`}
           >
             Place order

@@ -26,13 +26,20 @@ const NAV = [
   { href: "/admin/riders", label: "Riders", icon: Bike },
 ];
 
+const MOBILE_NAV = [
+  { href: "/admin", label: "Home", icon: LayoutDashboard },
+  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/admin/tracking", label: "Board", icon: Map },
+  { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+];
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const path = usePathname();
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== "ADMIN")) router.push("/login?next=/admin");
+    if (!loading && (!user || user.role !== "ADMIN")) router.replace("/login?next=/admin");
   }, [user, loading, router]);
 
   if (loading || !user || user.role !== "ADMIN") {
@@ -101,16 +108,46 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <p className="text-sm text-stone-500">
             {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 sm:flex">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Kitchen online
             </span>
-            <Link href="/" className="text-xs font-semibold text-brand-700 hover:underline">
+            <Link href="/" className="hidden text-xs font-semibold text-brand-700 hover:underline sm:inline">
               View storefront →
             </Link>
+            <button
+              type="button"
+              onClick={() => { logout(); router.replace("/login"); }}
+              className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 lg:hidden"
+            >
+              <LogOut size={14} /> Out
+            </button>
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8">{children}</main>
+
+        {/* Mobile quick nav */}
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white/95 backdrop-blur-md lg:hidden">
+          <div className="grid grid-cols-4">
+            {MOBILE_NAV.map((n) => {
+              const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
+              const Icon = n.icon;
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold ${
+                    active ? "text-brand-700" : "text-stone-400"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+                  {n.label}
+                </Link>
+              );
+            })}
+          </div>
+          <div className="h-[env(safe-area-inset-bottom)]" />
+        </nav>
       </div>
     </div>
   );

@@ -16,15 +16,15 @@ export function Navbar() {
   const count = cartCount(items);
   const [open, setOpen] = useState(false);
 
-  const links = [
-    { href: "/", label: "Home", match: (p: string) => p === "/" },
-    { href: "/menu", label: "Menu", match: (p: string) => p.startsWith("/menu") },
-    ...(user?.role === "CUSTOMER"
-      ? [{ href: "/orders", label: "My orders", match: (p: string) => p.startsWith("/orders") }]
-      : []),
-    ...(user?.role === "ADMIN" ? [{ href: "/admin", label: "Kitchen", match: (p: string) => p.startsWith("/admin") }] : []),
-    ...(user?.role === "RIDER" ? [{ href: "/rider", label: "Deliveries", match: (p: string) => p.startsWith("/rider") }] : []),
-  ];
+  const isCustomer = !user || user.role === "CUSTOMER";
+
+  const links = isCustomer
+    ? [
+        { href: "/", label: "Home", match: (p: string) => p === "/" },
+        { href: "/menu", label: "Menu", match: (p: string) => p.startsWith("/menu") },
+        ...(user ? [{ href: "/orders", label: "My orders", match: (p: string) => p.startsWith("/orders") }] : []),
+      ]
+    : [];
 
   return (
     <>
@@ -64,20 +64,22 @@ export function Navbar() {
             >
               <Menu size={18} />
             </button>
-            <button
-              onClick={() => useCart.getState().setDrawer(true)}
-              className={`relative grid h-9 w-9 place-items-center rounded-full border border-stone-200 bg-white text-ink transition sm:h-10 sm:w-10 ${
-                bounce ? "scale-105" : ""
-              }`}
-              aria-label="Open cart"
-            >
-              <ShoppingBag size={17} strokeWidth={2} />
-              {count > 0 && (
-                <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-bold leading-none text-white">
-                  {count}
-                </span>
-              )}
-            </button>
+            {isCustomer && (
+              <button
+                onClick={() => useCart.getState().setDrawer(true)}
+                className={`relative grid h-9 w-9 place-items-center rounded-full border border-stone-200 bg-white text-ink transition sm:h-10 sm:w-10 ${
+                  bounce ? "scale-105" : ""
+                }`}
+                aria-label="Open cart"
+              >
+                <ShoppingBag size={17} strokeWidth={2} />
+                {count > 0 && (
+                  <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-bold leading-none text-white">
+                    {count}
+                  </span>
+                )}
+              </button>
+            )}
             {user ? (
               <button
                 onClick={() => {

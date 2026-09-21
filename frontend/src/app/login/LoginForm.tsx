@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flame } from "lucide-react";
-import { homeFor, useAuth } from "@/lib/auth";
+import { homeFor, resolveLoginRedirect, useAuth } from "@/lib/auth";
 
 const DEMOS = [
   { role: "Customer", email: "customer@ubaidfastfoodz.com", password: "demo123" },
@@ -20,18 +20,23 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function signIn(asEmail: string, asPassword: string, ignoreNext = false) {
     setBusy(true);
     setError("");
     try {
-      const user = await login(email, password);
-      router.push(next || homeFor(user.role));
+      const user = await login(asEmail, asPassword);
+      const dest = ignoreNext ? homeFor(user.role) : resolveLoginRedirect(user.role, next);
+      router.replace(dest);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    await signIn(email, password);
   }
 
   return (
@@ -73,11 +78,13 @@ export default function LoginForm() {
               <button
                 type="button"
                 key={d.email}
+                disabled={busy}
                 onClick={() => {
                   setEmail(d.email);
                   setPassword(d.password);
+                  signIn(d.email, d.password, true);
                 }}
-                className="flex w-full items-center justify-between rounded-2xl border border-orange-100 bg-white px-4 py-3 text-left text-sm hover:border-brand-300"
+                className="flex w-full items-center justify-between rounded-2xl border border-orange-100 bg-white px-4 py-3 text-left text-sm hover:border-brand-300 disabled:opacity-60"
               >
                 <span className="font-semibold text-brand-800">{d.role}</span>
                 <span className="text-stone-500">

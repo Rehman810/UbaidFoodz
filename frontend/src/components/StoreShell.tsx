@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
+import { RoleRedirect } from "@/components/RoleRedirect";
 
 export function StoreShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
+      <RoleRedirect />
       <Navbar />
       <main className="flex-1">{children}</main>
       <footer className="border-t border-orange-100 bg-stone-950 text-stone-400">

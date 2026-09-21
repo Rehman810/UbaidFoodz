@@ -74,3 +74,13 @@ export function homeFor(role?: Role) {
   if (role === "RIDER") return "/rider";
   return "/menu";
 }
+
+/** Send users to a `next` URL only when their role is allowed there. */
+export function resolveLoginRedirect(role: Role, next: string | null) {
+  const home = homeFor(role);
+  if (!next) return home;
+  if (role === "ADMIN" && next.startsWith("/admin")) return next;
+  if (role === "RIDER" && next.startsWith("/rider")) return next;
+  if (role === "CUSTOMER" && !next.startsWith("/admin") && !next.startsWith("/rider")) return next;
+  return home;
+}
