@@ -57,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </span>
             <div>
               <p className="font-display text-lg leading-tight text-white">Kitchen OS</p>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-500">Ubaid Fast Foodz</p>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">Ubaid Fast Foodz</p>
             </div>
           </div>
 
@@ -84,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           <div className="hidden border-t border-stone-800 p-4 lg:block">
             <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-            <p className="truncate text-xs text-stone-500">{user.email}</p>
+            <p className="truncate text-xs text-stone-400">{user.email}</p>
             <button
               onClick={() => { logout(); router.push("/"); }}
               className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-stone-400 hover:bg-stone-900 hover:text-white"

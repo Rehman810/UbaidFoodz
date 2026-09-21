@@ -11,6 +11,9 @@ export type Rider = {
 export type AdminStats = {
   todayOrders: number;
   todayRevenue: number;
+  monthOrders: number;
+  monthRevenue: number;
+  monthAvgOrderValue: number;
   avgOrderValue: number;
   pending: number;
   preparing: number;

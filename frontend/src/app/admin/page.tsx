@@ -13,7 +13,6 @@ import {
   YAxis,
 } from "recharts";
 import {
-  Bike,
   ClipboardList,
   PackageCheck,
   RefreshCw,
@@ -79,7 +78,7 @@ export default function AdminDashboard() {
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand-300">Kitchen command</p>
-            <h1 className="font-display mt-2 text-3xl sm:text-4xl">
+            <h1 className="font-display mt-2 text-3xl text-white sm:text-4xl">
               Good evening, Ubaid 👋
             </h1>
             <p className="mt-2 max-w-md text-sm text-stone-400">
@@ -106,7 +105,13 @@ export default function AdminDashboard() {
         <StatCard label="Today's orders" value={stats.todayOrders} icon={ClipboardList} accent="blue" sub="orders" />
         <StatCard label="Avg order value" value={pkr(stats.avgOrderValue)} icon={TrendingUp} accent="emerald" sub="PKR" />
         <StatCard label="Delivered today" value={stats.deliveredToday} icon={PackageCheck} accent="emerald" sub="done" />
-        <StatCard label="Lifetime revenue" value={pkr(stats.totalRevenue)} icon={Wallet} accent="brand" sub="all time" />
+        <StatCard
+          label="This month revenue"
+          value={pkr(stats.monthRevenue ?? 0)}
+          icon={Wallet}
+          accent="brand"
+          sub={new Date().toLocaleDateString("en-PK", { month: "short" })}
+        />
       </div>
 
       <PipelineFlow
@@ -135,22 +140,45 @@ export default function AdminDashboard() {
             </span>
           </div>
         </div>
-        <div className="mt-6 h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={stats.chart} barGap={4}>
+        <div className="mt-6 h-80 min-h-[320px] w-full">
+          <ResponsiveContainer width="100%" height="100%" minHeight={320}>
+            <ComposedChart data={stats.chart} barGap={4} margin={{ top: 12, right: 12, left: 4, bottom: 8 }}>
               <defs>
                 <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#fdba74" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#fdba74" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#fdba74" stopOpacity={0.45} />
+                  <stop offset="100%" stopColor="#fdba74" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f5f5f4" />
-              <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#78716c" }} />
-              <YAxis yAxisId="orders" allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#a8a29e" }} />
-              <YAxis yAxisId="rev" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#a8a29e" }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
+              <XAxis
+                dataKey="label"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#57534e", fontWeight: 600 }}
+                dy={8}
+              />
+              <YAxis
+                yAxisId="orders"
+                allowDecimals={false}
+                domain={[0, (max: number) => Math.max(max, 4)]}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#57534e" }}
+                width={32}
+              />
+              <YAxis
+                yAxisId="rev"
+                orientation="right"
+                domain={[0, "auto"]}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#57534e" }}
+                tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
+                width={40}
+              />
               <Tooltip content={<ChartTooltip />} />
-              <Bar yAxisId="orders" dataKey="orders" fill="#ea580c" radius={[8, 8, 0, 0]} maxBarSize={44} />
-              <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#fb923c" strokeWidth={2.5} fill="url(#revGrad)" />
+              <Bar yAxisId="orders" dataKey="orders" fill="#ea580c" radius={[8, 8, 0, 0]} maxBarSize={48} />
+              <Area yAxisId="rev" type="monotone" dataKey="revenue" stroke="#fb923c" strokeWidth={2.5} fill="url(#revGrad)" dot={{ r: 3, fill: "#ea580c", strokeWidth: 0 }} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -161,7 +189,7 @@ export default function AdminDashboard() {
         <div className="xl:col-span-3">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="font-display text-xl">Incoming orders</h2>
+              <h2 className="font-display text-xl text-stone-900">Incoming orders</h2>
               <p className="text-sm text-stone-500">Update status inline</p>
             </div>
             <Link href="/admin/orders" className="text-sm font-bold text-brand-700 hover:underline">
@@ -178,7 +206,7 @@ export default function AdminDashboard() {
         {/* Sidebar widgets */}
         <div className="space-y-5 xl:col-span-2">
           <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
-            <h2 className="font-display text-lg">Top sellers</h2>
+            <h2 className="font-display text-lg text-stone-900">Top sellers</h2>
             <ul className="mt-4 space-y-4">
               {stats.topItems.map((item, i) => (
                 <li key={item.name}>
@@ -196,26 +224,6 @@ export default function AdminDashboard() {
                 </li>
               ))}
             </ul>
-          </div>
-
-          <div className="rounded-2xl bg-gradient-to-br from-stone-900 to-stone-800 p-5 text-white shadow-lg">
-            <h2 className="font-display text-lg">Fleet snapshot</h2>
-            <ul className="mt-4 space-y-3">
-              {stats.riders.map((r) => (
-                <li key={r.id} className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2.5 ring-1 ring-white/10">
-                  <div className="flex items-center gap-2">
-                    <Bike size={16} className="text-brand-400" />
-                    <span className="text-sm font-semibold">{r.name}</span>
-                  </div>
-                  <span className="text-xs text-stone-400">
-                    {r.activeDeliveries || 0} active · {r.completedToday || 0} today
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <Link href="/admin/riders" className="mt-4 inline-block text-xs font-bold text-brand-400 hover:text-brand-300">
-              Manage riders →
-            </Link>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import { OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
@@ -158,10 +159,13 @@ async function buildChart(period: AnalyticsPeriod, start: Date, end: Date) {
 
 adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
   const start = dayStart();
+  const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
 
   const [
     todayOrders,
     todayRevenueAgg,
+    monthRevenueAgg,
+    monthOrders,
     pending,
     preparing,
     out,
@@ -181,6 +185,13 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     prisma.order.aggregate({
       _sum: { total: true },
       where: { createdAt: { gte: start }, status: { not: OrderStatus.CANCELLED } },
+    }),
+    prisma.order.aggregate({
+      _sum: { total: true },
+      where: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
+    }),
+    prisma.order.count({
+      where: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
     }),
     prisma.order.count({ where: { status: OrderStatus.PENDING } }),
     prisma.order.count({ where: { status: OrderStatus.PREPARING } }),
@@ -209,6 +220,7 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
   ]);
 
   const todayRevenue = Number(todayRevenueAgg._sum.total || 0);
+  const monthRevenue = Number(monthRevenueAgg._sum.total || 0);
   const totalRevenue = Number(totalRevenueAgg._sum.total || 0);
 
   const days = [];
@@ -277,7 +289,10 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
   res.json({
     todayOrders,
     todayRevenue,
+    monthOrders,
+    monthRevenue,
     avgOrderValue: todayOrders ? Math.round(todayRevenue / todayOrders) : 0,
+    monthAvgOrderValue: monthOrders ? Math.round(monthRevenue / monthOrders) : 0,
     pending,
     preparing,
     outForDelivery: out,
@@ -404,6 +419,46 @@ adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN), async (_req,
       lastOrder: c.orders[0] || null,
     }))
   );
+});
+
+adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const { name, email, phone, password } = req.body as {
+    name?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+  };
+
+  if (!name?.trim() || !email?.trim()) {
+    return res.status(400).json({ error: "Name and email are required." });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (existing) return res.status(409).json({ error: "An account with this email already exists." });
+
+  const plainPassword = password?.trim() || "demo123";
+  if (plainPassword.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  }
+
+  const rider = await prisma.user.create({
+    data: {
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone?.trim() || null,
+      passwordHash: await bcrypt.hash(plainPassword, 10),
+      role: Role.RIDER,
+    },
+    select: { id: true, name: true, email: true, phone: true },
+  });
+
+  res.status(201).json({
+    ...rider,
+    activeOrders: [],
+    deliveredCount: 0,
+    totalAssigned: 0,
+  });
 });
 
 adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
