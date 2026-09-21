@@ -29,6 +29,23 @@ export type AdminStats = {
   recentOrders: Order[];
 };
 
+export type AnalyticsPeriod = "today" | "week" | "month" | "year";
+
+export type AnalyticsData = {
+  period: AnalyticsPeriod;
+  periodLabel: string;
+  range: { from: string; to: string };
+  revenue: number;
+  orders: number;
+  avgOrderValue: number;
+  delivered: number;
+  customers: number;
+  chart: { date: string; label: string; orders: number; revenue: number }[];
+  topItems: { name: string; qty: number; revenue: number }[];
+  categoryBreakdown: { category: string; revenue: number; orders: number }[];
+  statusBreakdown: Partial<Record<OrderStatus, number>>;
+};
+
 export type AdminCustomer = {
   id: string;
   name: string;
