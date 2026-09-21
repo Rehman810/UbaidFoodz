@@ -37,6 +37,16 @@ body {
   @apply animate-pulse rounded-2xl bg-stone-200/80;
 }
 
+/* Admin selects — hide native arrow, consistent styling */
+.admin-select {
+  background-image: none;
+}
+.admin-select option {
+  color: #1c1917;
+  background: #fff;
+  padding: 8px;
+}
+
 /* Landing animations */
 @keyframes fade-up {
   from {

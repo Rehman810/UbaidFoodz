@@ -1,101 +1,111 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
-import { api, downloadInvoice } from "@/lib/api";
-import { formatWhen, pkr } from "@/lib/format";
+import { useCallback, useMemo, useState } from "react";
+import { Search } from "lucide-react";
+import { api } from "@/lib/api";
+import { AdminStats } from "@/lib/admin-types";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
+import { usePoll } from "@/hooks/usePoll";
+import { OrderPanel } from "@/components/admin/OrderPanel";
 
-type Rider = { id: string; name: string; phone?: string | null };
+const FILTERS: (OrderStatus | "ALL")[] = ["ALL", "PENDING", "PREPARING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"];
 
 export default function AdminOrders() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [riders, setRiders] = useState<Rider[]>([]);
+  const [filter, setFilter] = useState<OrderStatus | "ALL">("ALL");
+  const [search, setSearch] = useState("");
 
-  async function load() {
-    const [o, stats] = await Promise.all([
+  const load = useCallback(async () => {
+    const [orders, stats] = await Promise.all([
       api<Order[]>("/orders"),
-      api<{ riders: Rider[] }>("/admin/stats"),
+      api<AdminStats>("/admin/stats"),
     ]);
-    setOrders(o);
-    setRiders(stats.riders);
-  }
-
-  useEffect(() => {
-    load();
+    return { orders, riders: stats.riders };
   }, []);
+
+  const { data, loading, refresh } = usePoll(load, 10000);
 
   async function setStatus(id: string, status: OrderStatus) {
     await api(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-    load();
+    refresh();
   }
 
   async function assign(id: string, riderId: string) {
     await api(`/orders/${id}/assign`, { method: "PATCH", body: JSON.stringify({ riderId }) });
-    load();
+    refresh();
   }
 
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    let list = data.orders;
+    if (filter !== "ALL") list = list.filter((o) => o.status === filter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (o) =>
+          o.orderNumber.toLowerCase().includes(q) ||
+          o.customerName.toLowerCase().includes(q) ||
+          o.customerPhone.includes(q) ||
+          o.deliveryAddress.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [data, filter, search]);
+
+  const counts = useMemo(() => {
+    if (!data) return {};
+    const c: Record<string, number> = { ALL: data.orders.length };
+    for (const o of data.orders) c[o.status] = (c[o.status] || 0) + 1;
+    return c;
+  }, [data]);
+
   return (
-    <div>
-      <h1 className="font-display text-4xl">Incoming orders</h1>
-      <div className="mt-6 space-y-3">
-        {orders.length === 0 && (
-          <div className="card px-6 py-16 text-center">
-            <p className="font-display text-2xl">Quiet kitchen</p>
-            <p className="text-sm text-stone-500">New orders will land here in real time for the demo.</p>
-          </div>
-        )}
-        {orders.map((o) => (
-          <article key={o.id} className="card p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">{o.orderNumber}</p>
-                <p className="text-sm text-stone-500">
-                  {o.customerName} · {o.customerPhone}
-                </p>
-                <p className="text-xs text-stone-400">{formatWhen(o.createdAt)}</p>
-              </div>
-              <p className="font-display text-2xl text-brand-700">{pkr(o.total)}</p>
-            </div>
-            <p className="mt-2 text-sm text-stone-600">{o.deliveryAddress}</p>
-            <ul className="mt-2 text-sm text-stone-500">
-              {o.items.map((i) => (
-                <li key={i.id}>
-                  {i.quantity}× {i.nameAtOrder}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <select
-                className="input max-w-[200px] py-2"
-                value={o.status}
-                onChange={(e) => setStatus(o.id, e.target.value as OrderStatus)}
-              >
-                {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="input max-w-[200px] py-2"
-                value={o.riderId || ""}
-                onChange={(e) => assign(o.id, e.target.value)}
-              >
-                <option value="">Assign rider</option>
-                {riders.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-              {(o.status === "DELIVERED" || o.invoice) && (
-                <button className="btn-ghost py-2" onClick={() => downloadInvoice(o.id)}>
-                  <Download size={14} /> Invoice
-                </button>
-              )}
-            </div>
-          </article>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold sm:text-3xl">Orders</h1>
+        <p className="mt-1 text-sm text-stone-500">Manage incoming orders, update status, assign riders.</p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            placeholder="Search order #, name, phone, address…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <button onClick={refresh} className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-stone-50">
+          Refresh
+        </button>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition ${
+              filter === f ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
+            }`}
+          >
+            {f === "ALL" ? "All" : STATUS_LABEL[f]} ({counts[f] ?? 0})
+          </button>
+        ))}
+      </div>
+
+      {loading && <div className="skeleton h-40" />}
+
+      {!loading && filtered.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center">
+          <p className="text-lg font-semibold text-stone-700">No orders match</p>
+          <p className="mt-1 text-sm text-stone-500">Try a different filter or place a test order from the storefront.</p>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {filtered.map((o) => (
+          <OrderPanel key={o.id} order={o} riders={data?.riders || []} onStatus={setStatus} onAssign={assign} />
         ))}
       </div>
     </div>

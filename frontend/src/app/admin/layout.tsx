@@ -3,13 +3,27 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Flame, LayoutDashboard, ClipboardList, UtensilsCrossed, LogOut } from "lucide-react";
+import {
+  BarChart3,
+  Bike,
+  ClipboardList,
+  Flame,
+  LayoutDashboard,
+  LogOut,
+  Map,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/admin/tracking", label: "Live tracking", icon: Map },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+  { href: "/admin/customers", label: "Customers", icon: Users },
+  { href: "/admin/riders", label: "Riders", icon: Bike },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -22,49 +36,82 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [user, loading, router]);
 
   if (loading || !user || user.role !== "ADMIN") {
-    return <div className="grid min-h-screen place-items-center text-stone-500">Opening kitchen…</div>;
+    return (
+      <div className="grid min-h-screen place-items-center bg-stone-950 text-stone-400">
+        <div className="flex items-center gap-3">
+          <span className="h-2 w-2 animate-ping rounded-full bg-brand-500" />
+          Opening kitchen dashboard…
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-[#fff7ed] md:grid md:grid-cols-[240px_1fr]">
-      <aside className="border-b border-orange-100 bg-white md:border-b-0 md:border-r">
-        <div className="flex items-center gap-2 px-5 py-5">
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-brand-600 text-white">
-            <Flame size={16} />
-          </span>
-          <div>
-            <p className="font-display text-lg leading-tight">Kitchen</p>
-            <p className="text-[11px] text-stone-500">Ubaid Fast Foodz</p>
+    <div className="min-h-screen bg-[#f4f2ef] lg:flex">
+      {/* Sidebar */}
+      <aside className="lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-64 lg:flex-col">
+        <div className="flex h-full flex-col border-b border-stone-800 bg-stone-950 lg:border-b-0 lg:border-r">
+          <div className="flex items-center gap-3 px-5 py-5">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-600 text-white">
+              <Flame size={18} />
+            </span>
+            <div>
+              <p className="font-display text-lg leading-tight text-white">Kitchen OS</p>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-500">Ubaid Fast Foodz</p>
+            </div>
+          </div>
+
+          <nav className="flex gap-1 overflow-x-auto px-3 py-2 lg:flex-1 lg:flex-col lg:overflow-visible">
+            {NAV.map((n) => {
+              const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
+              const Icon = n.icon;
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  className={`flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                    active
+                      ? "bg-brand-600 text-white shadow-lg shadow-brand-900/30"
+                      : "text-stone-400 hover:bg-stone-900 hover:text-white"
+                  }`}
+                >
+                  <Icon size={17} />
+                  {n.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="hidden border-t border-stone-800 p-4 lg:block">
+            <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+            <p className="truncate text-xs text-stone-500">{user.email}</p>
+            <button
+              onClick={() => { logout(); router.push("/"); }}
+              className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-stone-400 hover:bg-stone-900 hover:text-white"
+            >
+              <LogOut size={16} /> Sign out
+            </button>
           </div>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col">
-          {NAV.map((n) => {
-            const active = path === n.href;
-            const Icon = n.icon;
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={`flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold ${
-                  active ? "bg-brand-600 text-white" : "text-stone-600 hover:bg-brand-50"
-                }`}
-              >
-                <Icon size={16} /> {n.label}
-              </Link>
-            );
-          })}
-          <button
-            onClick={() => {
-              logout();
-              router.push("/");
-            }}
-            className="mt-auto flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold text-stone-500"
-          >
-            <LogOut size={16} /> Sign out
-          </button>
-        </nav>
       </aside>
-      <div className="min-h-[calc(100vh-1px)] p-4 md:p-8">{children}</div>
+
+      {/* Main */}
+      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-stone-200/80 bg-[#f4f2ef]/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
+          <p className="text-sm text-stone-500">
+            {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+          <div className="flex items-center gap-3">
+            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 sm:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Kitchen online
+            </span>
+            <Link href="/" className="text-xs font-semibold text-brand-700 hover:underline">
+              View storefront →
+            </Link>
+          </div>
+        </header>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
     </div>
   );
 }
