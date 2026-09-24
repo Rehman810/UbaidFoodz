@@ -47,7 +47,8 @@ function DishImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-export type SizeRow = { name: string; price: string };
+export type OptionRow = { name: string; price: string; discountPrice: string };
+export type OptionGroupRow = { name: string; required: boolean; options: OptionRow[] };
 export type AddonRow = { name: string; price: string };
 
 export type MenuFormData = {
@@ -58,7 +59,7 @@ export type MenuFormData = {
   category: string;
   imageUrl: string;
   isAvailable: boolean;
-  sizes: SizeRow[];
+  optionGroups: OptionGroupRow[];
   addons: AddonRow[];
 };
 
@@ -294,48 +295,141 @@ export function MenuFormSheet({
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <label className="text-xs font-medium text-stone-500">Sizes (optional)</label>
+                <label className="text-xs font-medium text-stone-500">Option groups (e.g. Portion, Crust)</label>
                 <button
                   type="button"
                   className="text-xs font-semibold text-brand-700"
-                  onClick={() => setForm((f) => ({ ...f, sizes: [...f.sizes, { name: "", price: "" }] }))}
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      optionGroups: [
+                        ...f.optionGroups,
+                        { name: "Choose an option", required: true, options: [{ name: "", price: "", discountPrice: "" }] },
+                      ],
+                    }))
+                  }
                 >
-                  + Add size
+                  + Add group
                 </button>
               </div>
-              {form.sizes.map((row, i) => (
-                <div key={i} className="mb-2 flex gap-2">
-                  <input
-                    className="input flex-1"
-                    placeholder="Name"
-                    value={row.name}
-                    onChange={(e) =>
-                      setForm((f) => {
-                        const sizes = [...f.sizes];
-                        sizes[i] = { ...sizes[i], name: e.target.value };
-                        return { ...f, sizes };
-                      })
-                    }
-                  />
-                  <input
-                    className="input w-24"
-                    placeholder="Rs"
-                    type="number"
-                    value={row.price}
-                    onChange={(e) =>
-                      setForm((f) => {
-                        const sizes = [...f.sizes];
-                        sizes[i] = { ...sizes[i], price: e.target.value };
-                        return { ...f, sizes };
-                      })
-                    }
-                  />
+              {form.optionGroups.map((group, gi) => (
+                <div key={gi} className="mb-4 rounded-xl border border-stone-200 p-3">
+                  <div className="mb-2 flex gap-2">
+                    <input
+                      className="input flex-1"
+                      placeholder="Group name (e.g. Choose portion)"
+                      value={group.name}
+                      onChange={(e) =>
+                        setForm((f) => {
+                          const optionGroups = [...f.optionGroups];
+                          optionGroups[gi] = { ...optionGroups[gi], name: e.target.value };
+                          return { ...f, optionGroups };
+                        })
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="text-stone-400"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, optionGroups: f.optionGroups.filter((_, j) => j !== gi) }))
+                      }
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <label className="mb-2 flex items-center gap-2 text-xs text-stone-500">
+                    <input
+                      type="checkbox"
+                      checked={group.required}
+                      onChange={(e) =>
+                        setForm((f) => {
+                          const optionGroups = [...f.optionGroups];
+                          optionGroups[gi] = { ...optionGroups[gi], required: e.target.checked };
+                          return { ...f, optionGroups };
+                        })
+                      }
+                    />
+                    Required selection
+                  </label>
+                  {group.options.map((row, oi) => (
+                    <div key={oi} className="mb-2 flex gap-2">
+                      <input
+                        className="input flex-1"
+                        placeholder="Option name"
+                        value={row.name}
+                        onChange={(e) =>
+                          setForm((f) => {
+                            const optionGroups = [...f.optionGroups];
+                            const options = [...optionGroups[gi].options];
+                            options[oi] = { ...options[oi], name: e.target.value };
+                            optionGroups[gi] = { ...optionGroups[gi], options };
+                            return { ...f, optionGroups };
+                          })
+                        }
+                      />
+                      <input
+                        className="input w-20"
+                        placeholder="Price"
+                        type="number"
+                        value={row.price}
+                        onChange={(e) =>
+                          setForm((f) => {
+                            const optionGroups = [...f.optionGroups];
+                            const options = [...optionGroups[gi].options];
+                            options[oi] = { ...options[oi], price: e.target.value };
+                            optionGroups[gi] = { ...optionGroups[gi], options };
+                            return { ...f, optionGroups };
+                          })
+                        }
+                      />
+                      <input
+                        className="input w-20"
+                        placeholder="Sale"
+                        type="number"
+                        value={row.discountPrice}
+                        onChange={(e) =>
+                          setForm((f) => {
+                            const optionGroups = [...f.optionGroups];
+                            const options = [...optionGroups[gi].options];
+                            options[oi] = { ...options[oi], discountPrice: e.target.value };
+                            optionGroups[gi] = { ...optionGroups[gi], options };
+                            return { ...f, optionGroups };
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="text-stone-400"
+                        onClick={() =>
+                          setForm((f) => {
+                            const optionGroups = [...f.optionGroups];
+                            optionGroups[gi] = {
+                              ...optionGroups[gi],
+                              options: optionGroups[gi].options.filter((_, j) => j !== oi),
+                            };
+                            return { ...f, optionGroups };
+                          })
+                        }
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
                   <button
                     type="button"
-                    className="text-stone-400"
-                    onClick={() => setForm((f) => ({ ...f, sizes: f.sizes.filter((_, j) => j !== i) }))}
+                    className="text-xs font-semibold text-brand-700"
+                    onClick={() =>
+                      setForm((f) => {
+                        const optionGroups = [...f.optionGroups];
+                        optionGroups[gi] = {
+                          ...optionGroups[gi],
+                          options: [...optionGroups[gi].options, { name: "", price: "", discountPrice: "" }],
+                        };
+                        return { ...f, optionGroups };
+                      })
+                    }
                   >
-                    <X size={16} />
+                    + Add option
                   </button>
                 </div>
               ))}

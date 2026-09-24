@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
-import { Reveal } from "./Reveal";
+import { ChevronDown, HelpCircle } from "lucide-react";
 
 const FAQ = [
   {
@@ -25,39 +24,54 @@ const FAQ = [
 
 export function Faq() {
   const [open, setOpen] = useState(0);
+
   return (
-    <section className="py-16 sm:py-24">
+    <section className="bg-white py-16 pb-28 sm:py-24 sm:pb-32">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
-        <Reveal>
-          <h2 className="font-display text-center text-4xl sm:text-5xl">Questions?</h2>
-          <p className="mt-2 text-center text-stone-500">Quick answers before you order.</p>
-        </Reveal>
+        <div className="text-center">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
+            <HelpCircle size={22} />
+          </span>
+          <h2 className="font-display mt-4 text-3xl text-stone-900 sm:text-4xl">Questions before you order?</h2>
+          <p className="mt-2 text-sm text-stone-500">Quick answers — no long reads.</p>
+        </div>
+
         <div className="mt-10 space-y-3">
-          {FAQ.map((f, i) => (
-            <Reveal key={f.q} delay={i * 60}>
-              <div className="overflow-hidden rounded-2xl border border-orange-100 bg-white">
+          {FAQ.map((f, i) => {
+            const isOpen = open === i;
+            return (
+              <div
+                key={f.q}
+                className={`overflow-hidden rounded-2xl border transition ${
+                  isOpen ? "border-brand-200 bg-[#fffaf5] shadow-sm" : "border-orange-100 bg-white"
+                }`}
+              >
                 <button
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-semibold"
-                  onClick={() => setOpen(open === i ? -1 : i)}
+                  type="button"
+                  className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
+                  onClick={() => setOpen(isOpen ? -1 : i)}
                 >
-                  {f.q}
-                  <ChevronDown
-                    size={18}
-                    className={`shrink-0 text-brand-600 transition ${open === i ? "rotate-180" : ""}`}
-                  />
+                  <span className="font-semibold text-stone-900">{f.q}</span>
+                  <span
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition ${
+                      isOpen ? "bg-brand-600 text-white" : "bg-brand-50 text-brand-700"
+                    }`}
+                  >
+                    <ChevronDown size={16} className={`transition ${isOpen ? "rotate-180" : ""}`} />
+                  </span>
                 </button>
                 <div
                   className={`grid transition-all duration-300 ${
-                    open === i ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                    isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <p className="px-5 pb-4 text-sm leading-relaxed text-stone-600">{f.a}</p>
+                    <p className="px-5 pb-5 text-sm leading-relaxed text-stone-600 sm:px-6">{f.a}</p>
                   </div>
                 </div>
               </div>
-            </Reveal>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

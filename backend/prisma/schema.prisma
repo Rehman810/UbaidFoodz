@@ -63,6 +63,31 @@ model MenuItem {
   dealItems     DealItem[]
   sizes         MenuItemSize[]
   addons        MenuItemAddon[]
+  optionGroups  MenuItemOptionGroup[]
+}
+
+model MenuItemOptionGroup {
+  id         String           @id @default(uuid())
+  menuItemId String
+  menuItem   MenuItem         @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name       String
+  required   Boolean          @default(true)
+  sortOrder  Int              @default(0)
+  options    MenuItemOption[]
+
+  @@unique([menuItemId, name])
+}
+
+model MenuItemOption {
+  id            String              @id @default(uuid())
+  groupId       String
+  group         MenuItemOptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name          String
+  price         Decimal             @db.Decimal(10, 2)
+  discountPrice Decimal?            @db.Decimal(10, 2)
+  sortOrder     Int                 @default(0)
+
+  @@unique([groupId, name])
 }
 
 model MenuItemSize {
@@ -189,6 +214,7 @@ model OrderItem {
   priceAtOrder  Decimal  @db.Decimal(10, 2)
   nameAtOrder   String
   optionsLabel  String   @default("")
+  instructions  String   @default("")
 }
 
 model Invoice {

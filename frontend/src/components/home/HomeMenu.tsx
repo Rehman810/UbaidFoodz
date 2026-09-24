@@ -3,21 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Plus, ArrowRight } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
-import { pkr } from "@/lib/format";
-import { useCart } from "@/lib/cart";
-import { ItemOptionsModal } from "@/components/ItemOptionsModal";
-import { itemNeedsOptions, menuItemHasDiscount, menuItemPrice } from "@/lib/menu-price";
+import { MenuItemCard } from "@/components/MenuItemCard";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, MenuItem } from "@/lib/types";
 import { DEFAULT_CATEGORY_BANNER, enrichCategories } from "@/lib/category-meta";
-import { Reveal } from "./Reveal";
 
 function slug(cat: string) {
   return cat.toLowerCase().replace(/\s+/g, "-");
 }
 
+function matchesSearch(item: MenuItem, q: string) {
+  const hay = `${item.name} ${item.description ?? ""} ${item.category}`.toLowerCase();
+  return hay.includes(q.toLowerCase());
+}
+
 export function HomeMenu() {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("q")?.trim() ?? "";
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [categories, setCategories] = useState<Category[]>(
     enrichCategories(
@@ -33,9 +37,6 @@ export function HomeMenu() {
   );
   const [error, setError] = useState("");
   const [active, setActive] = useState("All");
-  const [optionsItem, setOptionsItem] = useState<MenuItem | null>(null);
-  const add = useCart((s) => s.add);
-
   useEffect(() => {
     Promise.all([
       api<MenuItem[]>("/menu"),
@@ -48,16 +49,22 @@ export function HomeMenu() {
       .catch((e) => setError(e.message));
   }, []);
 
+  const searchResults = useMemo(() => {
+    if (!items || !searchQuery) return [];
+    return items.filter((item) => matchesSearch(item, searchQuery));
+  }, [items, searchQuery]);
+
   const grouped = useMemo(() => {
     if (!items) return {};
     const map: Record<string, MenuItem[]> = {};
     for (const c of categories) map[c.name] = [];
     for (const item of items) {
+      if (searchQuery && !matchesSearch(item, searchQuery)) continue;
       if (!map[item.category]) map[item.category] = [];
       map[item.category].push(item);
     }
     return map;
-  }, [items, categories]);
+  }, [items, categories, searchQuery]);
 
   const scrollTo = (cat: string) => {
     setActive(cat);
@@ -71,20 +78,20 @@ export function HomeMenu() {
   return (
     <section id="menu-start" className="scroll-mt-24 bg-[#fffaf5] py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Reveal>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand-600">Order from the pass</p>
-              <h2 className="font-display mt-2 text-4xl text-ink sm:text-5xl">Our menu</h2>
-              <p className="mt-2 max-w-lg text-stone-600">
-                Fresh off the grill, straight to your door. Tap a category or scroll through everything.
-              </p>
-            </div>
-            <Link href="/menu" className="btn-ghost shrink-0 self-start sm:self-auto">
-              Full menu <ArrowRight size={16} />
-            </Link>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand-600">Order from the pass</p>
+            <h2 className="font-display mt-2 text-4xl text-ink sm:text-5xl">Our menu</h2>
+            <p className="mt-2 max-w-lg text-stone-600">
+              {searchQuery
+                ? `Showing results for “${searchQuery}”.`
+                : "Fresh off the grill, straight to your door. Tap a category or scroll through everything."}
+            </p>
           </div>
-        </Reveal>
+          <Link href="/menu" className="btn-ghost shrink-0 self-start sm:self-auto">
+            Full menu <ArrowRight size={16} />
+          </Link>
+        </div>
 
         <div className="sticky top-16 z-30 -mx-4 mt-8 border-b border-orange-100 bg-[#fffaf5]/95 px-4 py-3 backdrop-blur-md sm:top-[72px] sm:-mx-6 sm:px-6">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -111,84 +118,48 @@ export function HomeMenu() {
         )}
 
         {!items && !error && (
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-3 lg:grid-cols-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="skeleton h-72" />
+              <div key={i} className="skeleton h-[7.5rem]" />
             ))}
           </div>
         )}
 
+        {items && searchQuery && searchResults.length === 0 && (
+          <p className="mt-10 rounded-2xl bg-white px-4 py-8 text-center text-sm text-stone-500 shadow-card">
+            No dishes found for “{searchQuery}”. Try biryani, zinger, or karahi.
+          </p>
+        )}
+
         {items && (
           <div className="mt-10 space-y-16 sm:space-y-20">
-            {categories.map((cat, ci) => {
+            {categories.map((cat) => {
               const list = grouped[cat.name] || [];
               if (!list.length) return null;
               const banner = cat.imageUrl || DEFAULT_CATEGORY_BANNER;
               const tagline = cat.tagline || cat.name;
               return (
                 <div key={cat.id} id={`cat-${slug(cat.name)}`} className="scroll-mt-36">
-                  <Reveal delay={ci * 80}>
-                    {/* Mobile: text-only category header */}
-                    <div className="mb-4 sm:hidden">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand-600">{tagline}</p>
-                      <h3 className="font-display text-2xl text-stone-900">{cat.name}</h3>
-                      <p className="mt-0.5 text-xs text-stone-500">{list.length} items</p>
-                    </div>
-                    {/* Tablet+: image banner */}
-                    <div className="relative mb-6 hidden overflow-hidden rounded-3xl sm:block">
-                      <div className="relative h-44">
-                        <Image src={banner} alt="" fill className="object-cover" sizes="100vw" />
-                        <div className="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-950/50 to-transparent" />
-                        <div className="absolute inset-0 flex flex-col justify-end p-7">
-                          <p className="text-xs font-bold uppercase tracking-widest text-brand-300">{tagline}</p>
-                          <h3 className="font-display text-4xl text-white">{cat.name}</h3>
-                          <p className="mt-1 text-sm text-orange-100">{list.length} items</p>
-                        </div>
+                  <div className="mb-4 sm:hidden">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-brand-600">{tagline}</p>
+                    <h3 className="font-display text-2xl text-stone-900">{cat.name}</h3>
+                    <p className="mt-0.5 text-xs text-stone-500">{list.length} items</p>
+                  </div>
+                  <div className="relative mb-6 hidden overflow-hidden rounded-3xl sm:block">
+                    <div className="relative h-44">
+                      <Image src={banner} alt="" fill className="object-cover" sizes="100vw" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-950/50 to-transparent" />
+                      <div className="absolute inset-0 flex flex-col justify-end p-7">
+                        <p className="text-xs font-bold uppercase tracking-widest text-brand-300">{tagline}</p>
+                        <h3 className="font-display text-4xl text-white">{cat.name}</h3>
+                        <p className="mt-1 text-sm text-orange-100">{list.length} items</p>
                       </div>
                     </div>
-                  </Reveal>
+                  </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {list.map((item, ii) => (
-                      <Reveal key={item.id} delay={ii * 60}>
-                        <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-orange-100/80 bg-white shadow-card transition hover:-translate-y-1 hover:shadow-float">
-                          <div className="relative h-40 overflow-hidden sm:h-44">
-                            <Image
-                              src={item.imageUrl}
-                              alt={item.name}
-                              fill
-                              className="object-cover transition duration-500 group-hover:scale-110"
-                              sizes="(max-width:640px) 100vw, 33vw"
-                            />
-                            {!item.isAvailable && (
-                              <div className="absolute inset-0 grid place-items-center bg-stone-900/60 text-sm font-bold text-white">
-                                Sold out tonight
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-1 flex-col p-4">
-                            <div className="flex items-start justify-between gap-2">
-                              <h4 className="font-semibold leading-snug">{item.name}</h4>
-                              <div className="shrink-0 text-right">
-                                {menuItemHasDiscount(item) && (
-                                  <p className="text-xs text-stone-400 line-through">{pkr(item.price)}</p>
-                                )}
-                                <span className="font-bold text-brand-700">{pkr(menuItemPrice(item))}</span>
-                              </div>
-                            </div>
-                            <p className="mt-1.5 line-clamp-2 flex-1 text-sm text-stone-500">{item.description}</p>
-                            <button
-                              disabled={!item.isAvailable}
-                              onClick={() =>
-                                itemNeedsOptions(item) ? setOptionsItem(item) : add(item)
-                              }
-                              className="btn-primary mt-4 w-full py-2.5 text-sm"
-                            >
-                              <Plus size={15} /> Add to bag
-                            </button>
-                          </div>
-                        </article>
-                      </Reveal>
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+                    {list.map((item) => (
+                      <MenuItemCard key={item.id} item={item} />
                     ))}
                   </div>
                 </div>
@@ -197,7 +168,6 @@ export function HomeMenu() {
           </div>
         )}
       </div>
-      <ItemOptionsModal item={optionsItem} onClose={() => setOptionsItem(null)} />
     </section>
   );
 }

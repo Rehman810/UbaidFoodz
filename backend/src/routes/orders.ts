@@ -53,7 +53,9 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       menuItemId: string;
       quantity: number;
       sizeId?: string;
+      optionIds?: string[];
       addonIds?: string[];
+      instructions?: string;
     }[];
     deals?: { dealId: string; quantity: number }[];
     deliveryAddress?: string;
@@ -99,7 +101,11 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
 
   const menuItems = await prisma.menuItem.findMany({
     where: { id: { in: cartItems.map((i) => i.menuItemId) } },
-    include: { sizes: true, addons: true },
+    include: {
+      sizes: true,
+      addons: true,
+      optionGroups: { include: { options: true } },
+    },
   });
   const byId = new Map(menuItems.map((m) => [m.id, m]));
 
@@ -109,6 +115,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     priceAtOrder: number;
     nameAtOrder: string;
     optionsLabel: string;
+    instructions: string;
   }[] = [];
   let subtotal = 0;
 
@@ -118,14 +125,35 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       return res.status(400).json({ error: `Item unavailable: ${row.menuItemId}` });
     }
     const qty = Math.max(1, Number(row.quantity) || 1);
-    let unitPrice = effectiveItemPrice(menu);
     const labels: string[] = [];
+    const allOptions = [
+      ...menu.optionGroups.flatMap((g) => g.options),
+      ...menu.sizes.map((s) => ({ ...s, discountPrice: null as null })),
+    ];
+    const optionIds = row.optionIds?.length
+      ? row.optionIds
+      : row.sizeId
+        ? [row.sizeId]
+        : [];
 
-    if (row.sizeId) {
-      const size = menu.sizes.find((s) => s.id === row.sizeId);
-      if (!size) return res.status(400).json({ error: "Invalid size selected." });
-      unitPrice = Number(size.price);
-      labels.push(size.name);
+    const hasGroups = menu.optionGroups.length > 0 || menu.sizes.length > 0;
+    let unitPrice = effectiveItemPrice(menu);
+
+    if (hasGroups && optionIds.length) {
+      unitPrice = 0;
+      for (const optId of optionIds) {
+        const opt = allOptions.find((o) => o.id === optId);
+        if (!opt) return res.status(400).json({ error: "Invalid option selected." });
+        const optPrice =
+          opt.discountPrice != null ? Number(opt.discountPrice) : Number(opt.price);
+        unitPrice += optPrice;
+        labels.push(opt.name);
+      }
+    } else if (hasGroups) {
+      const required = menu.optionGroups.filter((g) => g.required);
+      if (required.length > 0) {
+        return res.status(400).json({ error: `Please select options for ${menu.name}.` });
+      }
     }
 
     const addonIds = row.addonIds ?? [];
@@ -136,6 +164,8 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       labels.push(addon.name);
     }
 
+    const instructions = String(row.instructions || "").trim().slice(0, 500);
+
     subtotal += unitPrice * qty;
     lines.push({
       menuItemId: menu.id,
@@ -143,6 +173,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       priceAtOrder: unitPrice,
       nameAtOrder: menu.name,
       optionsLabel: labels.join(", "),
+      instructions,
     });
   }
 
@@ -181,6 +212,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
         priceAtOrder: lineTotal / lineQty,
         nameAtOrder: `${deal.title} · ${item.menuItem.name}`,
         optionsLabel: "",
+        instructions: "",
       });
     }
   }

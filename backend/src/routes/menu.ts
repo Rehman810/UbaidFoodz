@@ -7,25 +7,94 @@ import { requireAuth, requireRole } from "../middleware/auth";
 export const menuRouter = Router();
 
 const menuInclude = {
+  optionGroups: {
+    orderBy: { sortOrder: "asc" as const },
+    include: { options: { orderBy: { sortOrder: "asc" as const } } },
+  },
   sizes: { orderBy: { sortOrder: "asc" as const } },
   addons: { orderBy: { sortOrder: "asc" as const } },
 };
 
+type OptionRow = {
+  id: string;
+  name: string;
+  price: number;
+  discountPrice: number | null;
+  sortOrder: number;
+};
+
+type GroupRow = {
+  id: string;
+  name: string;
+  required: boolean;
+  sortOrder: number;
+  options: OptionRow[];
+};
+
+function serializeOptionGroups(item: {
+  optionGroups?: {
+    id: string;
+    name: string;
+    required: boolean;
+    sortOrder: number;
+    options: { id: string; name: string; price: { toString(): string }; discountPrice?: { toString(): string } | null; sortOrder: number }[];
+  }[];
+  sizes?: { id: string; name: string; price: { toString(): string }; sortOrder: number }[];
+}): GroupRow[] {
+  if (item.optionGroups?.length) {
+    return item.optionGroups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      required: g.required,
+      sortOrder: g.sortOrder,
+      options: g.options.map((o) => ({
+        id: o.id,
+        name: o.name,
+        price: Number(o.price),
+        discountPrice: o.discountPrice != null ? Number(o.discountPrice) : null,
+        sortOrder: o.sortOrder,
+      })),
+    }));
+  }
+  if (item.sizes?.length) {
+    return [
+      {
+        id: "legacy-sizes",
+        name: "Choose an option",
+        required: true,
+        sortOrder: 1,
+        options: item.sizes.map((s) => ({
+          id: s.id,
+          name: s.name,
+          price: Number(s.price),
+          discountPrice: null,
+          sortOrder: s.sortOrder,
+        })),
+      },
+    ];
+  }
+  return [];
+}
+
 function serializeMenuItem(item: {
   price: { toString(): string };
   discountPrice?: { toString(): string } | null;
-  sizes?: { id: string; name: string; price: { toString(): string }; sortOrder: number }[];
   addons?: { id: string; name: string; price: { toString(): string }; sortOrder: number }[];
   [key: string]: unknown;
 }) {
   const effective = effectiveItemPrice(item);
+  const optionGroups = serializeOptionGroups(item as Parameters<typeof serializeOptionGroups>[0]);
   return {
     ...item,
     price: Number(item.price),
     discountPrice: item.discountPrice != null ? Number(item.discountPrice) : null,
     effectivePrice: effective,
-    sizes: item.sizes?.map((s) => ({ ...s, price: Number(s.price) })) ?? [],
-    addons: item.addons?.map((a) => ({ ...a, price: Number(a.price) })) ?? [],
+    optionGroups,
+    addons:
+      (item.addons as { id: string; name: string; price: { toString(): string }; sortOrder: number }[])?.map(
+        (a) => ({ ...a, price: Number(a.price) })
+      ) ?? [],
+    sizes: undefined,
   };
 }
 
@@ -46,15 +115,43 @@ menuRouter.get("/:id", async (req, res) => {
   res.json(serializeMenuItem(item));
 });
 
-async function syncSizes(menuItemId: string, sizes?: { name: string; price: number }[]) {
-  if (!sizes) return;
+type OptionGroupInput = {
+  name: string;
+  required?: boolean;
+  options?: { name: string; price: number; discountPrice?: number | string | null }[];
+};
+
+async function syncOptionGroups(menuItemId: string, groups?: OptionGroupInput[]) {
+  if (!groups) return;
+  await prisma.menuItemOptionGroup.deleteMany({ where: { menuItemId } });
   await prisma.menuItemSize.deleteMany({ where: { menuItemId } });
-  for (let i = 0; i < sizes.length; i++) {
-    const row = sizes[i];
-    if (!row.name?.trim()) continue;
-    await prisma.menuItemSize.create({
-      data: { menuItemId, name: row.name.trim(), price: Number(row.price) || 0, sortOrder: i + 1 },
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi];
+    if (!g.name?.trim()) continue;
+    const group = await prisma.menuItemOptionGroup.create({
+      data: {
+        menuItemId,
+        name: g.name.trim(),
+        required: g.required ?? true,
+        sortOrder: gi + 1,
+      },
     });
+    for (let oi = 0; oi < (g.options ?? []).length; oi++) {
+      const o = g.options![oi];
+      if (!o.name?.trim()) continue;
+      await prisma.menuItemOption.create({
+        data: {
+          groupId: group.id,
+          name: o.name.trim(),
+          price: Number(o.price) || 0,
+          discountPrice:
+            o.discountPrice != null && String(o.discountPrice) !== ""
+              ? Number(o.discountPrice)
+              : null,
+          sortOrder: oi + 1,
+        },
+      });
+    }
   }
 }
 
@@ -71,7 +168,7 @@ async function syncAddons(menuItemId: string, addons?: { name: string; price: nu
 }
 
 menuRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
-  const { name, description, price, discountPrice, category, imageUrl, isAvailable, sizes, addons } =
+  const { name, description, price, discountPrice, category, imageUrl, isAvailable, optionGroups, addons } =
     req.body;
   if (!name || price == null || !category) {
     return res.status(400).json({ error: "Name, price and category are required." });
@@ -90,14 +187,14 @@ menuRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
       isAvailable: isAvailable ?? true,
     },
   });
-  await syncSizes(item.id, sizes);
+  await syncOptionGroups(item.id, optionGroups);
   await syncAddons(item.id, addons);
   const full = await prisma.menuItem.findUnique({ where: { id: item.id }, include: menuInclude });
   res.status(201).json(serializeMenuItem(full!));
 });
 
 menuRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
-  const { name, description, price, discountPrice, category, imageUrl, isAvailable, sizes, addons } =
+  const { name, description, price, discountPrice, category, imageUrl, isAvailable, optionGroups, addons, sizes } =
     req.body;
   try {
     const item = await prisma.menuItem.update({
@@ -117,7 +214,13 @@ menuRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) =>
         ...(isAvailable != null && { isAvailable }),
       },
     });
-    if (sizes !== undefined) await syncSizes(item.id, sizes);
+    if (optionGroups !== undefined) {
+      await syncOptionGroups(item.id, optionGroups);
+    } else if (sizes !== undefined) {
+      await syncOptionGroups(item.id, [
+        { name: "Choose an option", required: true, options: sizes },
+      ]);
+    }
     if (addons !== undefined) await syncAddons(item.id, addons);
     const full = await prisma.menuItem.findUnique({ where: { id: item.id }, include: menuInclude });
     res.json(serializeMenuItem(full!));

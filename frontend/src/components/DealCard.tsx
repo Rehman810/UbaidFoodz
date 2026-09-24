@@ -20,72 +20,63 @@ export function DealCard({ deal }: { deal: Deal }) {
   );
   const price = Number(deal.dealPrice);
   const save = Math.max(0, regular - price);
+  const savePct = regular > 0 ? Math.round((save / regular) * 100) : 0;
   const image = dealImage(deal);
+  const includes = deal.items.map((r) => `${r.quantity}× ${r.menuItem.name}`).join(", ");
+
+  function quickAdd(e: React.MouseEvent) {
+    e.stopPropagation();
+    addDeal(deal, { openDrawer: false });
+  }
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-card transition hover:-translate-y-1 hover:shadow-float">
-      <div className="relative aspect-[16/10] bg-violet-50">
-        {image ? (
-          <Image
-            src={image}
-            alt={deal.title}
-            fill
-            className="object-cover transition duration-500 group-hover:scale-105"
-            sizes="(max-width:640px) 100vw, 33vw"
-          />
-        ) : (
-          <div className="absolute inset-0 grid place-items-center text-violet-300">
-            <ImageIcon size={40} />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/75 via-stone-950/20 to-transparent" />
-        <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
-          <Sparkles size={12} /> Combo deal
-        </div>
-        {save > 0 && (
-          <span className="absolute right-3 top-3 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-bold text-white">
-            Save {pkr(save)}
+    <article
+      className="group flex cursor-pointer gap-3 rounded-2xl bg-white p-3 shadow-[0_1px_8px_rgba(28,25,23,0.07)] ring-1 ring-violet-100 transition hover:shadow-md sm:gap-4 sm:p-4"
+      onClick={() => addDeal(deal, { openDrawer: false })}
+    >
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+        <div>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-violet-600">
+            <Sparkles size={10} /> Combo deal
           </span>
-        )}
-        <div className="absolute bottom-3 left-3 right-3">
-          <h3 className="font-display text-xl text-white sm:text-2xl">{deal.title}</h3>
+          <h3 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-snug text-stone-900 sm:text-base">
+            {deal.title}
+          </h3>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-500">
+            {includes}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          {regular > price && (
+            <span className="text-xs text-stone-400 line-through">{pkr(regular)}</span>
+          )}
+          <span className="text-lg font-bold text-violet-700 sm:text-xl">{pkr(price)}</span>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-5">
-        {deal.description && (
-          <p className="text-sm text-stone-500 line-clamp-2">{deal.description}</p>
-        )}
-
-        <div className="mt-3 rounded-2xl bg-stone-50 px-3 py-2.5">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Includes</p>
-          <ul className="mt-1.5 space-y-1">
-            {deal.items.map((row) => (
-              <li key={row.id} className="flex items-center justify-between gap-2 text-sm text-stone-700">
-                <span className="min-w-0 truncate">
-                  {row.quantity}× {row.menuItem.name}
-                </span>
-                <span className="shrink-0 text-xs text-stone-400">{pkr(Number(row.menuItem.price) * row.quantity)}</span>
-              </li>
-            ))}
-          </ul>
+      <div className="relative h-[7.25rem] w-[7.25rem] shrink-0 sm:h-28 sm:w-28">
+        <div className="relative h-full w-full overflow-hidden rounded-xl bg-violet-50">
+          {image ? (
+            <Image src={image} alt={deal.title} fill className="object-cover" sizes="(max-width:640px) 116px, 112px" />
+          ) : (
+            <div className="absolute inset-0 grid place-items-center text-violet-300">
+              <ImageIcon size={24} />
+            </div>
+          )}
+          {savePct > 0 && (
+            <span className="absolute left-1 top-1 rounded bg-amber-400 px-1 py-0.5 text-[8px] font-black text-stone-900">
+              {savePct}% OFF
+            </span>
+          )}
         </div>
-
-        <div className="mt-4 flex items-end justify-between gap-3">
-          <div>
-            {regular > price && (
-              <p className="text-xs text-stone-400 line-through">{pkr(regular)}</p>
-            )}
-            <p className="text-xl font-bold text-violet-700">{pkr(price)}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => addDeal(deal)}
-            className="btn-primary shrink-0 py-2.5 text-sm"
-          >
-            <Plus size={15} /> Add to bag
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={quickAdd}
+          className="absolute -bottom-1 -right-1 z-10 grid h-8 w-8 place-items-center rounded-full bg-violet-600 text-white shadow-md ring-2 ring-white sm:h-9 sm:w-9"
+          aria-label={`Add ${deal.title}`}
+        >
+          <Plus size={16} strokeWidth={2.5} />
+        </button>
       </div>
     </article>
   );

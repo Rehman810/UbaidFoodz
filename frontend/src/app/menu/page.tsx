@@ -54,14 +54,14 @@ export default function MenuPage() {
 
         {error && <p className="mt-8 text-sm text-red-600">{error}</p>}
         {!items && !error && (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-3 lg:grid-cols-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="skeleton h-80" />
+              <div key={i} className="skeleton h-[7.5rem]" />
             ))}
           </div>
         )}
         {items && (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
             {filtered.map((item) => (
               <MenuCard key={item.id} item={item} />
             ))}

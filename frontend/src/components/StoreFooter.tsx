@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, Clock, Flame, MapPin, Phone } from "lucide-react";
 import { useStore } from "@/lib/store";
 
 export function StoreFooter() {
@@ -10,59 +12,117 @@ export function StoreFooter() {
   const address = settings?.address ?? "Boat Basin, Clifton Block 5, Karachi";
 
   return (
-    <footer className="border-t border-orange-100 bg-stone-950 text-stone-400">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
-        <div className="md:col-span-2">
-          <p className="font-display text-2xl text-white">Ubaid Fast Foodz</p>
-          <p className="mt-2 max-w-sm text-sm leading-relaxed">
-            Karachi&apos;s go-to for zinger, biryani and broast — fired fresh, delivered fast.
+    <footer className="relative bg-stone-950 text-stone-400">
+      {/* Overlapping CTA card */}
+      <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
+        <div className="relative -translate-y-10 overflow-hidden rounded-[2rem] shadow-float sm:-translate-y-14">
+          <div className="absolute inset-0">
+            <Image
+              src="/carousel/carousel-broast.png"
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 1152px"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-stone-950/92 via-stone-950/78 to-stone-950/55" />
+          </div>
+          <div className="relative flex flex-col items-start justify-between gap-6 px-6 py-10 sm:flex-row sm:items-center sm:px-10 sm:py-12">
+            <div className="max-w-md text-white">
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.25em] text-brand-300">
+                <Flame size={14} /> Still hungry?
+              </p>
+              <h2 className="font-display mt-3 text-3xl leading-tight sm:text-4xl">
+                Craving something <span className="text-brand-400">right now?</span>
+              </h2>
+              <p className="mt-3 text-sm text-stone-300">Cash on delivery · No card needed · Karachi-wide</p>
+            </div>
+            <Link
+              href="/menu"
+              className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-brand-600 px-7 text-sm font-bold text-white shadow-lg transition hover:bg-brand-500"
+            >
+              Order from Ubaid <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-28 pt-4 sm:px-6 sm:pb-32 md:grid-cols-12">
+        <div className="md:col-span-5">
+          <p className="flex items-center gap-2.5 font-display text-2xl text-white">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-600 shadow-md shadow-brand-900/40">
+              <Flame size={20} />
+            </span>
+            Ubaid Fast Foodz
+          </p>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-stone-400">
+            Karachi&apos;s go-to for zinger, biryani and broast — fired fresh from our kitchen, delivered hot to your door.
           </p>
           {(settings?.instagramUrl || settings?.facebookUrl) && (
-            <div className="mt-4 flex gap-3 text-sm">
+            <div className="mt-6 flex flex-wrap gap-2">
               {settings.facebookUrl && (
-                <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                <a
+                  href={settings.facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-stone-300 transition hover:border-white/25 hover:text-white"
+                >
                   Facebook
                 </a>
               )}
               {settings.instagramUrl && (
-                <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                <a
+                  href={settings.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-stone-300 transition hover:border-white/25 hover:text-white"
+                >
                   Instagram
-                </a>
-              )}
-              {settings.tiktokUrl && (
-                <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white">
-                  TikTok
-                </a>
-              )}
-              {settings.youtubeUrl && (
-                <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white">
-                  YouTube
                 </a>
               )}
             </div>
           )}
         </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-400">Quick links</p>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li><Link href="/menu" className="hover:text-white">Full menu</Link></li>
-            <li><Link href="/orders" className="hover:text-white">Track order</Link></li>
-            <li><Link href="/faq" className="hover:text-white">FAQ</Link></li>
-            <li><Link href="/privacy" className="hover:text-white">Privacy</Link></li>
-            <li><Link href="/login" className="hover:text-white">Staff login</Link></li>
+
+        <div className="md:col-span-3">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-400">Explore</p>
+          <ul className="mt-5 space-y-3 text-sm">
+            {[
+              { href: "/menu", label: "Full menu" },
+              { href: "/orders", label: "Track order" },
+              { href: "/faq", label: "FAQ" },
+              { href: "/privacy", label: "Privacy" },
+              { href: "/login", label: "Staff login" },
+            ].map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="transition hover:text-white">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-400">Contact</p>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li><a href={`tel:${phone}`} className="hover:text-white">{phone}</a></li>
-            <li>{address}</li>
-            <li>Cash on delivery</li>
+
+        <div className="md:col-span-4">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-400">Visit & call</p>
+          <ul className="mt-5 space-y-4 text-sm">
+            <li className="flex gap-3">
+              <Phone size={16} className="mt-0.5 shrink-0 text-brand-500" />
+              <a href={`tel:${phone}`} className="font-semibold text-stone-200 hover:text-white">{phone}</a>
+            </li>
+            <li className="flex gap-3">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-brand-500" />
+              <span>{address}</span>
+            </li>
+            <li className="flex gap-3">
+              <Clock size={16} className="mt-0.5 shrink-0 text-brand-500" />
+              <span>{store?.hoursLabel ?? "7:00 PM – 2:30 AM"} daily</span>
+            </li>
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-xs">
-        © {new Date().getFullYear()} Ubaid Fast Foodz
+
+      <div className="border-t border-white/10 py-6 text-center text-xs text-stone-500">
+        © {new Date().getFullYear()} Ubaid Fast Foodz · Made with heat in Karachi
       </div>
     </footer>
   );

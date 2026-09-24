@@ -8,11 +8,20 @@ export type User = {
   phone?: string | null;
 };
 
-export type MenuItemSize = {
+export type MenuItemOption = {
   id: string;
   name: string;
   price: string | number;
+  discountPrice?: string | number | null;
   sortOrder: number;
+};
+
+export type MenuItemOptionGroup = {
+  id: string;
+  name: string;
+  required: boolean;
+  sortOrder: number;
+  options: MenuItemOption[];
 };
 
 export type MenuItemAddon = {
@@ -32,7 +41,7 @@ export type MenuItem = {
   category: string;
   imageUrl: string;
   isAvailable: boolean;
-  sizes?: MenuItemSize[];
+  optionGroups?: MenuItemOptionGroup[];
   addons?: MenuItemAddon[];
   createdAt?: string;
   updatedAt?: string;
@@ -112,6 +121,7 @@ export type OrderItem = {
   priceAtOrder: string | number;
   nameAtOrder: string;
   optionsLabel?: string;
+  instructions?: string;
 };
 
 export type FulfillmentType = "DELIVERY" | "PICKUP";
@@ -149,7 +159,17 @@ export type Order = {
   invoice?: { id: string; invoiceNumber: string } | null;
 };
 
-export const CATEGORIES = ["Starters", "Main Course", "Beverages", "Desserts"] as const;
+export const CATEGORIES = [
+  "Starters",
+  "Burgers & Sandwiches",
+  "Pizza & Pasta",
+  "Biryani & Rice",
+  "BBQ & Broast",
+  "Karahi & Curries",
+  "Sides",
+  "Beverages",
+  "Desserts",
+] as const;
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING: "Pending",

@@ -102,8 +102,9 @@ export default function CheckoutPage() {
             .map((i) => ({
               menuItemId: i.menuItemId || i.id,
               quantity: i.quantity,
-              sizeId: i.sizeId,
+              optionIds: i.optionIds,
               addonIds: i.addonIds,
+              instructions: i.instructions,
             })),
           deals: items
             .filter((i) => i.kind === "deal" && i.dealId)
@@ -252,6 +253,11 @@ export default function CheckoutPage() {
                     <p className="text-stone-500">
                       {i.quantity} × {pkr(i.price)}
                     </p>
+                    {i.instructions ? (
+                      <p className="mt-0.5 text-xs text-stone-500">
+                        <span className="font-medium text-stone-600">Note:</span> {i.instructions}
+                      </p>
+                    ) : null}
                   </div>
                 </li>
               ))}

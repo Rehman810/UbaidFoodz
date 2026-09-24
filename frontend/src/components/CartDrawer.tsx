@@ -126,6 +126,11 @@ export function CartDrawer() {
                       <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">Combo deal</p>
                     ) : null}
                     <p className="text-sm text-brand-700">{pkr(item.price)}</p>
+                    {item.instructions ? (
+                      <p className="mt-1 line-clamp-2 text-xs text-stone-500">
+                        <span className="font-semibold text-stone-600">Note:</span> {item.instructions}
+                      </p>
+                    ) : null}
                     <div className="mt-2 flex items-center gap-2">
                       <button className="grid h-7 w-7 place-items-center rounded-full bg-brand-50" onClick={() => setQty(item.id, item.quantity - 1)}>
                         <Minus size={12} />

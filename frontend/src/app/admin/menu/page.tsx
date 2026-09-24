@@ -33,7 +33,7 @@ const emptyDish: MenuFormData = {
   category: "Main Course",
   imageUrl: "",
   isAvailable: true,
-  sizes: [],
+  optionGroups: [],
   addons: [],
 };
 
@@ -197,9 +197,19 @@ export default function AdminMenu() {
         ...dishForm,
         price: Number(dishForm.price),
         discountPrice: dishForm.discountPrice ? Number(dishForm.discountPrice) : null,
-        sizes: dishForm.sizes
-          .filter((s) => s.name.trim())
-          .map((s) => ({ name: s.name.trim(), price: Number(s.price) || 0 })),
+        optionGroups: dishForm.optionGroups
+          .filter((g) => g.name.trim())
+          .map((g) => ({
+            name: g.name.trim(),
+            required: g.required,
+            options: g.options
+              .filter((o) => o.name.trim())
+              .map((o) => ({
+                name: o.name.trim(),
+                price: Number(o.price) || 0,
+                discountPrice: o.discountPrice ? Number(o.discountPrice) : null,
+              })),
+          })),
         addons: dishForm.addons
           .filter((a) => a.name.trim())
           .map((a) => ({ name: a.name.trim(), price: Number(a.price) || 0 })),
@@ -362,7 +372,15 @@ export default function AdminMenu() {
       category: item.category,
       imageUrl: item.imageUrl,
       isAvailable: item.isAvailable,
-      sizes: (item.sizes ?? []).map((s) => ({ name: s.name, price: String(s.price) })),
+      optionGroups: (item.optionGroups ?? []).map((g) => ({
+        name: g.name,
+        required: g.required,
+        options: g.options.map((o) => ({
+          name: o.name,
+          price: String(o.price),
+          discountPrice: o.discountPrice != null ? String(o.discountPrice) : "",
+        })),
+      })),
       addons: (item.addons ?? []).map((a) => ({ name: a.name, price: String(a.price) })),
     });
     setDishFormOpen(true);

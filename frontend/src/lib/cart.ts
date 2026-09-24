@@ -14,27 +14,37 @@ export type CartLine = {
   quantity: number;
   dealId?: string;
   dealItems?: { menuItemId: string; quantity: number }[];
-  sizeId?: string;
+  optionIds?: string[];
   addonIds?: string[];
   optionsLabel?: string;
+  instructions?: string;
 };
 
-export function cartLineKey(menuItemId: string, sizeId?: string, addonIds?: string[]) {
+export function cartLineKey(
+  menuItemId: string,
+  optionIds?: string[],
+  addonIds?: string[],
+  instructions?: string
+) {
+  const opts = [...(optionIds ?? [])].sort().join(",");
   const addons = [...(addonIds ?? [])].sort().join(",");
-  return `${menuItemId}:${sizeId || ""}:${addons}`;
+  const note = (instructions ?? "").trim();
+  return `${menuItemId}:${opts}:${addons}:${note}`;
 }
 
 type CartState = {
   items: CartLine[];
-  add: (item: MenuItem) => void;
   addConfigured: (opts: {
     item: MenuItem;
     price: number;
-    sizeId?: string;
+    quantity?: number;
+    optionIds?: string[];
     addonIds?: string[];
     optionsLabel?: string;
+    instructions?: string;
+    openDrawer?: boolean;
   }) => void;
-  addDeal: (deal: Deal) => void;
+  addDeal: (deal: Deal, opts?: { openDrawer?: boolean }) => void;
   setQty: (id: string, qty: number) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -55,19 +65,22 @@ export const useCart = create<CartState>()(
         set({ bounce: true });
         setTimeout(() => set({ bounce: false }), 420);
       },
-      add: (item) => {
-        const hasOptions =
-          (item.sizes?.length ?? 0) > 0 || (item.addons?.length ?? 0) > 0;
-        if (hasOptions) return;
-        const price = Number(item.effectivePrice ?? item.discountPrice ?? item.price);
-        get().addConfigured({ item, price });
-      },
-      addConfigured: ({ item, price, sizeId, addonIds, optionsLabel }) => {
-        const lineId = cartLineKey(item.id, sizeId, addonIds);
+      addConfigured: ({
+        item,
+        price,
+        quantity = 1,
+        optionIds,
+        addonIds,
+        optionsLabel,
+        instructions,
+        openDrawer = false,
+      }) => {
+        const note = (instructions ?? "").trim();
+        const lineId = cartLineKey(item.id, optionIds, addonIds, note);
         const items = [...get().items];
         const i = items.findIndex((x) => x.id === lineId);
         const label = optionsLabel || item.name;
-        if (i >= 0) items[i] = { ...items[i], quantity: items[i].quantity + 1 };
+        if (i >= 0) items[i] = { ...items[i], quantity: items[i].quantity + quantity };
         else
           items.push({
             id: lineId,
@@ -76,15 +89,16 @@ export const useCart = create<CartState>()(
             name: label,
             price,
             imageUrl: item.imageUrl,
-            quantity: 1,
-            sizeId,
+            quantity,
+            optionIds,
             addonIds,
             optionsLabel,
+            instructions: note,
           });
-        set({ items, drawerOpen: true });
+        set({ items, ...(openDrawer ? { drawerOpen: true } : {}) });
         get().ping();
       },
-      addDeal: (deal) => {
+      addDeal: (deal, opts) => {
         const id = `deal:${deal.id}`;
         const imageUrl = deal.imageUrl || deal.items[0]?.menuItem.imageUrl || "";
         const items = [...get().items];
@@ -104,7 +118,7 @@ export const useCart = create<CartState>()(
               quantity: row.quantity,
             })),
           });
-        set({ items, drawerOpen: true });
+        set({ items, ...(opts?.openDrawer ? { drawerOpen: true } : {}) });
         get().ping();
       },
       setQty: (id, qty) => {
