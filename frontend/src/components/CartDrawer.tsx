@@ -8,6 +8,7 @@ import { cartTotal, useCart } from "@/lib/cart";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
 import { useStore } from "@/lib/store";
+import { useStoreOpen } from "@/lib/use-store-open";
 
 const CLOSE_MS = 340;
 
@@ -19,6 +20,7 @@ export function CartDrawer() {
   const remove = useCart((s) => s.remove);
   const subtotal = cartTotal(items);
   const store = useStore();
+  const { isOpen: storeOpen } = useStoreOpen();
   const { mode, deliveryCharge, areaName } = useFulfillment();
   const freeAbove =
     store?.settings.freeDeliveryAbove != null ? Number(store.settings.freeDeliveryAbove) : null;
@@ -172,13 +174,19 @@ export function CartDrawer() {
               <span>{pkr(total)}</span>
             </div>
           </div>
-          <Link
-            href="/checkout"
-            onClick={close}
-            className={`btn-primary w-full ${items.length === 0 || belowMinimum ? "pointer-events-none opacity-50" : ""}`}
-          >
-            {belowMinimum ? `Add ${pkr(minimumOrder - subtotal)} more` : "Place order"}
-          </Link>
+          {storeOpen ? (
+            <Link
+              href="/checkout"
+              onClick={close}
+              className={`btn-primary w-full ${items.length === 0 || belowMinimum ? "pointer-events-none opacity-50" : ""}`}
+            >
+              {belowMinimum ? `Add ${pkr(minimumOrder - subtotal)} more` : "Place order"}
+            </Link>
+          ) : (
+            <button type="button" disabled className="btn-primary w-full opacity-60">
+              Closed for orders
+            </button>
+          )}
         </div>
       </aside>
     </div>

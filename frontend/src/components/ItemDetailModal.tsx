@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Minus, Plus, Share2, Trash2, X } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useItemModal } from "@/lib/item-modal";
+import { useStoreOpen } from "@/lib/use-store-open";
 import { pkr } from "@/lib/format";
 import { menuItemHasDiscount, menuItemPrice, optionPrice } from "@/lib/menu-price";
 import { MenuItemOptionGroup } from "@/lib/types";
@@ -13,6 +14,7 @@ export function ItemDetailModal() {
   const item = useItemModal((s) => s.item);
   const close = useItemModal((s) => s.close);
   const addConfigured = useCart((s) => s.addConfigured);
+  const { isOpen: storeOpen } = useStoreOpen();
 
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [addonIds, setAddonIds] = useState<string[]>([]);
@@ -72,7 +74,7 @@ export function ItemDetailModal() {
   }
 
   function addToCart() {
-    if (!item) return;
+    if (!item || !storeOpen) return;
     const optionIds = groups.map((g) => selected[g.id]).filter(Boolean);
     const optionNames = groups
       .map((g) => g.options.find((o) => o.id === selected[g.id])?.name)
@@ -291,11 +293,13 @@ export function ItemDetailModal() {
             </div>
             <button
               type="button"
-              disabled={!canAdd || !item.isAvailable}
+              disabled={!canAdd || !item.isAvailable || !storeOpen}
               onClick={addToCart}
               className="btn-primary h-12 flex-1 text-base font-bold"
             >
-              {pkr(unitPrice * qty)} | Add to Cart →
+              {!storeOpen
+                ? "Closed for orders"
+                : `${pkr(unitPrice * qty)} | Add to Cart →`}
             </button>
           </div>
         </div>

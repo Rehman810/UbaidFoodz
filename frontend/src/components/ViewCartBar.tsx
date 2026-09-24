@@ -5,16 +5,31 @@ import { ChevronRight, ShoppingBag } from "lucide-react";
 import { cartCount, cartTotal, useCart } from "@/lib/cart";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
+import { useStoreOpen } from "@/lib/use-store-open";
 
 export function ViewCartBar() {
   const items = useCart((s) => s.items);
   const count = cartCount(items);
   const subtotal = cartTotal(items);
   const { mode, deliveryCharge } = useFulfillment();
+  const { isOpen: storeOpen, statusLabel } = useStoreOpen();
   const deliveryFee = mode === "DELIVERY" ? deliveryCharge : 0;
   const total = subtotal + deliveryFee;
 
   if (count === 0) return null;
+
+  if (!storeOpen) {
+    return (
+      <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-lg sm:bottom-6">
+        <div
+          className="pointer-events-auto flex items-center justify-center gap-2 rounded-full bg-stone-800 px-4 py-3.5 text-center text-sm font-semibold text-white shadow-lg"
+          role="status"
+        >
+          We&apos;re closed · {statusLabel}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-lg sm:bottom-6">

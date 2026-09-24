@@ -4,14 +4,14 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { homeFor, useAuth } from "@/lib/auth";
 
-/** Keeps staff off the customer storefront — sends them to their app home. */
+/** Keeps riders off the customer storefront — admins can preview it from the dashboard. */
 export function RoleRedirect() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (loading || !user) return;
-    if (user.role === "ADMIN" || user.role === "RIDER") {
+    if (user.role === "RIDER") {
       router.replace(homeFor(user.role));
     }
   }, [user, loading, router]);

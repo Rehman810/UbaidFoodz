@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { StoreProvider } from "@/lib/store";
 import { CartDrawer } from "./CartDrawer";
 import { FulfillmentModal } from "./FulfillmentModal";
+import { DealDetailModal } from "./DealDetailModal";
 import { ItemDeepLink } from "./ItemDeepLink";
 import { ItemDetailModal } from "./ItemDetailModal";
 import { KeepAlive } from "./KeepAlive";
@@ -21,12 +22,13 @@ function CustomerOverlays() {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!isCustomerSurface(pathname)) return null;
-  if (user && user.role !== "CUSTOMER") return null;
+  if (user && user.role !== "CUSTOMER" && user.role !== "ADMIN") return null;
   return (
     <>
       <FulfillmentModal />
       <ItemDeepLink />
       <ItemDetailModal />
+      <DealDetailModal />
       <ViewCartBar />
       <CartDrawer />
     </>

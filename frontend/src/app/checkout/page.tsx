@@ -12,12 +12,14 @@ import { saveGuestOrderToken } from "@/lib/guest-order";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
 import { useStore } from "@/lib/store";
+import { useStoreOpen } from "@/lib/use-store-open";
 import { Order } from "@/lib/types";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
   const store = useStore();
+  const { isOpen: storeOpen, closedMessage } = useStoreOpen();
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
   const subtotal = cartTotal(items);
@@ -45,7 +47,7 @@ export default function CheckoutPage() {
   const effectiveDelivery = isDelivery && !qualifiesFreeDelivery ? deliveryCharge : 0;
   const grandTotal = subtotal + effectiveDelivery;
   const belowMinimum = minimumOrder > 0 && subtotal < minimumOrder;
-  const storeClosed = store ? !store.isOpen : false;
+  const storeClosed = !storeOpen;
 
   const mapsUrl = useMemo(() => {
     if (!settings?.latitude || !settings?.longitude) return null;
@@ -70,7 +72,7 @@ export default function CheckoutPage() {
     setError("");
     if (items.length === 0) return;
     if (storeClosed) {
-      setError(store?.closedMessage ?? "We are currently closed.");
+      setError(closedMessage || "We are currently closed.");
       return;
     }
     if (belowMinimum) {
@@ -138,7 +140,7 @@ export default function CheckoutPage() {
 
           {storeClosed && (
             <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              {store?.closedMessage}
+              {closedMessage}
             </p>
           )}
           {belowMinimum && (

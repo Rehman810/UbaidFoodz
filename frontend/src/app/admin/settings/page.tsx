@@ -1,11 +1,35 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ImageIcon, Plus, Settings, Trash2 } from "lucide-react";
+import Image from "next/image";
+import {
+  Clock,
+  Facebook,
+  ImageIcon,
+  Instagram,
+  Phone,
+  Plus,
+  Save,
+  Settings,
+  Share2,
+  Trash2,
+  Truck,
+  Youtube,
+} from "lucide-react";
+import { OpeningHoursEditor } from "@/components/admin/OpeningHoursEditor";
+import { SettingsField, SettingsSection } from "@/components/admin/SettingsSection";
 import { api, apiUpload } from "@/lib/api";
+import { isStoreOpen } from "@/lib/store-hours";
 import { PromoBanner, StoreSettings } from "@/lib/types";
 
 type SettingsPayload = { settings: StoreSettings; banners: PromoBanner[] };
+
+const SOCIAL_FIELDS = [
+  { key: "facebookUrl" as const, label: "Facebook", icon: Facebook, placeholder: "https://facebook.com/..." },
+  { key: "instagramUrl" as const, label: "Instagram", icon: Instagram, placeholder: "https://instagram.com/..." },
+  { key: "tiktokUrl" as const, label: "TikTok", icon: Share2, placeholder: "https://tiktok.com/..." },
+  { key: "youtubeUrl" as const, label: "YouTube", icon: Youtube, placeholder: "https://youtube.com/..." },
+];
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<StoreSettings | null>(null);
@@ -25,14 +49,14 @@ export default function AdminSettingsPage() {
     load().catch(() => setMsg("Could not load settings."));
   }, []);
 
-  async function onSave(e: FormEvent) {
-    e.preventDefault();
+  async function onSave(e?: FormEvent) {
+    e?.preventDefault();
     if (!settings) return;
     setSaving(true);
     setMsg("");
     try {
       await api("/settings", { method: "PATCH", body: JSON.stringify(settings) });
-      setMsg("Settings saved.");
+      setMsg("Settings saved successfully.");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -75,156 +99,363 @@ export default function AdminSettingsPage() {
   }
 
   if (!settings) {
-    return <div className="skeleton h-96 rounded-2xl" />;
+    return (
+      <div className="space-y-4">
+        <div className="skeleton h-36 rounded-3xl" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="skeleton h-72 rounded-3xl" />
+          <div className="skeleton h-72 rounded-3xl" />
+        </div>
+        <div className="skeleton h-64 rounded-3xl" />
+      </div>
+    );
   }
 
+  const storeOpen = isStoreOpen(settings);
+
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
-      <div>
-        <div className="flex items-center gap-2 text-brand-700">
-          <Settings size={20} />
-          <h1 className="font-display text-3xl">Store settings</h1>
+    <div className="space-y-6 pb-24">
+      {/* Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-stone-900 via-stone-900 to-brand-900 p-6 text-white shadow-xl sm:p-8">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-brand-500/20 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-brand-300">
+              <Settings size={16} />
+              <span className="text-xs font-bold uppercase tracking-[0.2em]">Configuration</span>
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl">Store settings</h1>
+            <p className="mt-2 max-w-lg text-sm text-stone-300">
+              Contact details, delivery rules, opening hours, and homepage banners.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
+                storeOpen ? "bg-emerald-500/20 text-emerald-200" : "bg-amber-500/20 text-amber-200"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${storeOpen ? "bg-emerald-400" : "bg-amber-400"}`} />
+              {storeOpen ? "Storefront open" : "Storefront closed"}
+            </span>
+            <button
+              type="button"
+              onClick={() => onSave()}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-stone-900 transition hover:bg-brand-50 disabled:opacity-60"
+            >
+              <Save size={16} />
+              {saving ? "Saving…" : "Save all"}
+            </button>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-stone-500">Hours, contact, delivery rules and promo banners.</p>
       </div>
 
       {msg && (
-        <p className="rounded-xl bg-emerald-50 px-4 py-2 text-sm text-emerald-800">{msg}</p>
+        <p
+          className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+            msg.includes("failed") || msg.includes("Could not")
+              ? "bg-red-50 text-red-800"
+              : "bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          {msg}
+        </p>
       )}
 
-      <form onSubmit={onSave} className="card space-y-5 p-6">
-        <h2 className="font-semibold">Contact</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Phone</label>
-            <input className="input" value={settings.phone} onChange={(e) => setSettings({ ...settings, phone: e.target.value })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">WhatsApp (digits only)</label>
-            <input className="input" value={settings.whatsapp} onChange={(e) => setSettings({ ...settings, whatsapp: e.target.value })} />
-          </div>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-stone-500">Address</label>
-          <input className="input" value={settings.address} onChange={(e) => setSettings({ ...settings, address: e.target.value })} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Latitude</label>
-            <input className="input" type="number" step="any" value={settings.latitude ?? ""} onChange={(e) => setSettings({ ...settings, latitude: e.target.value })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Longitude</label>
-            <input className="input" type="number" step="any" value={settings.longitude ?? ""} onChange={(e) => setSettings({ ...settings, longitude: e.target.value })} />
-          </div>
+      <form onSubmit={onSave} className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <SettingsSection
+            icon={Phone}
+            title="Contact"
+            description="Shown on the storefront, footer, and order receipts."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsField label="Phone">
+                <input
+                  className="input"
+                  value={settings.phone}
+                  onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+                />
+              </SettingsField>
+              <SettingsField label="WhatsApp" hint="Digits only, with country code">
+                <input
+                  className="input"
+                  value={settings.whatsapp}
+                  onChange={(e) => setSettings({ ...settings, whatsapp: e.target.value })}
+                />
+              </SettingsField>
+            </div>
+            <SettingsField label="Address">
+              <input
+                className="input"
+                value={settings.address}
+                onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+              />
+            </SettingsField>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsField label="Latitude">
+                <input
+                  className="input"
+                  type="number"
+                  step="any"
+                  value={settings.latitude ?? ""}
+                  onChange={(e) => setSettings({ ...settings, latitude: e.target.value })}
+                />
+              </SettingsField>
+              <SettingsField label="Longitude">
+                <input
+                  className="input"
+                  type="number"
+                  step="any"
+                  value={settings.longitude ?? ""}
+                  onChange={(e) => setSettings({ ...settings, longitude: e.target.value })}
+                />
+              </SettingsField>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection
+            icon={Truck}
+            title="Orders & delivery"
+            description="Minimums, free delivery threshold, and time estimates."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsField label="Minimum order (Rs)">
+                <input
+                  className="input"
+                  type="number"
+                  value={settings.minimumOrder}
+                  onChange={(e) => setSettings({ ...settings, minimumOrder: e.target.value })}
+                />
+              </SettingsField>
+              <SettingsField label="Free delivery above (Rs)">
+                <input
+                  className="input"
+                  type="number"
+                  value={settings.freeDeliveryAbove ?? ""}
+                  onChange={(e) => setSettings({ ...settings, freeDeliveryAbove: e.target.value || null })}
+                />
+              </SettingsField>
+              <SettingsField label="Delivery estimate (min)">
+                <input
+                  className="input"
+                  type="number"
+                  value={settings.deliveryEstimateMin}
+                  onChange={(e) => setSettings({ ...settings, deliveryEstimateMin: Number(e.target.value) })}
+                />
+              </SettingsField>
+              <SettingsField label="Pickup estimate (min)">
+                <input
+                  className="input"
+                  type="number"
+                  value={settings.pickupEstimateMin}
+                  onChange={(e) => setSettings({ ...settings, pickupEstimateMin: Number(e.target.value) })}
+                />
+              </SettingsField>
+            </div>
+          </SettingsSection>
         </div>
 
-        <h2 className="font-semibold pt-2">Orders & delivery</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Minimum order (Rs)</label>
-            <input className="input" type="number" value={settings.minimumOrder} onChange={(e) => setSettings({ ...settings, minimumOrder: e.target.value })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Free delivery above (Rs)</label>
-            <input className="input" type="number" value={settings.freeDeliveryAbove ?? ""} onChange={(e) => setSettings({ ...settings, freeDeliveryAbove: e.target.value || null })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Delivery estimate (min)</label>
-            <input className="input" type="number" value={settings.deliveryEstimateMin} onChange={(e) => setSettings({ ...settings, deliveryEstimateMin: Number(e.target.value) })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Pickup estimate (min)</label>
-            <input className="input" type="number" value={settings.pickupEstimateMin} onChange={(e) => setSettings({ ...settings, pickupEstimateMin: Number(e.target.value) })} />
-          </div>
-        </div>
+        <SettingsSection
+          icon={Clock}
+          title="Hours & availability"
+          description="When customers can order. Times are in Karachi (PKT)."
+        >
+          <OpeningHoursEditor
+            settings={settings}
+            onChange={(patch) => setSettings({ ...settings, ...patch })}
+          />
 
-        <h2 className="font-semibold pt-2">Opening hours (Karachi)</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Open hour (0–23)</label>
-            <input className="input" type="number" min={0} max={23} value={settings.openHour} onChange={(e) => setSettings({ ...settings, openHour: Number(e.target.value) })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Open minute</label>
-            <input className="input" type="number" min={0} max={59} value={settings.openMinute} onChange={(e) => setSettings({ ...settings, openMinute: Number(e.target.value) })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Close hour (0–23)</label>
-            <input className="input" type="number" min={0} max={23} value={settings.closeHour} onChange={(e) => setSettings({ ...settings, closeHour: Number(e.target.value) })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-stone-500">Close minute</label>
-            <input className="input" type="number" min={0} max={59} value={settings.closeMinute} onChange={(e) => setSettings({ ...settings, closeMinute: Number(e.target.value) })} />
-          </div>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-stone-500">Closed message</label>
-          <textarea className="input min-h-20" value={settings.closedMessage} onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })} />
-        </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={settings.forceClosed} onChange={(e) => setSettings({ ...settings, forceClosed: e.target.checked })} />
-          Force closed (override hours)
-        </label>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <SettingsField label="Closed message" hint="Shown on the storefront when you're closed">
+              <textarea
+                className="input min-h-24 resize-none"
+                value={settings.closedMessage}
+                onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })}
+              />
+            </SettingsField>
 
-        <h2 className="font-semibold pt-2">Social links</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(["facebookUrl", "instagramUrl", "tiktokUrl", "youtubeUrl"] as const).map((key) => (
-            <input
-              key={key}
-              className="input"
-              placeholder={key.replace("Url", "")}
-              value={settings[key]}
-              onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
-            />
-          ))}
-        </div>
+            <div className="flex flex-col justify-center">
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                  settings.forceClosed
+                    ? "border-amber-300 bg-amber-50"
+                    : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-stone-300 text-brand-600 focus:ring-brand-500"
+                  checked={settings.forceClosed}
+                  onChange={(e) => setSettings({ ...settings, forceClosed: e.target.checked })}
+                />
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">Force closed</p>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                    Override opening hours and block all orders until you turn this off.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </SettingsSection>
 
-        <button type="submit" className="btn-primary" disabled={saving}>
-          {saving ? "Saving…" : "Save settings"}
-        </button>
+        <SettingsSection
+          icon={Share2}
+          title="Social links"
+          description="Optional links shown in the storefront footer."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {SOCIAL_FIELDS.map(({ key, label, icon: Icon, placeholder }) => (
+              <SettingsField key={key} label={label}>
+                <div className="flex overflow-hidden rounded-2xl border border-stone-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100">
+                  <span className="grid w-12 shrink-0 place-items-center border-r border-stone-100 bg-stone-50 text-stone-400">
+                    <Icon size={16} />
+                  </span>
+                  <input
+                    className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400"
+                    placeholder={placeholder}
+                    value={settings[key]}
+                    onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+                  />
+                </div>
+              </SettingsField>
+            ))}
+          </div>
+        </SettingsSection>
       </form>
 
-      <section className="card space-y-4 p-6">
-        <h2 className="font-semibold">Promo banners</h2>
-        <ul className="space-y-3">
-          {banners.map((b) => (
-            <li key={b.id} className="flex items-center gap-3 rounded-xl border border-stone-200 p-3">
-              <div className="relative h-14 w-24 overflow-hidden rounded-lg bg-stone-100">
-                {b.imageUrl ? (
-                  <img src={b.imageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="grid h-full place-items-center text-stone-400"><ImageIcon size={18} /></div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{b.title || "Banner"}</p>
-                <p className="truncate text-xs text-stone-500">{b.linkUrl || "No link"}</p>
-              </div>
-              <button type="button" onClick={() => toggleBanner(b)} className="text-xs font-semibold text-brand-700">
-                {b.isActive ? "Active" : "Hidden"}
-              </button>
-              <button type="button" onClick={() => removeBanner(b.id)} className="text-stone-400 hover:text-red-600">
-                <Trash2 size={16} />
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="space-y-2 rounded-xl border border-dashed border-stone-300 p-4">
-          <input className="input" placeholder="Title (optional)" value={bannerForm.title} onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })} />
-          <input className="input" placeholder="Link URL (optional)" value={bannerForm.linkUrl} onChange={(e) => setBannerForm({ ...bannerForm, linkUrl: e.target.value })} />
-          <div className="flex gap-2">
-            <input className="input flex-1" placeholder="Image URL" value={bannerForm.imageUrl} onChange={(e) => setBannerForm({ ...bannerForm, imageUrl: e.target.value })} />
-            <label className="btn-ghost shrink-0 cursor-pointer">
-              {uploading ? "…" : "Upload"}
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onBannerUpload(e.target.files[0])} />
-            </label>
+      <SettingsSection
+        icon={ImageIcon}
+        title="Promo banners"
+        description="Hero carousel images on the homepage. Up to 3 slots are used."
+      >
+        {banners.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 px-4 py-8 text-center">
+            <ImageIcon size={28} className="mx-auto text-stone-300" />
+            <p className="mt-2 text-sm font-medium text-stone-600">No banners yet</p>
+            <p className="text-xs text-stone-400">Add your first promo image below</p>
           </div>
-          <button type="button" className="btn-primary w-full" onClick={addBanner} disabled={!bannerForm.imageUrl}>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {banners.map((b) => (
+              <li
+                key={b.id}
+                className="group overflow-hidden rounded-2xl border border-stone-200 bg-white transition hover:border-brand-200 hover:shadow-sm"
+              >
+                <div className="relative aspect-[16/7] bg-stone-100">
+                  {b.imageUrl ? (
+                    <Image src={b.imageUrl} alt={b.title || "Banner"} fill className="object-cover" sizes="400px" />
+                  ) : (
+                    <div className="grid h-full place-items-center text-stone-300">
+                      <ImageIcon size={24} />
+                    </div>
+                  )}
+                  <span
+                    className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                      b.isActive ? "bg-emerald-500 text-white" : "bg-stone-800/70 text-white"
+                    }`}
+                  >
+                    {b.isActive ? "Live" : "Hidden"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-stone-900">{b.title || "Untitled banner"}</p>
+                    <p className="truncate text-xs text-stone-500">{b.linkUrl || "No link"}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleBanner(b)}
+                    className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700 hover:bg-brand-100"
+                  >
+                    {b.isActive ? "Hide" : "Show"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeBanner(b.id)}
+                    className="grid h-8 w-8 place-items-center rounded-full text-stone-400 transition hover:bg-red-50 hover:text-red-600"
+                    aria-label="Delete banner"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="rounded-2xl border border-dashed border-brand-200 bg-[#fffaf5] p-4 sm:p-5">
+          <p className="mb-3 text-sm font-semibold text-stone-800">Add new banner</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SettingsField label="Title (optional)">
+              <input
+                className="input"
+                placeholder="e.g. Biryani night"
+                value={bannerForm.title}
+                onChange={(e) => setBannerForm({ ...bannerForm, title: e.target.value })}
+              />
+            </SettingsField>
+            <SettingsField label="Link URL (optional)">
+              <input
+                className="input"
+                placeholder="/menu or https://..."
+                value={bannerForm.linkUrl}
+                onChange={(e) => setBannerForm({ ...bannerForm, linkUrl: e.target.value })}
+              />
+            </SettingsField>
+          </div>
+          <SettingsField label="Banner image" className="mt-3">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                className="input flex-1"
+                placeholder="Paste image URL or upload"
+                value={bannerForm.imageUrl}
+                onChange={(e) => setBannerForm({ ...bannerForm, imageUrl: e.target.value })}
+              />
+              <label className="btn-ghost shrink-0 cursor-pointer justify-center">
+                {uploading ? "Uploading…" : "Upload image"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && onBannerUpload(e.target.files[0])}
+                />
+              </label>
+            </div>
+          </SettingsField>
+          {bannerForm.imageUrl && (
+            <div className="relative mt-3 aspect-[16/7] max-h-40 overflow-hidden rounded-xl border border-stone-200">
+              <Image src={bannerForm.imageUrl} alt="Preview" fill className="object-cover" sizes="600px" />
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn-primary mt-4 w-full sm:w-auto"
+            onClick={addBanner}
+            disabled={!bannerForm.imageUrl}
+          >
             <Plus size={16} /> Add banner
           </button>
         </div>
-      </section>
+      </SettingsSection>
+
+      {/* Sticky save bar */}
+      <div className="fixed bottom-20 left-0 right-0 z-20 px-4 lg:bottom-6 lg:left-72">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-md">
+          <p className="hidden text-sm text-stone-500 sm:block">Changes apply to the live storefront after saving.</p>
+          <button
+            type="button"
+            onClick={() => onSave()}
+            disabled={saving}
+            className="btn-primary ml-auto shrink-0"
+          >
+            <Save size={16} />
+            {saving ? "Saving…" : "Save settings"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

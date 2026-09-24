@@ -7,6 +7,7 @@ import { MenuItem } from "@/lib/types";
 import { pkr } from "@/lib/format";
 import { useCart } from "@/lib/cart";
 import { useItemModal } from "@/lib/item-modal";
+import { useStoreOpen } from "@/lib/use-store-open";
 import {
   buildQuickAddConfig,
   menuItemDiscountPercent,
@@ -17,7 +18,9 @@ import {
 export function MenuItemCard({ item }: { item: MenuItem }) {
   const open = useItemModal((s) => s.open);
   const addConfigured = useCart((s) => s.addConfigured);
+  const { isOpen: storeOpen } = useStoreOpen();
   const [imgError, setImgError] = useState(false);
+  const canOrder = item.isAvailable && storeOpen;
 
   const price = menuItemPrice(item);
   const strike = menuItemStrikePrice(item);
@@ -30,7 +33,7 @@ export function MenuItemCard({ item }: { item: MenuItem }) {
 
   function quickAdd(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!item.isAvailable) return;
+    if (!canOrder) return;
     const config = buildQuickAddConfig(item);
     addConfigured({
       item,
@@ -104,7 +107,7 @@ export function MenuItemCard({ item }: { item: MenuItem }) {
           )}
         </div>
 
-        {item.isAvailable && (
+        {item.isAvailable && storeOpen && (
           <button
             type="button"
             onClick={quickAdd}

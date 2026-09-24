@@ -140,13 +140,12 @@ export default function LoginForm() {
                   <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
                     Email
                   </span>
-                  <span className="relative block">
-                    <Mail
-                      size={16}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
-                    />
+                  <div className="flex overflow-hidden rounded-2xl border border-stone-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100">
+                    <span className="grid w-12 shrink-0 place-items-center border-r border-stone-100 bg-stone-50 text-stone-400">
+                      <Mail size={16} />
+                    </span>
                     <input
-                      className="input pl-11"
+                      className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       type="email"
@@ -154,20 +153,19 @@ export default function LoginForm() {
                       placeholder="you@ubaidfastfoodz.com"
                       required
                     />
-                  </span>
+                  </div>
                 </label>
 
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
                     Password
                   </span>
-                  <span className="relative block">
-                    <Lock
-                      size={16}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-400"
-                    />
+                  <div className="flex overflow-hidden rounded-2xl border border-stone-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100">
+                    <span className="grid w-12 shrink-0 place-items-center border-r border-stone-100 bg-stone-50 text-stone-400">
+                      <Lock size={16} />
+                    </span>
                     <input
-                      className="input pl-11"
+                      className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       type="password"
@@ -175,7 +173,7 @@ export default function LoginForm() {
                       placeholder="••••••••"
                       required
                     />
-                  </span>
+                  </div>
                 </label>
 
                 <button className="btn-primary h-12 w-full text-base shadow-float" disabled={busy}>

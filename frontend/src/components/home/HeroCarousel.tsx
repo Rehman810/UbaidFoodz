@@ -4,6 +4,7 @@ import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Bike, ChevronLeft, ChevronRight, Clock, Star } from "lucide-react";
+import { storeStatusLabel } from "@/lib/store-hours";
 import { PromoBanner, PublicStore } from "@/lib/types";
 import { HeroSearchInput } from "./HeroSearchInput";
 
@@ -87,6 +88,7 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
 
   const [idx, setIdx] = useState(0);
   const count = slides.length;
+  const hoursStatus = store ? storeStatusLabel(store.settings) : "Karachi";
   const slide = slides[idx];
   const deliveryMin = store?.settings.deliveryEstimateMin ?? 45;
 
@@ -145,7 +147,7 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-60" />
                 <span className="relative h-1.5 w-1.5 rounded-full bg-brand-500" />
               </span>
-              {store?.isOpen ? "Open" : "Closed"} · Karachi
+              {hoursStatus}
             </span>
           </div>
 
@@ -213,7 +215,7 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500" />
               </span>
-              {store?.isOpen ? "Kitchen open" : "Closed now"} · Karachi
+              {hoursStatus}
             </div>
 
             <h1 className="font-display text-4xl leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-[3.75rem]">

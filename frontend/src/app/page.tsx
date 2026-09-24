@@ -51,7 +51,7 @@ export default function HomePage() {
               <h2 className="font-display mt-2 text-3xl sm:text-4xl">Save on your bag</h2>
               <p className="mt-2 max-w-lg text-stone-600">Combo deals with everything included — add straight to your bag.</p>
             </Reveal>
-            <div className="mt-8 grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:gap-5 lg:max-w-3xl">
               {deals.map((deal, i) => (
                 <Reveal key={deal.id} delay={i * 80}>
                   <DealCard deal={deal} />

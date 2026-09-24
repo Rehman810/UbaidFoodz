@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   Bike,
@@ -16,7 +16,9 @@ import {
   Users,
   UtensilsCrossed,
 } from "lucide-react";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { PublicStore } from "@/lib/types";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -41,6 +43,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const path = usePathname();
+  const [kitchenOpen, setKitchenOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api<PublicStore>("/settings/public")
+      .then((data) => setKitchenOpen(data.isOpen))
+      .catch(() => setKitchenOpen(null));
+  }, [path]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "ADMIN")) router.replace("/login?next=/admin");
@@ -113,10 +122,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
           </p>
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Kitchen online
+            <span
+              className={`hidden items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold sm:flex ${
+                kitchenOpen === false
+                  ? "bg-amber-50 text-amber-800"
+                  : "bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  kitchenOpen === false ? "bg-amber-500" : "bg-emerald-500"
+                }`}
+              />
+              {kitchenOpen === false ? "Kitchen closed" : "Kitchen online"}
             </span>
-            <Link href="/" className="hidden text-xs font-semibold text-brand-700 hover:underline sm:inline">
+            <Link
+              href="/"
+              className="hidden rounded-full border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-50 sm:inline"
+            >
               View storefront →
             </Link>
             <button
