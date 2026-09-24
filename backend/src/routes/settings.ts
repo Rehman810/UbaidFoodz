@@ -49,6 +49,9 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
       ...(body.autoConfirmOrders !== undefined
         ? { autoConfirmOrders: Boolean(body.autoConfirmOrders) }
         : {}),
+      ...(body.autoAssignRiders !== undefined
+        ? { autoAssignRiders: Boolean(body.autoAssignRiders) }
+        : {}),
       ...(body.facebookUrl !== undefined ? { facebookUrl: String(body.facebookUrl) } : {}),
       ...(body.instagramUrl !== undefined ? { instagramUrl: String(body.instagramUrl) } : {}),
       ...(body.tiktokUrl !== undefined ? { tiktokUrl: String(body.tiktokUrl) } : {}),

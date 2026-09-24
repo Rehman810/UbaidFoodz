@@ -276,6 +276,28 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
             </label>
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                settings.autoAssignRiders
+                  ? "border-violet-300 bg-violet-50"
+                  : "border-stone-200 bg-stone-50"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-stone-300 text-brand-600"
+                checked={settings.autoAssignRiders ?? true}
+                onChange={(e) => setSettings({ ...settings, autoAssignRiders: e.target.checked })}
+              />
+              <div>
+                <p className="text-sm font-semibold text-stone-900">Auto-assign riders</p>
+                <p className="mt-1 text-xs leading-relaxed text-stone-600">
+                  {settings.autoAssignRiders ?? true
+                    ? "When an order goes out for delivery, the least-busy rider is assigned automatically."
+                    : "Pick a rider manually from the order panel before dispatching."}
+                </p>
+              </div>
+            </label>
           </SettingsSection>
         </div>
 

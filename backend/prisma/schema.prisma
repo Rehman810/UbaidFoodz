@@ -131,6 +131,7 @@ model StoreSettings {
   closedMessage       String   @default("Sorry, we are closed right now. We open daily at 7:00 PM.")
   forceClosed         Boolean  @default(false)
   autoConfirmOrders   Boolean  @default(false)
+  autoAssignRiders    Boolean  @default(true)
   facebookUrl         String   @default("")
   instagramUrl        String   @default("")
   tiktokUrl           String   @default("")

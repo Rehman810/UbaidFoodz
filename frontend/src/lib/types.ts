@@ -65,6 +65,7 @@ export type StoreSettings = {
   closedMessage: string;
   forceClosed: boolean;
   autoConfirmOrders: boolean;
+  autoAssignRiders: boolean;
   facebookUrl: string;
   instagramUrl: string;
   tiktokUrl: string;

@@ -10,6 +10,7 @@ import {
   sendOrderPlacedEmail,
 } from "../lib/email";
 import { generateInvoicePdf } from "../lib/invoice";
+import { deliveryNeedsRider, pickLeastBusyRider } from "../lib/rider-assign";
 import { getStoreSettings } from "../lib/settings-data";
 import { effectiveItemPrice, isStoreOpen } from "../lib/store-settings";
 
@@ -360,9 +361,35 @@ ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN), async (r
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
 
+  const storeSettings = await getStoreSettings();
+  let riderId = existing.riderId;
+  const needsRider = deliveryNeedsRider(existing.fulfillmentType);
+
+  if (
+    needsRider &&
+    (status === OrderStatus.OUT_FOR_DELIVERY || status === OrderStatus.DELIVERED) &&
+    !riderId
+  ) {
+    if (storeSettings.autoAssignRiders && status === OrderStatus.OUT_FOR_DELIVERY) {
+      riderId = await pickLeastBusyRider();
+    }
+    if (!riderId) {
+      const error =
+        status === OrderStatus.OUT_FOR_DELIVERY
+          ? storeSettings.autoAssignRiders
+            ? "No riders available. Add a rider account first."
+            : "Assign a rider before sending this order out for delivery."
+          : "Assign a rider before marking this order delivered.";
+      return res.status(400).json({ error });
+    }
+  }
+
   const order = await prisma.order.update({
     where: { id: req.params.id },
-    data: { status },
+    data: {
+      status,
+      ...(riderId && !existing.riderId ? { riderId } : {}),
+    },
     include,
   });
 
