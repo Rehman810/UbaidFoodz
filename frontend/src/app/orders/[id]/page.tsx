@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
-import { Download, CheckCircle2 } from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Download, CheckCircle2, RotateCcw } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { StatusTrack } from "@/components/StatusTrack";
 import { api, downloadInvoice } from "@/lib/api";
 import { getGuestOrderToken, orderApiPath, saveGuestOrderToken } from "@/lib/guest-order";
+import { useCart } from "@/lib/cart";
 import { eta, formatWhen, pkr } from "@/lib/format";
 import { Order } from "@/lib/types";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const addConfigured = useCart((s) => s.addConfigured);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
   const [guestToken, setGuestToken] = useState<string | null>(null);
@@ -28,6 +31,31 @@ export default function OrderDetailPage() {
       .then(setOrder)
       .catch((e) => setError(e.message));
   }, [id, searchParams]);
+
+  async function repeatOrder() {
+    if (!order) return;
+    const menu = await api<{ id: string; name: string; imageUrl: string; price: number }[]>(
+      "/menu"
+    ).catch(() => []);
+    for (const line of order.items) {
+      const item = menu.find((m) => m.id === line.menuItemId);
+      if (!item) continue;
+      addConfigured({
+        item: {
+          id: item.id,
+          name: line.nameAtOrder,
+          description: "",
+          price: item.price,
+          category: "",
+          imageUrl: item.imageUrl,
+          isAvailable: true,
+        },
+        price: Number(line.priceAtOrder),
+        optionsLabel: line.nameAtOrder,
+      });
+    }
+    router.push("/checkout");
+  }
 
   return (
     <StoreShell>
@@ -84,9 +112,12 @@ export default function OrderDetailPage() {
               {order.fulfillmentType === "PICKUP" ? "Pickup" : "Delivery"}
             </p>
             <p className="mt-1 text-sm text-stone-500">{order.deliveryAddress}</p>
-            {order.notes && <p className="mt-1 text-sm italic text-stone-500">"{order.notes}"</p>}
+            {order.notes && <p className="mt-1 text-sm italic text-stone-500">&ldquo;{order.notes}&rdquo;</p>}
+            <button className="btn-ghost mt-4 w-full" onClick={repeatOrder}>
+              <RotateCcw size={16} /> Order again
+            </button>
             {(order.status === "DELIVERED" || order.invoice) && (
-              <button className="btn-primary mt-6 w-full" onClick={() => downloadInvoice(order.id, guestToken)}>
+              <button className="btn-primary mt-3 w-full" onClick={() => downloadInvoice(order.id, guestToken)}>
                 <Download size={16} /> Download invoice
               </button>
             )}

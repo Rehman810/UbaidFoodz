@@ -7,6 +7,7 @@ import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { cartTotal, useCart } from "@/lib/cart";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
+import { useStore } from "@/lib/store";
 
 const CLOSE_MS = 340;
 
@@ -17,9 +18,15 @@ export function CartDrawer() {
   const setQty = useCart((s) => s.setQty);
   const remove = useCart((s) => s.remove);
   const subtotal = cartTotal(items);
+  const store = useStore();
   const { mode, deliveryCharge, areaName } = useFulfillment();
-  const deliveryFee = mode === "DELIVERY" ? deliveryCharge : 0;
+  const freeAbove =
+    store?.settings.freeDeliveryAbove != null ? Number(store.settings.freeDeliveryAbove) : null;
+  const qualifiesFree = freeAbove != null && subtotal >= freeAbove;
+  const deliveryFee = mode === "DELIVERY" && !qualifiesFree ? deliveryCharge : 0;
   const total = subtotal + deliveryFee;
+  const minimumOrder = Number(store?.settings.minimumOrder ?? 0);
+  const belowMinimum = minimumOrder > 0 && subtotal < minimumOrder;
 
   const [render, setRender] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -143,11 +150,17 @@ export function CartDrawer() {
               <span className="text-stone-500">Subtotal</span>
               <span>{pkr(subtotal)}</span>
             </div>
-            {deliveryFee > 0 && (
+            {mode === "DELIVERY" && (
               <div className="flex justify-between">
                 <span className="text-stone-500">Delivery{areaName ? ` · ${areaName}` : ""}</span>
-                <span>{pkr(deliveryFee)}</span>
+                <span>{qualifiesFree ? <span className="text-emerald-600">Free</span> : pkr(deliveryFee)}</span>
               </div>
+            )}
+            {freeAbove != null && !qualifiesFree && (
+              <p className="text-xs text-emerald-700">Free delivery above {pkr(freeAbove)}</p>
+            )}
+            {belowMinimum && (
+              <p className="text-xs text-amber-700">Min. order {pkr(minimumOrder)}</p>
             )}
             <div className="flex justify-between font-semibold">
               <span>Total</span>
@@ -157,9 +170,9 @@ export function CartDrawer() {
           <Link
             href="/checkout"
             onClick={close}
-            className={`btn-primary w-full ${items.length === 0 ? "pointer-events-none opacity-50" : ""}`}
+            className={`btn-primary w-full ${items.length === 0 || belowMinimum ? "pointer-events-none opacity-50" : ""}`}
           >
-            Place order
+            {belowMinimum ? `Add ${pkr(minimumOrder - subtotal)} more` : "Place order"}
           </Link>
         </div>
       </aside>

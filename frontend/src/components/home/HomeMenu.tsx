@@ -7,6 +7,8 @@ import { Plus, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { useCart } from "@/lib/cart";
+import { ItemOptionsModal } from "@/components/ItemOptionsModal";
+import { itemNeedsOptions, menuItemHasDiscount, menuItemPrice } from "@/lib/menu-price";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, MenuItem } from "@/lib/types";
 import { DEFAULT_CATEGORY_BANNER, enrichCategories } from "@/lib/category-meta";
 import { Reveal } from "./Reveal";
@@ -31,6 +33,7 @@ export function HomeMenu() {
   );
   const [error, setError] = useState("");
   const [active, setActive] = useState("All");
+  const [optionsItem, setOptionsItem] = useState<MenuItem | null>(null);
   const add = useCart((s) => s.add);
 
   useEffect(() => {
@@ -166,12 +169,19 @@ export function HomeMenu() {
                           <div className="flex flex-1 flex-col p-4">
                             <div className="flex items-start justify-between gap-2">
                               <h4 className="font-semibold leading-snug">{item.name}</h4>
-                              <span className="shrink-0 font-bold text-brand-700">{pkr(item.price)}</span>
+                              <div className="shrink-0 text-right">
+                                {menuItemHasDiscount(item) && (
+                                  <p className="text-xs text-stone-400 line-through">{pkr(item.price)}</p>
+                                )}
+                                <span className="font-bold text-brand-700">{pkr(menuItemPrice(item))}</span>
+                              </div>
                             </div>
                             <p className="mt-1.5 line-clamp-2 flex-1 text-sm text-stone-500">{item.description}</p>
                             <button
                               disabled={!item.isAvailable}
-                              onClick={() => add(item)}
+                              onClick={() =>
+                                itemNeedsOptions(item) ? setOptionsItem(item) : add(item)
+                              }
                               className="btn-primary mt-4 w-full py-2.5 text-sm"
                             >
                               <Plus size={15} /> Add to bag
@@ -187,6 +197,7 @@ export function HomeMenu() {
           </div>
         )}
       </div>
+      <ItemOptionsModal item={optionsItem} onClose={() => setOptionsItem(null)} />
     </section>
   );
 }

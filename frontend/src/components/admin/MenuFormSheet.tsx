@@ -47,13 +47,19 @@ function DishImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+export type SizeRow = { name: string; price: string };
+export type AddonRow = { name: string; price: string };
+
 export type MenuFormData = {
   name: string;
   description: string;
   price: string;
+  discountPrice: string;
   category: string;
   imageUrl: string;
   isAvailable: boolean;
+  sizes: SizeRow[];
+  addons: AddonRow[];
 };
 
 export function MenuFormSheet({
@@ -260,17 +266,128 @@ export function MenuFormSheet({
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-stone-500">Price (PKR)</label>
+                <input
+                  className="input"
+                  placeholder="0"
+                  type="number"
+                  min={0}
+                  value={form.price}
+                  onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-stone-500">Sale price (optional)</label>
+                <input
+                  className="input"
+                  placeholder="Discount"
+                  type="number"
+                  min={0}
+                  value={form.discountPrice}
+                  onChange={(e) => setForm((f) => ({ ...f, discountPrice: e.target.value }))}
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-stone-500">Price (PKR)</label>
-              <input
-                className="input"
-                placeholder="0"
-                type="number"
-                min={0}
-                value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                required
-              />
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-xs font-medium text-stone-500">Sizes (optional)</label>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-brand-700"
+                  onClick={() => setForm((f) => ({ ...f, sizes: [...f.sizes, { name: "", price: "" }] }))}
+                >
+                  + Add size
+                </button>
+              </div>
+              {form.sizes.map((row, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <input
+                    className="input flex-1"
+                    placeholder="Name"
+                    value={row.name}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const sizes = [...f.sizes];
+                        sizes[i] = { ...sizes[i], name: e.target.value };
+                        return { ...f, sizes };
+                      })
+                    }
+                  />
+                  <input
+                    className="input w-24"
+                    placeholder="Rs"
+                    type="number"
+                    value={row.price}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const sizes = [...f.sizes];
+                        sizes[i] = { ...sizes[i], price: e.target.value };
+                        return { ...f, sizes };
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="text-stone-400"
+                    onClick={() => setForm((f) => ({ ...f, sizes: f.sizes.filter((_, j) => j !== i) }))}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-xs font-medium text-stone-500">Add-ons (optional)</label>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-brand-700"
+                  onClick={() => setForm((f) => ({ ...f, addons: [...f.addons, { name: "", price: "" }] }))}
+                >
+                  + Add addon
+                </button>
+              </div>
+              {form.addons.map((row, i) => (
+                <div key={i} className="mb-2 flex gap-2">
+                  <input
+                    className="input flex-1"
+                    placeholder="Name"
+                    value={row.name}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const addons = [...f.addons];
+                        addons[i] = { ...addons[i], name: e.target.value };
+                        return { ...f, addons };
+                      })
+                    }
+                  />
+                  <input
+                    className="input w-24"
+                    placeholder="Rs"
+                    type="number"
+                    value={row.price}
+                    onChange={(e) =>
+                      setForm((f) => {
+                        const addons = [...f.addons];
+                        addons[i] = { ...addons[i], price: e.target.value };
+                        return { ...f, addons };
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="text-stone-400"
+                    onClick={() => setForm((f) => ({ ...f, addons: f.addons.filter((_, j) => j !== i) }))}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
             </div>
 
             <AdminSelect

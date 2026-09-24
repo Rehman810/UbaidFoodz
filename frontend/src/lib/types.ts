@@ -8,16 +8,74 @@ export type User = {
   phone?: string | null;
 };
 
+export type MenuItemSize = {
+  id: string;
+  name: string;
+  price: string | number;
+  sortOrder: number;
+};
+
+export type MenuItemAddon = {
+  id: string;
+  name: string;
+  price: string | number;
+  sortOrder: number;
+};
+
 export type MenuItem = {
   id: string;
   name: string;
   description: string;
   price: string | number;
+  discountPrice?: string | number | null;
+  effectivePrice?: number;
   category: string;
   imageUrl: string;
   isAvailable: boolean;
+  sizes?: MenuItemSize[];
+  addons?: MenuItemAddon[];
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type StoreSettings = {
+  id: string;
+  phone: string;
+  whatsapp: string;
+  address: string;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
+  minimumOrder: string | number;
+  freeDeliveryAbove?: string | number | null;
+  deliveryEstimateMin: number;
+  pickupEstimateMin: number;
+  openHour: number;
+  openMinute: number;
+  closeHour: number;
+  closeMinute: number;
+  closedMessage: string;
+  forceClosed: boolean;
+  facebookUrl: string;
+  instagramUrl: string;
+  tiktokUrl: string;
+  youtubeUrl: string;
+};
+
+export type PromoBanner = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type PublicStore = {
+  settings: StoreSettings;
+  banners: PromoBanner[];
+  isOpen: boolean;
+  hoursLabel: string;
+  closedMessage: string;
 };
 
 export type Category = {
@@ -53,6 +111,7 @@ export type OrderItem = {
   quantity: number;
   priceAtOrder: string | number;
   nameAtOrder: string;
+  optionsLabel?: string;
 };
 
 export type FulfillmentType = "DELIVERY" | "PICKUP";

@@ -29,9 +29,12 @@ const emptyDish: MenuFormData = {
   name: "",
   description: "",
   price: "",
+  discountPrice: "",
   category: "Main Course",
   imageUrl: "",
   isAvailable: true,
+  sizes: [],
+  addons: [],
 };
 
 const emptyDeal: DealFormData = {
@@ -190,7 +193,17 @@ export default function AdminMenu() {
     e.preventDefault();
     setSaving(true);
     try {
-      const body = { ...dishForm, price: Number(dishForm.price) };
+      const body = {
+        ...dishForm,
+        price: Number(dishForm.price),
+        discountPrice: dishForm.discountPrice ? Number(dishForm.discountPrice) : null,
+        sizes: dishForm.sizes
+          .filter((s) => s.name.trim())
+          .map((s) => ({ name: s.name.trim(), price: Number(s.price) || 0 })),
+        addons: dishForm.addons
+          .filter((a) => a.name.trim())
+          .map((a) => ({ name: a.name.trim(), price: Number(a.price) || 0 })),
+      };
       if (editingDish) await api(`/menu/${editingDish}`, { method: "PUT", body: JSON.stringify(body) });
       else await api("/menu", { method: "POST", body: JSON.stringify(body) });
       closeDishForm();
@@ -345,9 +358,12 @@ export default function AdminMenu() {
       name: item.name,
       description: item.description,
       price: String(item.price),
+      discountPrice: item.discountPrice != null ? String(item.discountPrice) : "",
       category: item.category,
       imageUrl: item.imageUrl,
       isAvailable: item.isAvailable,
+      sizes: (item.sizes ?? []).map((s) => ({ name: s.name, price: String(s.price) })),
+      addons: (item.addons ?? []).map((a) => ({ name: a.name, price: String(a.price) })),
     });
     setDishFormOpen(true);
   }

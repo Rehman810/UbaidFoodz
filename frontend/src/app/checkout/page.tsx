@@ -1,21 +1,23 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Bike, MapPin, ShieldCheck, Store } from "lucide-react";
+import { Bike, ExternalLink, MapPin, ShieldCheck, Store } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { useAuth } from "@/lib/auth";
 import { cartTotal, useCart } from "@/lib/cart";
 import { api } from "@/lib/api";
 import { saveGuestOrderToken } from "@/lib/guest-order";
-import { PICKUP_LOCATION, useFulfillment } from "@/lib/fulfillment";
+import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
+import { useStore } from "@/lib/store";
 import { Order } from "@/lib/types";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const store = useStore();
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
   const subtotal = cartTotal(items);
@@ -35,7 +37,22 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false);
 
   const isDelivery = mode === "DELIVERY";
-  const grandTotal = subtotal + (isDelivery ? deliveryCharge : 0);
+  const settings = store?.settings;
+  const pickupAddress = settings?.address ?? "Ubaid Fast Foodz — Boat Basin, Clifton Block 5, Karachi";
+  const minimumOrder = Number(settings?.minimumOrder ?? 0);
+  const freeAbove = settings?.freeDeliveryAbove != null ? Number(settings.freeDeliveryAbove) : null;
+  const qualifiesFreeDelivery = freeAbove != null && subtotal >= freeAbove;
+  const effectiveDelivery = isDelivery && !qualifiesFreeDelivery ? deliveryCharge : 0;
+  const grandTotal = subtotal + effectiveDelivery;
+  const belowMinimum = minimumOrder > 0 && subtotal < minimumOrder;
+  const storeClosed = store ? !store.isOpen : false;
+
+  const mapsUrl = useMemo(() => {
+    if (!settings?.latitude || !settings?.longitude) return null;
+    const lat = settings.latitude;
+    const lng = settings.longitude;
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  }, [settings]);
 
   useEffect(() => {
     if (!hasChosen) setOpenModal(true);
@@ -52,6 +69,14 @@ export default function CheckoutPage() {
     e.preventDefault();
     setError("");
     if (items.length === 0) return;
+    if (storeClosed) {
+      setError(store?.closedMessage ?? "We are currently closed.");
+      return;
+    }
+    if (belowMinimum) {
+      setError(`Minimum order is ${pkr(minimumOrder)}. Add more items to continue.`);
+      return;
+    }
     if (!hasChosen) {
       setOpenModal(true);
       return;
@@ -68,13 +93,18 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customerName: name,
           customerPhone: phone,
-          deliveryAddress: isDelivery ? address : PICKUP_LOCATION,
+          deliveryAddress: isDelivery ? address : pickupAddress,
           fulfillmentType: mode,
           deliveryAreaId: isDelivery ? areaId : undefined,
           notes,
           items: items
             .filter((i) => !i.kind || i.kind === "item")
-            .map((i) => ({ menuItemId: i.id, quantity: i.quantity })),
+            .map((i) => ({
+              menuItemId: i.menuItemId || i.id,
+              quantity: i.quantity,
+              sizeId: i.sizeId,
+              addonIds: i.addonIds,
+            })),
           deals: items
             .filter((i) => i.kind === "deal" && i.dealId)
             .map((i) => ({ dealId: i.dealId!, quantity: i.quantity })),
@@ -94,12 +124,34 @@ export default function CheckoutPage() {
     }
   }
 
+  const estimateMin = isDelivery
+    ? settings?.deliveryEstimateMin ?? 45
+    : settings?.pickupEstimateMin ?? 20;
+
   return (
     <StoreShell>
       <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[1.1fr_0.9fr]">
         <form onSubmit={onSubmit} className="space-y-4">
           <h1 className="font-display text-4xl">Checkout</h1>
           <p className="text-sm text-stone-500">No account needed — just your details.</p>
+
+          {storeClosed && (
+            <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {store?.closedMessage}
+            </p>
+          )}
+          {belowMinimum && (
+            <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Minimum order is {pkr(minimumOrder)}. Add {pkr(minimumOrder - subtotal)} more to continue.
+            </p>
+          )}
+          {freeAbove != null && (
+            <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              {qualifiesFreeDelivery
+                ? "You qualify for free delivery!"
+                : `Free delivery on orders above ${pkr(freeAbove)}`}
+            </p>
+          )}
           {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
           <button
@@ -119,8 +171,9 @@ export default function CheckoutPage() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{isDelivery ? "Delivery" : "Pickup"}</p>
               <p className="truncate text-xs text-stone-500">
-                {isDelivery ? areaName || "Select area" : PICKUP_LOCATION}
+                {isDelivery ? areaName || "Select area" : pickupAddress}
               </p>
+              <p className="text-xs text-brand-600">Est. {estimateMin} min</p>
             </div>
             <span className="text-xs font-semibold text-brand-700">Change</span>
           </button>
@@ -150,9 +203,21 @@ export default function CheckoutPage() {
               required
             />
           ) : (
-            <div className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
-              <MapPin className="mt-0.5 shrink-0 text-brand-600" size={16} />
-              <p>Pickup from <strong>{PICKUP_LOCATION}</strong>. We will call when your order is ready.</p>
+            <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+              <div className="flex items-start gap-3">
+                <MapPin className="mt-0.5 shrink-0 text-brand-600" size={16} />
+                <p>Pickup from <strong>{pickupAddress}</strong>. We will call when your order is ready.</p>
+              </div>
+              {mapsUrl && (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline"
+                >
+                  Open in Google Maps <ExternalLink size={12} />
+                </a>
+              )}
             </div>
           )}
           <textarea
@@ -161,7 +226,10 @@ export default function CheckoutPage() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
-          <button className="btn-primary h-12 w-full" disabled={busy || items.length === 0}>
+          <button
+            className="btn-primary h-12 w-full"
+            disabled={busy || items.length === 0 || storeClosed || belowMinimum}
+          >
             {busy ? "Placing…" : `Place order · ${pkr(grandTotal)}`}
           </button>
         </form>
@@ -194,10 +262,16 @@ export default function CheckoutPage() {
               <span className="text-stone-500">Subtotal</span>
               <span>{pkr(subtotal)}</span>
             </div>
-            {isDelivery && deliveryCharge > 0 && (
+            {isDelivery && (
               <div className="flex justify-between">
                 <span className="text-stone-500">Delivery ({areaName})</span>
-                <span>{pkr(deliveryCharge)}</span>
+                <span>
+                  {qualifiesFreeDelivery ? (
+                    <span className="text-emerald-600">Free</span>
+                  ) : (
+                    pkr(effectiveDelivery)
+                  )}
+                </span>
               </div>
             )}
             <div className="flex justify-between font-semibold">

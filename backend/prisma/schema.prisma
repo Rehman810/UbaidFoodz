@@ -49,17 +49,76 @@ model Category {
 }
 
 model MenuItem {
-  id          String     @id @default(uuid())
-  name        String
-  description String
-  price       Decimal    @db.Decimal(10, 2)
-  category    String
-  imageUrl    String
-  isAvailable Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  orderItems  OrderItem[]
-  dealItems   DealItem[]
+  id            String          @id @default(uuid())
+  name          String
+  description   String
+  price         Decimal         @db.Decimal(10, 2)
+  discountPrice Decimal?        @db.Decimal(10, 2)
+  category      String
+  imageUrl      String
+  isAvailable   Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  orderItems    OrderItem[]
+  dealItems     DealItem[]
+  sizes         MenuItemSize[]
+  addons        MenuItemAddon[]
+}
+
+model MenuItemSize {
+  id         String   @id @default(uuid())
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  sortOrder  Int      @default(0)
+
+  @@unique([menuItemId, name])
+}
+
+model MenuItemAddon {
+  id         String   @id @default(uuid())
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  sortOrder  Int      @default(0)
+
+  @@unique([menuItemId, name])
+}
+
+model StoreSettings {
+  id                  String   @id @default("default")
+  phone               String   @default("0321-5556677")
+  whatsapp            String   @default("923215556677")
+  address             String   @default("Boat Basin, Clifton Block 5, Karachi")
+  latitude            Decimal? @db.Decimal(10, 7)
+  longitude           Decimal? @db.Decimal(10, 7)
+  minimumOrder        Decimal  @default(500) @db.Decimal(10, 2)
+  freeDeliveryAbove   Decimal? @db.Decimal(10, 2)
+  deliveryEstimateMin Int      @default(45)
+  pickupEstimateMin   Int      @default(20)
+  openHour            Int      @default(19)
+  openMinute          Int      @default(0)
+  closeHour           Int      @default(2)
+  closeMinute         Int      @default(30)
+  closedMessage       String   @default("Sorry, we are closed right now. We open daily at 7:00 PM.")
+  forceClosed         Boolean  @default(false)
+  facebookUrl         String   @default("")
+  instagramUrl        String   @default("")
+  tiktokUrl           String   @default("")
+  youtubeUrl          String   @default("")
+  updatedAt           DateTime @updatedAt
+}
+
+model PromoBanner {
+  id        String   @id @default(uuid())
+  title     String   @default("")
+  imageUrl  String
+  linkUrl   String   @default("")
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
 
 model Deal {
@@ -129,6 +188,7 @@ model OrderItem {
   quantity      Int
   priceAtOrder  Decimal  @db.Decimal(10, 2)
   nameAtOrder   String
+  optionsLabel  String   @default("")
 }
 
 model Invoice {

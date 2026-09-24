@@ -5,10 +5,10 @@ import { prisma } from "../lib/prisma";
 import { canAccessOrder, stripGuestToken } from "../lib/order-access";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth";
 import { generateInvoicePdf } from "../lib/invoice";
+import { getStoreSettings } from "../lib/settings-data";
+import { effectiveItemPrice, isStoreOpen } from "../lib/store-settings";
 
 export const ordersRouter = Router();
-
-const PICKUP_ADDRESS = "Ubaid Fast Foodz — Boat Basin, Clifton Block 5, Karachi";
 
 const include = {
   items: true,
@@ -32,6 +32,13 @@ function normalizePhone(phone: string) {
 }
 
 ordersRouter.post("/", optionalAuth, async (req, res) => {
+  const storeSettings = await getStoreSettings();
+  if (!isStoreOpen(storeSettings)) {
+    return res.status(400).json({ error: storeSettings.closedMessage });
+  }
+
+  const pickupAddress = `Ubaid Fast Foodz — ${storeSettings.address}`;
+
   const {
     items,
     deals,
@@ -42,7 +49,12 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     fulfillmentType,
     deliveryAreaId,
   } = req.body as {
-    items?: { menuItemId: string; quantity: number }[];
+    items?: {
+      menuItemId: string;
+      quantity: number;
+      sizeId?: string;
+      addonIds?: string[];
+    }[];
     deals?: { dealId: string; quantity: number }[];
     deliveryAddress?: string;
     notes?: string;
@@ -58,9 +70,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   const mode: FulfillmentType =
     fulfillmentType === FulfillmentType.PICKUP ? FulfillmentType.PICKUP : FulfillmentType.DELIVERY;
   const trimmedAddress =
-    mode === FulfillmentType.PICKUP
-      ? PICKUP_ADDRESS
-      : String(deliveryAddress || "").trim();
+    mode === FulfillmentType.PICKUP ? pickupAddress : String(deliveryAddress || "").trim();
 
   if ((!cartItems.length && !cartDeals.length) || !trimmedName || !phone) {
     return res.status(400).json({ error: "Cart, name and phone are required." });
@@ -89,6 +99,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
 
   const menuItems = await prisma.menuItem.findMany({
     where: { id: { in: cartItems.map((i) => i.menuItemId) } },
+    include: { sizes: true, addons: true },
   });
   const byId = new Map(menuItems.map((m) => [m.id, m]));
 
@@ -97,8 +108,9 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     quantity: number;
     priceAtOrder: number;
     nameAtOrder: string;
+    optionsLabel: string;
   }[] = [];
-  let total = 0;
+  let subtotal = 0;
 
   for (const row of cartItems) {
     const menu = byId.get(row.menuItemId);
@@ -106,13 +118,31 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       return res.status(400).json({ error: `Item unavailable: ${row.menuItemId}` });
     }
     const qty = Math.max(1, Number(row.quantity) || 1);
-    const price = Number(menu.price);
-    total += price * qty;
+    let unitPrice = effectiveItemPrice(menu);
+    const labels: string[] = [];
+
+    if (row.sizeId) {
+      const size = menu.sizes.find((s) => s.id === row.sizeId);
+      if (!size) return res.status(400).json({ error: "Invalid size selected." });
+      unitPrice = Number(size.price);
+      labels.push(size.name);
+    }
+
+    const addonIds = row.addonIds ?? [];
+    for (const addonId of addonIds) {
+      const addon = menu.addons.find((a) => a.id === addonId);
+      if (!addon) return res.status(400).json({ error: "Invalid add-on selected." });
+      unitPrice += Number(addon.price);
+      labels.push(addon.name);
+    }
+
+    subtotal += unitPrice * qty;
     lines.push({
       menuItemId: menu.id,
       quantity: qty,
-      priceAtOrder: price,
+      priceAtOrder: unitPrice,
       nameAtOrder: menu.name,
+      optionsLabel: labels.join(", "),
     });
   }
 
@@ -128,7 +158,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     }
     const dealQty = Math.max(1, Number(row.quantity) || 1);
     const dealPrice = Number(deal.dealPrice) * dealQty;
-    total += dealPrice;
+    subtotal += dealPrice;
 
     const regular = deal.items.reduce(
       (sum, item) => sum + Number(item.menuItem.price) * item.quantity,
@@ -150,11 +180,26 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
         quantity: lineQty,
         priceAtOrder: lineTotal / lineQty,
         nameAtOrder: `${deal.title} · ${item.menuItem.name}`,
+        optionsLabel: "",
       });
     }
   }
 
-  const subtotal = total;
+  const minimumOrder = Number(storeSettings.minimumOrder);
+  if (subtotal < minimumOrder) {
+    return res.status(400).json({
+      error: `Minimum order is Rs ${minimumOrder.toLocaleString("en-PK")}. Add more items to continue.`,
+    });
+  }
+
+  if (
+    mode === FulfillmentType.DELIVERY &&
+    storeSettings.freeDeliveryAbove != null &&
+    subtotal >= Number(storeSettings.freeDeliveryAbove)
+  ) {
+    deliveryCharge = 0;
+  }
+
   const grandTotal = subtotal + deliveryCharge;
 
   const order = await prisma.order.create({

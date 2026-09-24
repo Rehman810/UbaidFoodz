@@ -6,6 +6,7 @@ import { Deal, MenuItem } from "./types";
 
 export type CartLine = {
   id: string;
+  menuItemId?: string;
   kind?: "item" | "deal";
   name: string;
   price: number;
@@ -13,11 +14,26 @@ export type CartLine = {
   quantity: number;
   dealId?: string;
   dealItems?: { menuItemId: string; quantity: number }[];
+  sizeId?: string;
+  addonIds?: string[];
+  optionsLabel?: string;
 };
+
+export function cartLineKey(menuItemId: string, sizeId?: string, addonIds?: string[]) {
+  const addons = [...(addonIds ?? [])].sort().join(",");
+  return `${menuItemId}:${sizeId || ""}:${addons}`;
+}
 
 type CartState = {
   items: CartLine[];
   add: (item: MenuItem) => void;
+  addConfigured: (opts: {
+    item: MenuItem;
+    price: number;
+    sizeId?: string;
+    addonIds?: string[];
+    optionsLabel?: string;
+  }) => void;
   addDeal: (deal: Deal) => void;
   setQty: (id: string, qty: number) => void;
   remove: (id: string) => void;
@@ -40,25 +56,37 @@ export const useCart = create<CartState>()(
         setTimeout(() => set({ bounce: false }), 420);
       },
       add: (item) => {
+        const hasOptions =
+          (item.sizes?.length ?? 0) > 0 || (item.addons?.length ?? 0) > 0;
+        if (hasOptions) return;
+        const price = Number(item.effectivePrice ?? item.discountPrice ?? item.price);
+        get().addConfigured({ item, price });
+      },
+      addConfigured: ({ item, price, sizeId, addonIds, optionsLabel }) => {
+        const lineId = cartLineKey(item.id, sizeId, addonIds);
         const items = [...get().items];
-        const i = items.findIndex((x) => x.id === item.id);
+        const i = items.findIndex((x) => x.id === lineId);
+        const label = optionsLabel || item.name;
         if (i >= 0) items[i] = { ...items[i], quantity: items[i].quantity + 1 };
         else
           items.push({
-            id: item.id,
+            id: lineId,
+            menuItemId: item.id,
             kind: "item",
-            name: item.name,
-            price: Number(item.price),
+            name: label,
+            price,
             imageUrl: item.imageUrl,
             quantity: 1,
+            sizeId,
+            addonIds,
+            optionsLabel,
           });
         set({ items, drawerOpen: true });
         get().ping();
       },
       addDeal: (deal) => {
         const id = `deal:${deal.id}`;
-        const imageUrl =
-          deal.imageUrl || deal.items[0]?.menuItem.imageUrl || "";
+        const imageUrl = deal.imageUrl || deal.items[0]?.menuItem.imageUrl || "";
         const items = [...get().items];
         const i = items.findIndex((x) => x.id === id);
         if (i >= 0) items[i] = { ...items[i], quantity: items[i].quantity + 1 };

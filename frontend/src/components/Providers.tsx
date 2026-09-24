@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { StoreProvider } from "@/lib/store";
 import { CartDrawer } from "./CartDrawer";
 import { FulfillmentModal } from "./FulfillmentModal";
 import { KeepAlive } from "./KeepAlive";
@@ -20,9 +21,11 @@ function CustomerOverlays() {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <KeepAlive />
-      {children}
-      <CustomerOverlays />
+      <StoreProvider>
+        <KeepAlive />
+        {children}
+        <CustomerOverlays />
+      </StoreProvider>
     </AuthProvider>
   );
 }

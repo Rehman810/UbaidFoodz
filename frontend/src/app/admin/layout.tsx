@@ -12,6 +12,7 @@ import {
   LogOut,
   Map,
   MapPinned,
+  Settings,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/admin/areas", label: "Areas", icon: MapPinned },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/riders", label: "Riders", icon: Bike },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 const MOBILE_NAV = [

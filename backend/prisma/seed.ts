@@ -184,6 +184,7 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.promoBanner.deleteMany();
   await prisma.deliveryArea.deleteMany();
   await prisma.dealItem.deleteMany();
   await prisma.deal.deleteMany();
@@ -270,10 +271,78 @@ async function main() {
 
   void admin;
 
-  const items: { id: string; name: string; imageUrl: string }[] = [];
+  const items: { id: string; name: string; imageUrl: string; price: number }[] = [];
   for (const m of MENU) {
-    items.push(await prisma.menuItem.create({ data: m }));
+    const row = await prisma.menuItem.create({ data: m });
+    items.push({ ...row, price: Number(row.price) });
   }
+
+  const zinger = items.find((i) => i.name.includes("Zinger"));
+  if (zinger) {
+    await prisma.menuItem.update({
+      where: { id: zinger.id },
+      data: { discountPrice: 690 },
+    });
+    await prisma.menuItemSize.createMany({
+      data: [
+        { menuItemId: zinger.id, name: "Regular", price: 790, sortOrder: 1 },
+        { menuItemId: zinger.id, name: "Meal (fries + drink)", price: 1090, sortOrder: 2 },
+      ],
+    });
+    await prisma.menuItemAddon.createMany({
+      data: [
+        { menuItemId: zinger.id, name: "Extra cheese", price: 120, sortOrder: 1 },
+        { menuItemId: zinger.id, name: "Extra patty", price: 250, sortOrder: 2 },
+      ],
+    });
+  }
+
+  const pizza = items.find((i) => i.name.includes("Pizza"));
+  if (pizza) {
+    await prisma.menuItemSize.createMany({
+      data: [
+        { menuItemId: pizza.id, name: '10"', price: 1190, sortOrder: 1 },
+        { menuItemId: pizza.id, name: '12"', price: 1490, sortOrder: 2 },
+        { menuItemId: pizza.id, name: '14"', price: 1790, sortOrder: 3 },
+      ],
+    });
+  }
+
+  await prisma.storeSettings.upsert({
+    where: { id: "default" },
+    create: { id: "default" },
+    update: {
+      freeDeliveryAbove: 2500,
+      latitude: 24.8138,
+      longitude: 67.03,
+      minimumOrder: 500,
+      instagramUrl: "https://instagram.com/ubaidfastfoodz",
+      facebookUrl: "https://facebook.com/ubaidfastfoodz",
+    },
+  });
+
+  await prisma.promoBanner.createMany({
+    data: [
+      {
+        title: "Zinger special",
+        imageUrl: "/carousel/carousel-zinger.png",
+        linkUrl: "/menu",
+        sortOrder: 1,
+      },
+      {
+        title: "Biryani night",
+        imageUrl: "/carousel/carousel-biryani.png",
+        linkUrl: "/menu",
+        sortOrder: 2,
+      },
+      {
+        title: "BBQ broast",
+        imageUrl: "/carousel/carousel-broast.png",
+        linkUrl: "/menu",
+        sortOrder: 3,
+      },
+    ],
+  });
 
   const biryani = items.find((i) => i.name.includes("Biryani"));
   const lassi = items.find((i) => i.name.includes("Lassi"));
