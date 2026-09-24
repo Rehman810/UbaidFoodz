@@ -166,6 +166,7 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     todayRevenueAgg,
     monthRevenueAgg,
     monthOrders,
+    awaitingConfirmation,
     pending,
     preparing,
     out,
@@ -193,6 +194,7 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     prisma.order.count({
       where: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
     }),
+    prisma.order.count({ where: { status: OrderStatus.AWAITING_CONFIRMATION } }),
     prisma.order.count({ where: { status: OrderStatus.PENDING } }),
     prisma.order.count({ where: { status: OrderStatus.PREPARING } }),
     prisma.order.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY } }),
@@ -293,6 +295,7 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     monthRevenue,
     avgOrderValue: todayOrders ? Math.round(todayRevenue / todayOrders) : 0,
     monthAvgOrderValue: monthOrders ? Math.round(monthRevenue / monthOrders) : 0,
+    awaitingConfirmation,
     pending,
     preparing,
     outForDelivery: out,

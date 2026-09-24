@@ -2,8 +2,13 @@ import { Router } from "express";
 import crypto from "crypto";
 import { FulfillmentType, OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { canAccessOrder, stripGuestToken } from "../lib/order-access";
+import { canAccessOrder, phonesMatch, stripGuestToken } from "../lib/order-access";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth";
+import {
+  sendOrderConfirmedEmail,
+  sendOrderDeliveredEmail,
+  sendOrderPlacedEmail,
+} from "../lib/email";
 import { generateInvoicePdf } from "../lib/invoice";
 import { getStoreSettings } from "../lib/settings-data";
 import { effectiveItemPrice, isStoreOpen } from "../lib/store-settings";
@@ -31,6 +36,12 @@ function normalizePhone(phone: string) {
   return cleaned.length >= 10 ? cleaned : "";
 }
 
+function normalizeEmail(email: unknown) {
+  const value = String(email || "").trim().toLowerCase();
+  if (!value || !value.includes("@")) return null;
+  return value;
+}
+
 ordersRouter.post("/", optionalAuth, async (req, res) => {
   const storeSettings = await getStoreSettings();
   if (!isStoreOpen(storeSettings)) {
@@ -46,6 +57,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     notes,
     customerName,
     customerPhone,
+    customerEmail,
     fulfillmentType,
     deliveryAreaId,
   } = req.body as {
@@ -62,13 +74,18 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     notes?: string;
     customerName?: string;
     customerPhone?: string;
+    customerEmail?: string;
     fulfillmentType?: FulfillmentType;
     deliveryAreaId?: string;
   };
   const cartItems = items ?? [];
   const cartDeals = deals ?? [];
   const phone = normalizePhone(String(customerPhone || ""));
+  const email = normalizeEmail(customerEmail);
   const trimmedName = String(customerName || "").trim();
+  const initialStatus = storeSettings.autoConfirmOrders
+    ? OrderStatus.PENDING
+    : OrderStatus.AWAITING_CONFIRMATION;
   const mode: FulfillmentType =
     fulfillmentType === FulfillmentType.PICKUP ? FulfillmentType.PICKUP : FulfillmentType.DELIVERY;
   const trimmedAddress =
@@ -248,10 +265,14 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       notes: notes ? String(notes).trim() : null,
       customerName: trimmedName,
       customerPhone: phone,
+      customerEmail: email,
+      status: initialStatus,
       items: { create: lines },
     },
     include,
   });
+
+  void sendOrderPlacedEmail(order, storeSettings.autoConfirmOrders);
 
   const safeOrder = stripGuestToken(order);
   if (guestAccessToken) {
@@ -277,6 +298,32 @@ ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) =>
   res.json(orders);
 });
 
+ordersRouter.post("/track", async (req, res) => {
+  const { orderNumber, phone } = req.body as { orderNumber?: string; phone?: string };
+  const num = String(orderNumber || "").trim().toUpperCase();
+  const phoneInput = String(phone || "").trim();
+  if (!num || !phoneInput) {
+    return res.status(400).json({ error: "Order number and phone are required." });
+  }
+
+  const order = await prisma.order.findFirst({
+    where: { orderNumber: num },
+    include,
+  });
+  if (!order) {
+    return res.status(404).json({ error: "No order found with that number." });
+  }
+  if (!phonesMatch(order.customerPhone, phoneInput)) {
+    return res.status(403).json({ error: "Phone number does not match this order." });
+  }
+
+  const payload = stripGuestToken(order);
+  if (order.guestAccessToken) {
+    return res.json({ ...payload, guestAccessToken: order.guestAccessToken });
+  }
+  res.json(payload);
+});
+
 ordersRouter.get("/:id", optionalAuth, async (req, res) => {
   const token = typeof req.query.token === "string" ? req.query.token : null;
   const order = await prisma.order.findUnique({
@@ -290,19 +337,46 @@ ordersRouter.get("/:id", optionalAuth, async (req, res) => {
   res.json(stripGuestToken(order));
 });
 
+ordersRouter.patch("/:id/confirm", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include });
+  if (!existing) return res.status(404).json({ error: "Order not found." });
+  if (existing.status !== OrderStatus.AWAITING_CONFIRMATION) {
+    return res.status(400).json({ error: "Only unconfirmed orders can be confirmed." });
+  }
+  const order = await prisma.order.update({
+    where: { id: req.params.id },
+    data: { status: OrderStatus.PENDING },
+    include,
+  });
+  void sendOrderConfirmedEmail(order);
+  res.json(order);
+});
+
 ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
   const status = req.body.status as OrderStatus;
   if (!Object.values(OrderStatus).includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
   }
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found." });
+
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: { status },
     include,
   });
+
+  if (
+    existing.status === OrderStatus.AWAITING_CONFIRMATION &&
+    status === OrderStatus.PENDING
+  ) {
+    void sendOrderConfirmedEmail(order);
+  }
   if (status === OrderStatus.DELIVERED) {
     await generateInvoicePdf(order.id);
+    void sendOrderDeliveredEmail(order);
   }
+
   const fresh = await prisma.order.findUnique({ where: { id: order.id }, include });
   res.json(fresh);
 });
@@ -312,6 +386,11 @@ ordersRouter.patch("/:id/assign", requireAuth, requireRole(Role.ADMIN), async (r
   if (!riderId) return res.status(400).json({ error: "riderId required" });
   const rider = await prisma.user.findFirst({ where: { id: riderId, role: Role.RIDER } });
   if (!rider) return res.status(400).json({ error: "Rider not found" });
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Order not found." });
+  if (existing.status === OrderStatus.AWAITING_CONFIRMATION) {
+    return res.status(400).json({ error: "Confirm the order before assigning a rider." });
+  }
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: { riderId, status: OrderStatus.OUT_FOR_DELIVERY },

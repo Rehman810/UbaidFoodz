@@ -15,6 +15,7 @@ export type AdminStats = {
   monthRevenue: number;
   monthAvgOrderValue: number;
   avgOrderValue: number;
+  awaitingConfirmation: number;
   pending: number;
   preparing: number;
   outForDelivery: number;

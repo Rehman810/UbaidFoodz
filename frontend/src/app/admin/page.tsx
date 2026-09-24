@@ -66,7 +66,8 @@ export default function AdminDashboard() {
     );
   }
 
-  const active = stats.pending + stats.preparing + stats.outForDelivery;
+  const active =
+    stats.awaitingConfirmation + stats.pending + stats.preparing + stats.outForDelivery;
   const maxTop = stats.topItems[0]?.qty || 1;
 
   return (
@@ -117,7 +118,8 @@ export default function AdminDashboard() {
       <PipelineFlow
         active={active}
         steps={[
-          { label: "Pending", count: stats.pending, color: "bg-amber-500", bg: "bg-amber-50/80", ring: "ring-amber-200/60" },
+          { label: "Awaiting call", count: stats.awaitingConfirmation, color: "bg-orange-500", bg: "bg-orange-50/80", ring: "ring-orange-200/60" },
+          { label: "Confirmed", count: stats.pending, color: "bg-amber-500", bg: "bg-amber-50/80", ring: "ring-amber-200/60" },
           { label: "Preparing", count: stats.preparing, color: "bg-blue-500", bg: "bg-blue-50/80", ring: "ring-blue-200/60" },
           { label: "On the road", count: stats.outForDelivery, color: "bg-violet-500", bg: "bg-violet-50/80", ring: "ring-violet-200/60" },
           { label: "Delivered today", count: stats.deliveredToday, color: "bg-emerald-500", bg: "bg-emerald-50/80", ring: "ring-emerald-200/60" },

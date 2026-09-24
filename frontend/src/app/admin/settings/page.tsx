@@ -254,6 +254,28 @@ export default function AdminSettingsPage() {
                 />
               </SettingsField>
             </div>
+            <label
+              className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                settings.autoConfirmOrders
+                  ? "border-emerald-300 bg-emerald-50"
+                  : "border-orange-200 bg-orange-50"
+              }`}
+            >
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-stone-300 text-brand-600"
+                checked={settings.autoConfirmOrders}
+                onChange={(e) => setSettings({ ...settings, autoConfirmOrders: e.target.checked })}
+              />
+              <div>
+                <p className="text-sm font-semibold text-stone-900">Confirm orders instantly</p>
+                <p className="mt-1 text-xs leading-relaxed text-stone-600">
+                  {settings.autoConfirmOrders
+                    ? "New orders go straight to the kitchen. Customers get a confirmation email immediately."
+                    : "New orders wait for your call. Use Confirm on the order after you verify by phone."}
+                </p>
+              </div>
+            </label>
           </SettingsSection>
         </div>
 

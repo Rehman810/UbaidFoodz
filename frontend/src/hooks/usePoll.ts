@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-export function usePoll<T>(fetcher: () => Promise<T>, intervalMs = 15000) {
+export function usePoll<T>(fetcher: () => Promise<T>, intervalMs = 15000, enabled = true) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
+    if (!enabled) return;
     try {
       const result = await fetcher();
       setData(result);
@@ -17,13 +18,18 @@ export function usePoll<T>(fetcher: () => Promise<T>, intervalMs = 15000) {
     } finally {
       setLoading(false);
     }
-  }, [fetcher]);
+  }, [fetcher, enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     refresh();
     const id = setInterval(refresh, intervalMs);
     return () => clearInterval(id);
-  }, [refresh, intervalMs]);
+  }, [refresh, intervalMs, enabled]);
 
   return { data, loading, error, refresh };
 }

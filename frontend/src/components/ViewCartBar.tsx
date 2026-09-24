@@ -5,15 +5,20 @@ import { ChevronRight, ShoppingBag } from "lucide-react";
 import { cartCount, cartTotal, useCart } from "@/lib/cart";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
+import { useStore } from "@/lib/store";
 import { useStoreOpen } from "@/lib/use-store-open";
 
 export function ViewCartBar() {
   const items = useCart((s) => s.items);
   const count = cartCount(items);
   const subtotal = cartTotal(items);
+  const store = useStore();
   const { mode, deliveryCharge } = useFulfillment();
   const { isOpen: storeOpen, statusLabel } = useStoreOpen();
-  const deliveryFee = mode === "DELIVERY" ? deliveryCharge : 0;
+  const freeAbove =
+    store?.settings.freeDeliveryAbove != null ? Number(store.settings.freeDeliveryAbove) : null;
+  const qualifiesFree = freeAbove != null && subtotal >= freeAbove;
+  const deliveryFee = mode === "DELIVERY" && !qualifiesFree ? deliveryCharge : 0;
   const total = subtotal + deliveryFee;
 
   if (count === 0) return null;
@@ -35,7 +40,7 @@ export function ViewCartBar() {
     <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-lg sm:bottom-6">
       <Link
         href="/checkout"
-        className="pointer-events-auto flex items-center gap-3 rounded-full bg-gradient-to-r from-brand-600 to-brand-500 px-4 py-3.5 text-white shadow-[0_12px_32px_rgba(234,88,12,0.42)] ring-1 ring-white/25 transition hover:from-brand-500 hover:to-brand-400 active:scale-[0.99]"
+        className="pointer-events-auto flex items-center gap-3 rounded-full bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-4 text-white shadow-[0_12px_32px_rgba(234,88,12,0.42)] ring-1 ring-white/25 transition hover:from-brand-500 hover:to-brand-400 active:scale-[0.99]"
       >
         <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20">
           <ShoppingBag size={16} />

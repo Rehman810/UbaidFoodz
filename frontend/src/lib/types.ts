@@ -64,6 +64,7 @@ export type StoreSettings = {
   closeMinute: number;
   closedMessage: string;
   forceClosed: boolean;
+  autoConfirmOrders: boolean;
   facebookUrl: string;
   instagramUrl: string;
   tiktokUrl: string;
@@ -134,7 +135,13 @@ export type DeliveryArea = {
   sortOrder: number;
 };
 
-export type OrderStatus = "PENDING" | "PREPARING" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED";
+export type OrderStatus =
+  | "AWAITING_CONFIRMATION"
+  | "PENDING"
+  | "PREPARING"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED";
 
 export type Order = {
   id: string;
@@ -153,6 +160,7 @@ export type Order = {
   notes?: string | null;
   customerName: string;
   customerPhone: string;
+  customerEmail?: string | null;
   createdAt: string;
   items: OrderItem[];
   rider?: { id: string; name: string; phone?: string | null } | null;
@@ -172,7 +180,8 @@ export const CATEGORIES = [
 ] as const;
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
-  PENDING: "Pending",
+  AWAITING_CONFIRMATION: "Awaiting call",
+  PENDING: "Confirmed",
   PREPARING: "Preparing",
   OUT_FOR_DELIVERY: "Out for delivery",
   DELIVERED: "Delivered",
@@ -180,6 +189,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 export const STATUS_FLOW: OrderStatus[] = [
+  "AWAITING_CONFIRMATION",
   "PENDING",
   "PREPARING",
   "OUT_FOR_DELIVERY",

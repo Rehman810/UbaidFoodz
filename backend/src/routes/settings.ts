@@ -46,6 +46,9 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
       ...(body.closeMinute !== undefined ? { closeMinute: Number(body.closeMinute) } : {}),
       ...(body.closedMessage !== undefined ? { closedMessage: String(body.closedMessage) } : {}),
       ...(body.forceClosed !== undefined ? { forceClosed: Boolean(body.forceClosed) } : {}),
+      ...(body.autoConfirmOrders !== undefined
+        ? { autoConfirmOrders: Boolean(body.autoConfirmOrders) }
+        : {}),
       ...(body.facebookUrl !== undefined ? { facebookUrl: String(body.facebookUrl) } : {}),
       ...(body.instagramUrl !== undefined ? { instagramUrl: String(body.instagramUrl) } : {}),
       ...(body.tiktokUrl !== undefined ? { tiktokUrl: String(body.tiktokUrl) } : {}),

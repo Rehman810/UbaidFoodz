@@ -2,6 +2,7 @@ import { Router } from "express";
 import { OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { sendOrderDeliveredEmail } from "../lib/email";
 import { generateInvoicePdf } from "../lib/invoice";
 
 export const riderRouter = Router();
@@ -40,6 +41,8 @@ riderRouter.patch("/orders/:id/status", requireAuth, requireRole(Role.RIDER), as
   });
   if (status === OrderStatus.DELIVERED) {
     await generateInvoicePdf(updated.id);
+    const withItems = await prisma.order.findUnique({ where: { id: updated.id }, include });
+    if (withItems) void sendOrderDeliveredEmail(withItems);
   }
   const fresh = await prisma.order.findUnique({ where: { id: updated.id }, include });
   res.json(fresh);

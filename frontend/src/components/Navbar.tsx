@@ -24,7 +24,7 @@ export function Navbar() {
     ? [
         { href: "/", label: "Home", match: (p: string) => p === "/" },
         { href: "/menu", label: "Menu", match: (p: string) => p.startsWith("/menu") },
-        ...(user ? [{ href: "/orders", label: "My orders", match: (p: string) => p.startsWith("/orders") }] : []),
+        { href: "/orders", label: user ? "Orders" : "Track order", match: (p: string) => p.startsWith("/orders") },
       ]
     : [];
 

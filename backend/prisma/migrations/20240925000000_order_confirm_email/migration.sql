@@ -1,0 +1,8 @@
+-- AlterEnum
+ALTER TYPE "OrderStatus" ADD VALUE IF NOT EXISTS 'AWAITING_CONFIRMATION';
+
+-- AlterTable
+ALTER TABLE "StoreSettings" ADD COLUMN IF NOT EXISTS "autoConfirmOrders" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "customerEmail" TEXT;

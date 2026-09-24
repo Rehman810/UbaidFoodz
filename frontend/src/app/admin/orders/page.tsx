@@ -17,10 +17,23 @@ import { usePoll } from "@/hooks/usePoll";
 import { OrderDateFilter } from "@/components/admin/OrderDateFilter";
 import { OrderPanel } from "@/components/admin/OrderPanel";
 
-const FILTERS: (OrderStatus | "ALL")[] = ["ALL", "PENDING", "PREPARING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"];
+const FILTERS: (OrderStatus | "ALL")[] = [
+  "ALL",
+  "AWAITING_CONFIRMATION",
+  "PENDING",
+  "PREPARING",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+  "CANCELLED",
+];
 
 const FILTER_THEME: Record<OrderStatus | "ALL", { dot: string; active: string; idle: string }> = {
   ALL: { dot: "bg-brand-500", active: "bg-stone-900 text-white shadow-md", idle: "bg-white text-stone-700 ring-stone-200" },
+  AWAITING_CONFIRMATION: {
+    dot: STATUS_THEME.AWAITING_CONFIRMATION.dot,
+    active: "bg-orange-500 text-white shadow-md shadow-orange-200",
+    idle: "bg-white text-orange-800 ring-orange-200",
+  },
   PENDING: { dot: STATUS_THEME.PENDING.dot, active: "bg-amber-500 text-white shadow-md shadow-amber-200", idle: "bg-white text-amber-800 ring-amber-200" },
   PREPARING: { dot: STATUS_THEME.PREPARING.dot, active: "bg-blue-500 text-white shadow-md shadow-blue-200", idle: "bg-white text-blue-800 ring-blue-200" },
   OUT_FOR_DELIVERY: { dot: STATUS_THEME.OUT_FOR_DELIVERY.dot, active: "bg-violet-500 text-white shadow-md shadow-violet-200", idle: "bg-white text-violet-800 ring-violet-200" },
@@ -57,6 +70,11 @@ export default function AdminOrders() {
     refresh();
   }
 
+  async function confirmOrder(id: string) {
+    await api(`/orders/${id}/confirm`, { method: "PATCH" });
+    refresh();
+  }
+
   function handleDateChange(from: string, to: string, preset: QuickDatePreset | null) {
     setDateFrom(from);
     setDateTo(to);
@@ -90,7 +108,11 @@ export default function AdminOrders() {
     return c;
   }, [dateFiltered]);
 
-  const activeCount = (counts.PENDING || 0) + (counts.PREPARING || 0) + (counts.OUT_FOR_DELIVERY || 0);
+  const activeCount =
+    (counts.AWAITING_CONFIRMATION || 0) +
+    (counts.PENDING || 0) +
+    (counts.PREPARING || 0) +
+    (counts.OUT_FOR_DELIVERY || 0);
   const filteredRevenue = filtered.reduce((sum, o) => sum + Number(o.total), 0);
   const periodLabel = formatDateSpanLabel(dateFrom, dateTo);
 
@@ -199,7 +221,14 @@ export default function AdminOrders() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         {filtered.map((o) => (
-          <OrderPanel key={o.id} order={o} riders={data?.riders || []} onStatus={setStatus} onAssign={assign} />
+          <OrderPanel
+            key={o.id}
+            order={o}
+            riders={data?.riders || []}
+            onStatus={setStatus}
+            onAssign={assign}
+            onConfirm={confirmOrder}
+          />
         ))}
       </div>
     </div>

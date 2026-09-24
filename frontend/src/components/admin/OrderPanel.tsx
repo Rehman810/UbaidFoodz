@@ -20,6 +20,7 @@ export function OrderPanel({
   riders,
   onStatus,
   onAssign,
+  onConfirm,
   compact,
   forwardOnly,
 }: {
@@ -27,10 +28,14 @@ export function OrderPanel({
   riders: Rider[];
   onStatus: (id: string, status: OrderStatus) => void;
   onAssign: (id: string, riderId: string) => void;
+  onConfirm?: (id: string) => void;
   compact?: boolean;
   forwardOnly?: boolean;
 }) {
-  const showRider = order.status !== "DELIVERED" && order.status !== "CANCELLED";
+  const showRider =
+    order.status !== "DELIVERED" &&
+    order.status !== "CANCELLED" &&
+    order.status !== "AWAITING_CONFIRMATION";
   const theme = STATUS_THEME[order.status];
   const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
   const statusOptions = forwardOnly
@@ -131,6 +136,23 @@ export function OrderPanel({
             <Bike size={14} className="text-violet-600" />
             {order.rider.name}
             {order.rider.phone && <span className="text-violet-600">· {order.rider.phone}</span>}
+          </div>
+        )}
+
+        {order.status === "AWAITING_CONFIRMATION" && onConfirm && (
+          <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
+            <p className="text-sm font-semibold text-orange-950">Call customer to verify this order</p>
+            <p className="mt-1 text-xs text-orange-800">
+              {order.customerPhone}
+              {order.customerEmail ? ` · ${order.customerEmail}` : ""}
+            </p>
+            <button
+              type="button"
+              onClick={() => onConfirm(order.id)}
+              className="btn-primary mt-3 h-10 w-full text-sm"
+            >
+              Confirm order → send to kitchen
+            </button>
           </div>
         )}
 

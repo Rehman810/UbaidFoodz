@@ -10,7 +10,13 @@ import { usePoll } from "@/hooks/usePoll";
 import { KanbanBoard, kanbanActiveCount } from "@/components/admin/KanbanBoard";
 import { STATUS_THEME } from "@/lib/admin-status";
 
-const KANBAN_STATUSES = ["PENDING", "PREPARING", "OUT_FOR_DELIVERY", "DELIVERED"] as const;
+const KANBAN_STATUSES = [
+  "AWAITING_CONFIRMATION",
+  "PENDING",
+  "PREPARING",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+] as const;
 
 export default function TrackingPage() {
   const load = useCallback(async () => {

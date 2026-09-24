@@ -23,13 +23,14 @@ function CustomerOverlays() {
   if (loading) return null;
   if (!isCustomerSurface(pathname)) return null;
   if (user && user.role !== "CUSTOMER" && user.role !== "ADMIN") return null;
+  const hideCartBar = pathname === "/checkout";
   return (
     <>
       <FulfillmentModal />
       <ItemDeepLink />
       <ItemDetailModal />
       <DealDetailModal />
-      <ViewCartBar />
+      {!hideCartBar && <ViewCartBar />}
       <CartDrawer />
     </>
   );

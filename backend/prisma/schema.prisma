@@ -14,6 +14,7 @@ enum Role {
 }
 
 enum OrderStatus {
+  AWAITING_CONFIRMATION
   PENDING
   PREPARING
   OUT_FOR_DELIVERY
@@ -129,6 +130,7 @@ model StoreSettings {
   closeMinute         Int      @default(30)
   closedMessage       String   @default("Sorry, we are closed right now. We open daily at 7:00 PM.")
   forceClosed         Boolean  @default(false)
+  autoConfirmOrders   Boolean  @default(false)
   facebookUrl         String   @default("")
   instagramUrl        String   @default("")
   tiktokUrl           String   @default("")
@@ -198,6 +200,7 @@ model Order {
   notes            String?
   customerName     String
   customerPhone    String
+  customerEmail    String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   items            OrderItem[]

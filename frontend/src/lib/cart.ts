@@ -142,3 +142,22 @@ export function cartCount(items: CartLine[]) {
 export function cartTotal(items: CartLine[]) {
   return items.reduce((n, i) => n + i.price * i.quantity, 0);
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Resolve menu item id from a cart line (handles legacy persisted carts). */
+export function resolveMenuItemId(line: CartLine): string | null {
+  if (line.kind === "deal") return null;
+  if (line.menuItemId && UUID_RE.test(line.menuItemId)) return line.menuItemId;
+  const head = line.id.split(":")[0];
+  if (UUID_RE.test(head)) return head;
+  return null;
+}
+
+export function cartItemLines(items: CartLine[]) {
+  return items.filter((i) => !i.kind || i.kind === "item");
+}
+
+export function cartDealLines(items: CartLine[]) {
+  return items.filter((i) => i.kind === "deal" && i.dealId);
+}

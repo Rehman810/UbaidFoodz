@@ -4,6 +4,14 @@ export const STATUS_THEME: Record<
   OrderStatus,
   { border: string; stripe: string; bg: string; text: string; dot: string; ring: string }
 > = {
+  AWAITING_CONFIRMATION: {
+    border: "border-orange-200",
+    stripe: "bg-orange-500",
+    bg: "bg-orange-50",
+    text: "text-orange-900",
+    dot: "bg-orange-500",
+    ring: "ring-orange-200/60",
+  },
   PENDING: {
     border: "border-amber-200",
     stripe: "bg-amber-500",

@@ -6,8 +6,10 @@ import Image from "next/image";
 import { Bike, ExternalLink, MapPin, ShieldCheck, Store } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { useAuth } from "@/lib/auth";
+import { buildOrderPayload, friendlyOrderError, pruneStaleCartLines } from "@/lib/cart-validate";
 import { cartTotal, useCart } from "@/lib/cart";
 import { api } from "@/lib/api";
+import { loadCheckoutProfile, saveCheckoutProfile } from "@/lib/checkout-profile";
 import { saveGuestOrderToken } from "@/lib/guest-order";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
@@ -22,6 +24,7 @@ export default function CheckoutPage() {
   const { isOpen: storeOpen, closedMessage } = useStoreOpen();
   const items = useCart((s) => s.items);
   const clear = useCart((s) => s.clear);
+  const remove = useCart((s) => s.remove);
   const subtotal = cartTotal(items);
   const {
     hasChosen,
@@ -31,12 +34,15 @@ export default function CheckoutPage() {
     deliveryCharge,
     setOpenModal,
   } = useFulfillment();
-  const [name, setName] = useState(user?.name || "");
-  const [phone, setPhone] = useState(user?.phone || "");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  const [cartNotice, setCartNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cartChecked, setCartChecked] = useState(false);
 
   const isDelivery = mode === "DELIVERY";
   const settings = store?.settings;
@@ -61,11 +67,42 @@ export default function CheckoutPage() {
   }, [hasChosen, setOpenModal]);
 
   useEffect(() => {
+    const saved = loadCheckoutProfile();
     if (user) {
       setName(user.name);
       setPhone(user.phone || "");
+      setEmail(user.email || saved?.email || "");
+      setAddress(saved?.address || "");
+      setNotes(saved?.notes || "");
+      return;
+    }
+    if (saved) {
+      setName(saved.name);
+      setPhone(saved.phone);
+      setEmail(saved.email);
+      setAddress(saved.address);
+      setNotes(saved.notes || "");
     }
   }, [user]);
+
+  const autoConfirm = settings?.autoConfirmOrders ?? false;
+
+  useEffect(() => {
+    if (!items.length) {
+      setCartChecked(true);
+      return;
+    }
+    pruneStaleCartLines(items, remove)
+      .then((removed) => {
+        if (removed > 0) {
+          setCartNotice(
+            `Removed ${removed} unavailable item${removed === 1 ? "" : "s"} from your bag. Please review before ordering.`
+          );
+        }
+      })
+      .catch(() => null)
+      .finally(() => setCartChecked(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- validate once on checkout load
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -88,6 +125,12 @@ export default function CheckoutPage() {
       setOpenModal(true);
       return;
     }
+    const payload = buildOrderPayload(items);
+    if (!payload.items.length && !payload.deals.length) {
+      setError("Your bag has no valid items. Go back to the menu and add items again.");
+      return;
+    }
+
     setBusy(true);
     try {
       const order = await api<Order>("/orders", {
@@ -95,24 +138,16 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           customerName: name,
           customerPhone: phone,
+          customerEmail: email || undefined,
           deliveryAddress: isDelivery ? address : pickupAddress,
           fulfillmentType: mode,
           deliveryAreaId: isDelivery ? areaId : undefined,
           notes,
-          items: items
-            .filter((i) => !i.kind || i.kind === "item")
-            .map((i) => ({
-              menuItemId: i.menuItemId || i.id,
-              quantity: i.quantity,
-              optionIds: i.optionIds,
-              addonIds: i.addonIds,
-              instructions: i.instructions,
-            })),
-          deals: items
-            .filter((i) => i.kind === "deal" && i.dealId)
-            .map((i) => ({ dealId: i.dealId!, quantity: i.quantity })),
+          items: payload.items,
+          deals: payload.deals,
         }),
       });
+      saveCheckoutProfile({ name, phone, email, address: isDelivery ? address : "", notes });
       clear();
       if (order.guestAccessToken) {
         saveGuestOrderToken(order.id, order.guestAccessToken);
@@ -121,7 +156,14 @@ export default function CheckoutPage() {
         router.push(`/orders/${order.id}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not place order");
+      const raw = err instanceof Error ? err.message : "Could not place order";
+      setError(friendlyOrderError(raw));
+      if (raw.includes("unavailable")) {
+        const removed = await pruneStaleCartLines(useCart.getState().items, remove).catch(() => 0);
+        if (removed > 0) {
+          setCartNotice(`Removed ${removed} unavailable item${removed === 1 ? "" : "s"} from your bag.`);
+        }
+      }
     } finally {
       setBusy(false);
     }
@@ -133,11 +175,14 @@ export default function CheckoutPage() {
 
   return (
     <StoreShell>
-      <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[1.1fr_0.9fr]">
-        <form onSubmit={onSubmit} className="space-y-4">
-          <h1 className="font-display text-4xl">Checkout</h1>
-          <p className="text-sm text-stone-500">No account needed — just your details.</p>
+      <div className="mx-auto grid max-w-5xl gap-10 px-4 py-10 pb-28 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:pb-16">
+        <form onSubmit={onSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <h1 className="font-display text-4xl">Checkout</h1>
+            <p className="text-sm text-stone-500">No account needed — just your details.</p>
+          </div>
 
+          <div className="space-y-3">
           {storeClosed && (
             <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
               {closedMessage}
@@ -155,7 +200,13 @@ export default function CheckoutPage() {
                 : `Free delivery on orders above ${pkr(freeAbove)}`}
             </p>
           )}
+          {cartNotice && (
+            <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {cartNotice}
+            </p>
+          )}
           {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+          </div>
 
           <button
             type="button"
@@ -181,11 +232,20 @@ export default function CheckoutPage() {
             <span className="text-xs font-semibold text-brand-700">Change</span>
           </button>
 
-          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <ShieldCheck className="mt-0.5 shrink-0 text-emerald-600" size={18} />
-            <p>Your details are stored securely and only used for your order.</p>
+          <div className="space-y-3">
+            {!autoConfirm && (
+              <p className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3.5 text-sm leading-relaxed text-orange-950">
+                We&apos;ll call you to verify this order before the kitchen starts preparing it.
+              </p>
+            )}
+
+            <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm leading-relaxed text-emerald-900">
+              <ShieldCheck className="mt-0.5 shrink-0 text-emerald-600" size={18} />
+              <p>Your details are saved on this device for faster checkout next time — no account needed.</p>
+            </div>
           </div>
 
+          <div className="space-y-4">
           <input className="input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
           <input
             className="input"
@@ -196,6 +256,15 @@ export default function CheckoutPage() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
+          />
+          <input
+            className="input"
+            placeholder="Email (for order updates)"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           {isDelivery ? (
             <textarea
@@ -229,14 +298,16 @@ export default function CheckoutPage() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+          </div>
+
           <button
-            className="btn-primary h-12 w-full"
-            disabled={busy || items.length === 0 || storeClosed || belowMinimum}
+            className="btn-primary mt-2 h-14 w-full text-base"
+            disabled={busy || !cartChecked || items.length === 0 || storeClosed || belowMinimum}
           >
             {busy ? "Placing…" : `Place order · ${pkr(grandTotal)}`}
           </button>
         </form>
-        <aside className="card h-fit p-5">
+        <aside className="card h-fit p-6 md:sticky md:top-24">
           <p className="font-display text-2xl">Bag</p>
           {items.length === 0 ? (
             <p className="mt-4 text-sm text-stone-500">Your bag is empty. Add items from the menu first.</p>
@@ -265,17 +336,24 @@ export default function CheckoutPage() {
               ))}
             </ul>
           )}
-          <div className="mt-4 space-y-2 border-t border-orange-100 pt-4 text-sm">
+          <div className="mt-5 space-y-3 border-t border-orange-100 pt-5 text-sm">
             <div className="flex justify-between">
               <span className="text-stone-500">Subtotal</span>
               <span>{pkr(subtotal)}</span>
             </div>
             {isDelivery && (
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-2">
                 <span className="text-stone-500">Delivery ({areaName})</span>
-                <span>
+                <span className="text-right">
                   {qualifiesFreeDelivery ? (
-                    <span className="text-emerald-600">Free</span>
+                    <span className="text-emerald-600">
+                      Free
+                      {freeAbove != null && (
+                        <span className="block text-[10px] font-normal text-emerald-700/80">
+                          Orders above {pkr(freeAbove)}
+                        </span>
+                      )}
+                    </span>
                   ) : (
                     pkr(effectiveDelivery)
                   )}
