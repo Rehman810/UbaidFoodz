@@ -16,6 +16,7 @@ import { formatWhen, pkr } from "@/lib/format";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { Order } from "@/lib/types";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
+import { OrderDeviceInfo } from "./OrderDeviceInfo";
 import { StatusBadge } from "./StatusBadge";
 
 const CLOSE_MS = 340;
@@ -150,6 +151,8 @@ export function OrderDetailSheet({
               </div>
             </dl>
           </section>
+
+          <OrderDeviceInfo order={order} />
 
           <section className="mt-6">
             <h3 className="mb-3 text-sm font-semibold text-stone-800">Items</h3>

@@ -24,12 +24,14 @@ export function OrderTable({
   onStatus,
   onAssign,
   onConfirm,
+  onSelect,
 }: {
   orders: Order[];
   riders: Rider[];
   onStatus: (id: string, status: OrderStatus) => void;
   onAssign: (id: string, riderId: string) => void;
   onConfirm?: (id: string) => void;
+  onSelect?: (order: Order) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
@@ -58,7 +60,11 @@ export function OrderTable({
               const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
 
               return (
-                <tr key={order.id} className="border-b border-stone-100 last:border-0 hover:bg-orange-50/40">
+                <tr
+                  key={order.id}
+                  className={`border-b border-stone-100 last:border-0 hover:bg-orange-50/40 ${onSelect ? "cursor-pointer" : ""}`}
+                  onClick={() => onSelect?.(order)}
+                >
                   <td className="whitespace-nowrap px-4 py-3.5 align-top">
                     <p className="font-display font-bold text-stone-900">{order.orderNumber}</p>
                     <p className="mt-0.5 text-xs text-stone-400">{formatWhen(order.createdAt)}</p>
@@ -96,7 +102,7 @@ export function OrderTable({
                   <td className="whitespace-nowrap px-4 py-3.5 text-right align-top">
                     <p className="font-display text-base font-bold text-brand-700">{pkr(order.total)}</p>
                   </td>
-                  <td className="px-4 py-3.5 align-top">
+                  <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                     <AdminSelect
                       value={order.status}
                       aria-label={`Status for ${order.orderNumber}`}
@@ -105,7 +111,7 @@ export function OrderTable({
                       onChange={(v) => onStatus(order.id, v as OrderStatus)}
                     />
                   </td>
-                  <td className="px-4 py-3.5 align-top">
+                  <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-col gap-2">
                       {order.status === "AWAITING_CONFIRMATION" && onConfirm && (
                         <button

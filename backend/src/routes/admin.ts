@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { OrderStatus, Role } from "@prisma/client";
+import { FulfillmentType, OrderStatus, Role } from "@prisma/client";
+import { normalizeBlockEmail, normalizeBlockPhone } from "../lib/blocklist";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { sendStaffWelcomeEmail } from "../lib/email";
@@ -392,37 +393,156 @@ adminRouter.get("/analytics", requireAuth, requireRole(Role.ADMIN), async (req, 
   });
 });
 
-adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
-  const customers = await prisma.user.findMany({
-    where: { role: Role.CUSTOMER },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      createdAt: true,
-      orders: {
-        select: { id: true, total: true, status: true, createdAt: true, fulfillmentType: true },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+function customerContactKey(phone: string, email: string | null | undefined) {
+  const phoneKey = normalizeBlockPhone(phone);
+  if (phoneKey) return `phone:${phoneKey}`;
+  const emailKey = normalizeBlockEmail(email);
+  if (emailKey) return `email:${emailKey}`;
+  return null;
+}
 
-  res.json(
-    customers.map((c) => ({
+type CustomerOrderRow = {
+  id: string;
+  total: { toString(): string } | number;
+  status: OrderStatus;
+  createdAt: Date;
+  fulfillmentType: FulfillmentType;
+  customerId: string | null;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string | null;
+};
+
+adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
+  const [users, orders] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: Role.CUSTOMER },
+      select: { id: true, name: true, email: true, phone: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.order.findMany({
+      select: {
+        id: true,
+        total: true,
+        status: true,
+        createdAt: true,
+        fulfillmentType: true,
+        customerId: true,
+        customerName: true,
+        customerPhone: true,
+        customerEmail: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  type Agg = {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    createdAt: Date;
+    isGuest: boolean;
+    orders: CustomerOrderRow[];
+  };
+
+  const byId = new Map<string, Agg>();
+  const contactToUserId = new Map<string, string>();
+
+  for (const u of users) {
+    byId.set(u.id, {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      createdAt: u.createdAt,
+      isGuest: false,
+      orders: [],
+    });
+    const phoneKey = normalizeBlockPhone(u.phone);
+    if (phoneKey) contactToUserId.set(`phone:${phoneKey}`, u.id);
+    const emailKey = normalizeBlockEmail(u.email);
+    if (emailKey) contactToUserId.set(`email:${emailKey}`, u.id);
+  }
+
+  const guestByKey = new Map<string, Agg>();
+
+  function resolveRegisteredUserId(order: CustomerOrderRow) {
+    if (order.customerId && byId.has(order.customerId)) return order.customerId;
+    const phoneKey = normalizeBlockPhone(order.customerPhone);
+    if (phoneKey) {
+      const uid = contactToUserId.get(`phone:${phoneKey}`);
+      if (uid) return uid;
+    }
+    const emailKey = order.customerEmail ? normalizeBlockEmail(order.customerEmail) : null;
+    if (emailKey) {
+      const uid = contactToUserId.get(`email:${emailKey}`);
+      if (uid) return uid;
+    }
+    return null;
+  }
+
+  for (const order of orders) {
+    const userId = resolveRegisteredUserId(order);
+    if (userId) {
+      byId.get(userId)!.orders.push(order);
+      continue;
+    }
+
+    const key = customerContactKey(order.customerPhone, order.customerEmail);
+    if (!key) continue;
+
+    let guest = guestByKey.get(key);
+    if (!guest) {
+      guest = {
+        id: `guest:${key}`,
+        name: order.customerName,
+        email: order.customerEmail || "",
+        phone: order.customerPhone,
+        createdAt: order.createdAt,
+        isGuest: true,
+        orders: [],
+      };
+      guestByKey.set(key, guest);
+    } else if (order.createdAt > guest.createdAt) {
+      guest.name = order.customerName;
+      if (order.customerEmail) guest.email = order.customerEmail;
+    }
+    guest.orders.push(order);
+  }
+
+  const toResponse = (c: Agg) => {
+    const sorted = [...c.orders].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const last = sorted[0];
+    return {
       id: c.id,
       name: c.name,
       email: c.email,
       phone: c.phone,
       createdAt: c.createdAt,
-      orderCount: c.orders.length,
-      totalSpent: c.orders
+      isGuest: c.isGuest,
+      orderCount: sorted.length,
+      totalSpent: sorted
         .filter((o) => o.status !== OrderStatus.CANCELLED)
         .reduce((s, o) => s + Number(o.total), 0),
-      lastOrder: c.orders[0] || null,
-    }))
-  );
+      lastOrder: last
+        ? {
+            id: last.id,
+            total: last.total,
+            status: last.status,
+            createdAt: last.createdAt,
+            fulfillmentType: last.fulfillmentType,
+          }
+        : null,
+    };
+  };
+
+  const customers = [...byId.values(), ...guestByKey.values()]
+    .filter((c) => c.orders.length > 0 || !c.isGuest)
+    .map(toResponse)
+    .sort((a, b) => b.totalSpent - a.totalSpent);
+
+  res.json(customers);
 });
 
 adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res) => {

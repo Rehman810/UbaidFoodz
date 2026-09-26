@@ -19,6 +19,7 @@ import {
   Users,
   UtensilsCrossed,
 } from "lucide-react";
+import { PoweredByDevsora } from "@/components/PoweredByDevsora";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { PublicStore } from "@/lib/types";
@@ -148,25 +149,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
             <button
               type="button"
-              onClick={toggleSidebar}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className={`mb-1 flex w-full items-center rounded-xl py-2 text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 ${
-                collapsed ? "justify-center" : "gap-2 px-3"
-              }`}
-            >
-              {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
-              <span className={collapsed ? "sr-only" : ""}>Collapse</span>
-            </button>
-            <button
               onClick={() => { logout(); router.push("/"); }}
               title="Sign out"
-              className={`flex w-full items-center rounded-xl py-2 text-sm font-medium text-stone-500 hover:bg-rose-50 hover:text-rose-700 ${
-                collapsed ? "justify-center" : "gap-2 px-3"
+              className={`flex w-full items-center rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 active:bg-rose-800 ${
+                collapsed ? "justify-center px-0" : "justify-center gap-2 px-3"
               }`}
             >
               <LogOut size={16} />
               <span className={collapsed ? "sr-only" : ""}>Sign out</span>
             </button>
+            <div className={collapsed ? "mt-2 text-center" : "mt-3 border-t border-orange-100/80 pt-3 px-1"}>
+              <PoweredByDevsora
+                variant={collapsed ? "minimal" : "inline"}
+                className="[&_a]:text-brand-600 [&_a:hover]:text-brand-800"
+              />
+            </div>
           </div>
         </div>
       </aside>
@@ -214,9 +211,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               type="button"
               onClick={() => { logout(); router.replace("/login"); }}
-              className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 lg:hidden"
+              className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 lg:hidden"
             >
-              <LogOut size={14} /> Out
+              <LogOut size={14} /> Sign out
             </button>
           </div>
         </header>

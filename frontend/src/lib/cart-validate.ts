@@ -68,5 +68,8 @@ export function friendlyOrderError(message: string) {
   if (message.includes("at least 10 digits")) {
     return "Enter a valid phone number with at least 10 digits (e.g. 0300 1234567).";
   }
+  if (message.includes("not available for this contact")) {
+    return "We can't take orders with this phone or email. Please call the restaurant.";
+  }
   return message;
 }

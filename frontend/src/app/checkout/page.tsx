@@ -15,6 +15,7 @@ import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { useStoreOpen } from "@/lib/use-store-open";
+import { getCheckoutLocation } from "@/lib/geolocation";
 import { Order } from "@/lib/types";
 
 export default function CheckoutPage() {
@@ -138,6 +139,7 @@ export default function CheckoutPage() {
 
     setBusy(true);
     try {
+      const location = await getCheckoutLocation();
       const order = await api<Order>("/orders", {
         method: "POST",
         body: JSON.stringify({
@@ -150,6 +152,13 @@ export default function CheckoutPage() {
           notes,
           items: payload.items,
           deals: payload.deals,
+          ...(location
+            ? {
+                customerLatitude: location.latitude,
+                customerLongitude: location.longitude,
+                customerLocationAccuracy: location.accuracy,
+              }
+            : {}),
         }),
       });
       saveCheckoutProfile({ name, phone, email, address: isDelivery ? address : "", notes });

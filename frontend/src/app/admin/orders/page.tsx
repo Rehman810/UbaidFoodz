@@ -16,6 +16,7 @@ import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { OrderDateFilter } from "@/components/admin/OrderDateFilter";
+import { OrderDetailSheet } from "@/components/admin/OrderDetailSheet";
 import { OrderPanel } from "@/components/admin/OrderPanel";
 import { OrderTable } from "@/components/admin/OrderTable";
 
@@ -55,6 +56,7 @@ export default function AdminOrders() {
   const [dateTo, setDateTo] = useState(DEFAULT_RANGE.to);
   const [datePreset, setDatePreset] = useState<QuickDatePreset | null>("today");
   const [view, setView] = useState<OrderView>("table");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY);
@@ -145,7 +147,7 @@ export default function AdminOrders() {
             <div>
               <h1 className="text-2xl font-semibold text-stone-900">Orders</h1>
               <p className="mt-0.5 text-sm text-stone-500">
-                {periodLabel} · refreshes every 10s
+                {periodLabel} · refreshes every 10s · click a row for IP & location
               </p>
             </div>
           </div>
@@ -270,7 +272,12 @@ export default function AdminOrders() {
           onStatus={setStatus}
           onAssign={assign}
           onConfirm={confirmOrder}
+          onSelect={setSelectedOrder}
         />
+      )}
+
+      {selectedOrder && (
+        <OrderDetailSheet order={selectedOrder} onClose={() => setSelectedOrder(null)} />
       )}
 
       {!loading && filtered.length > 0 && view === "grid" && (
@@ -283,6 +290,7 @@ export default function AdminOrders() {
               onStatus={setStatus}
               onAssign={assign}
               onConfirm={confirmOrder}
+              onSelect={() => setSelectedOrder(o)}
             />
           ))}
         </div>

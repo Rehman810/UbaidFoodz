@@ -10,7 +10,8 @@
     "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "test:email": "tsx scripts/test-email.ts"
+    "test:email": "tsx scripts/test-email.ts",
+    "test:whatsapp": "tsx scripts/test-whatsapp.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

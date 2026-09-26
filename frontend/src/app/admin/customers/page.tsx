@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  Ban,
   Calendar,
   Crown,
   Mail,
@@ -22,6 +23,28 @@ import { usePoll } from "@/hooks/usePoll";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 
 type SortKey = "recent" | "spent" | "orders" | "name";
+
+type OrderBlock = {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  reason: string;
+  createdAt: string;
+};
+
+function phoneKey(phone: string | null | undefined) {
+  if (!phone) return "";
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(-10) : "";
+}
+
+function findContactBlock(blocks: OrderBlock[], email: string, phone: string | null) {
+  const emailKey = email.trim().toLowerCase();
+  const pKey = phoneKey(phone);
+  return blocks.find(
+    (b) => (b.email && b.email === emailKey) || (b.phone && pKey && b.phone === pKey)
+  );
+}
 
 const AVATAR_GRADIENTS = [
   "from-brand-500 to-orange-600",
@@ -85,9 +108,37 @@ function KpiCard({
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("spent");
+  const [blocks, setBlocks] = useState<OrderBlock[]>([]);
 
   const load = useCallback(() => api<AdminCustomer[]>("/admin/customers"), []);
   const { data: customers, loading, refresh } = usePoll(load, 30000);
+
+  const loadBlocks = useCallback(() => api<OrderBlock[]>("/admin/blocks"), []);
+
+  useEffect(() => {
+    loadBlocks().then(setBlocks).catch(() => setBlocks([]));
+  }, [loadBlocks]);
+
+  async function blockCustomer(c: AdminCustomer) {
+    try {
+      await api("/admin/blocks", {
+        method: "POST",
+        body: JSON.stringify({ email: c.email, phone: c.phone, reason: "Blocked from customer records" }),
+      });
+      setBlocks(await loadBlocks());
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function unblockCustomer(blockId: string) {
+    try {
+      await api(`/admin/blocks/${blockId}`, { method: "DELETE" });
+      setBlocks(await loadBlocks());
+    } catch {
+      /* ignore */
+    }
+  }
 
   const stats = useMemo(() => {
     const list = customers ?? [];
@@ -140,7 +191,7 @@ export default function CustomersPage() {
             <div>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl">Customers</h1>
               <p className="mt-0.5 text-sm text-stone-500">
-                Registered accounts, order history, and lifetime value
+                Registered accounts and guest checkout — order history and lifetime value
               </p>
             </div>
           </div>
@@ -239,7 +290,7 @@ export default function CustomersPage() {
             {search ? "No customers match your search" : "No customers yet"}
           </p>
           <p className="mt-1 text-sm text-stone-400">
-            {search ? "Try a different name or email." : "Customers appear here after they sign up and order."}
+            {search ? "Try a different name, email, or phone." : "Customers appear here after they place an order."}
           </p>
         </div>
       ) : (
@@ -247,12 +298,18 @@ export default function CustomersPage() {
           {filtered.map((c, index) => {
             const avgOrder = c.orderCount > 0 ? c.totalSpent / c.orderCount : 0;
             const isTop = index === 0 && sort === "spent" && c.totalSpent > 0 && c.totalSpent >= topThreshold;
+            const block = findContactBlock(blocks, c.email, c.phone ?? null);
+            const blocked = Boolean(block);
 
             return (
               <article
                 key={c.id}
                 className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-                  isTop ? "border-brand-200 ring-1 ring-brand-100" : "border-stone-200/80"
+                  blocked
+                    ? "border-red-200 ring-1 ring-red-100"
+                    : isTop
+                      ? "border-brand-200 ring-1 ring-brand-100"
+                      : "border-stone-200/80"
                 }`}
               >
                 <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
@@ -266,16 +323,28 @@ export default function CustomersPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="font-semibold text-stone-900">{c.name}</h2>
-                        {isTop && (
+                        {blocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-red-200">
+                            <Ban size={10} /> Blocked
+                          </span>
+                        )}
+                        {c.isGuest && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-600 ring-1 ring-stone-200">
+                            Guest checkout
+                          </span>
+                        )}
+                        {isTop && !blocked && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
                             <Crown size={10} /> Top customer
                           </span>
                         )}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-                        <span className="inline-flex items-center gap-1">
-                          <Mail size={12} className="shrink-0" /> {c.email}
-                        </span>
+                        {c.email && (
+                          <span className="inline-flex items-center gap-1">
+                            <Mail size={12} className="shrink-0" /> {c.email}
+                          </span>
+                        )}
                         {c.phone && (
                           <span className="inline-flex items-center gap-1">
                             <Phone size={12} className="shrink-0" /> {c.phone}
@@ -304,8 +373,28 @@ export default function CustomersPage() {
                     </div>
                   </div>
 
+                  {/* Actions */}
+                  <div className="flex flex-col gap-2 lg:w-[220px] lg:shrink-0">
+                    {!blocked ? (
+                      <button
+                        type="button"
+                        onClick={() => blockCustomer(c)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                      >
+                        <Ban size={13} /> Block orders
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => block && unblockCustomer(block.id)}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      >
+                        Unblock
+                      </button>
+                    )}
+
                   {/* Last order */}
-                  <div className="lg:w-[220px] lg:shrink-0">
+                  <div className="flex-1">
                     {c.lastOrder ? (
                       <Link
                         href={`/admin/orders`}
@@ -328,6 +417,7 @@ export default function CustomersPage() {
                         No orders yet
                       </div>
                     )}
+                  </div>
                   </div>
                 </div>
               </article>

@@ -7,6 +7,7 @@ import { Rider } from "@/lib/admin-types";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { isBackwardMove, Order, OrderStatus, STATUS_FLOW, STATUS_LABEL, orderStatusLabel } from "@/lib/types";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
+import { OrderDeviceInfo } from "./OrderDeviceInfo";
 import { StatusBadge } from "./StatusBadge";
 import { AdminSelect } from "./AdminSelect";
 
@@ -16,6 +17,7 @@ export function OrderPanel({
   onStatus,
   onAssign,
   onConfirm,
+  onSelect,
   compact,
   forwardOnly,
 }: {
@@ -24,6 +26,7 @@ export function OrderPanel({
   onStatus: (id: string, status: OrderStatus) => void;
   onAssign: (id: string, riderId: string) => void;
   onConfirm?: (id: string) => void;
+  onSelect?: () => void;
   compact?: boolean;
   forwardOnly?: boolean;
 }) {
@@ -43,7 +46,11 @@ export function OrderPanel({
 
   return (
     <article
-      className={`group relative overflow-visible rounded-2xl border bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${theme.border} ${theme.ring} ring-1`}
+      className={`group relative overflow-visible rounded-2xl border bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg ${theme.border} ${theme.ring} ring-1 ${onSelect ? "cursor-pointer" : ""}`}
+      onClick={onSelect}
+      onKeyDown={onSelect ? (e) => e.key === "Enter" && onSelect() : undefined}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
     >
       <div className={`h-1 rounded-t-2xl ${theme.stripe}`} />
 
@@ -96,6 +103,8 @@ export function OrderPanel({
             </div>
           </div>
         </div>
+
+        {!compact && <OrderDeviceInfo order={order} />}
 
         {/* Items */}
         {!compact && (
@@ -152,7 +161,10 @@ export function OrderPanel({
         )}
 
         {/* Actions */}
-        <div className="mt-5 flex flex-wrap items-end gap-3 rounded-xl bg-stone-50/80 p-3 ring-1 ring-stone-100">
+        <div
+          className="mt-5 flex flex-wrap items-end gap-3 rounded-xl bg-stone-50/80 p-3 ring-1 ring-stone-100"
+          onClick={(e) => e.stopPropagation()}
+        >
           <AdminSelect
             value={order.status}
             label="Status"

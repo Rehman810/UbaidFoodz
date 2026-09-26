@@ -56,6 +56,7 @@ export type AdminCustomer = {
   email: string;
   phone?: string | null;
   createdAt: string;
+  isGuest?: boolean;
   orderCount: number;
   totalSpent: number;
   lastOrder: { id: string; total: string | number; status: OrderStatus; createdAt: string; fulfillmentType?: FulfillmentType } | null;

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, Flame, MapPin, Phone } from "lucide-react";
+import { PoweredByDevsora } from "@/components/PoweredByDevsora";
 import { useStore } from "@/lib/store";
 
 export function StoreFooter() {
@@ -121,8 +122,13 @@ export function StoreFooter() {
         </div>
       </div>
 
-      <div className="border-t border-white/10 py-6 text-center text-xs text-stone-500">
-        © {new Date().getFullYear()} Ubaid Fast Foodz · Made with heat in Karachi
+      <div className="border-t border-white/10 px-4 py-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row sm:gap-6">
+          <p className="text-center text-xs text-stone-500 sm:text-left">
+            © {new Date().getFullYear()} Ubaid Fast Foodz · Made with heat in Karachi
+          </p>
+          <PoweredByDevsora variant="badge" />
+        </div>
       </div>
     </footer>
   );

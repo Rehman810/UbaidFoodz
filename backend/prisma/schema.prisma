@@ -206,6 +206,10 @@ model Order {
   customerName     String
   customerPhone    String
   customerEmail    String?
+  customerIp       String?
+  customerLatitude  Decimal?       @db.Decimal(10, 7)
+  customerLongitude Decimal?       @db.Decimal(10, 7)
+  customerLocationAccuracy Decimal? @db.Decimal(10, 2)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   items            OrderItem[]
@@ -223,6 +227,18 @@ model OrderItem {
   nameAtOrder   String
   optionsLabel  String   @default("")
   instructions  String   @default("")
+}
+
+model OrderBlock {
+  id        String   @id @default(uuid())
+  email     String?
+  phone     String?
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@index([email])
+  @@index([phone])
 }
 
 model Invoice {

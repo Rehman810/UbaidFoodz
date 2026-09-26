@@ -163,6 +163,10 @@ export type Order = {
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
+  customerIp?: string | null;
+  customerLatitude?: string | number | null;
+  customerLongitude?: string | number | null;
+  customerLocationAccuracy?: string | number | null;
   createdAt: string;
   items: OrderItem[];
   rider?: { id: string; name: string; phone?: string | null } | null;

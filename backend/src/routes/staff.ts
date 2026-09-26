@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
@@ -8,6 +9,15 @@ import { sendStaffWelcomeEmail } from "../lib/email";
 export const staffRouter = Router();
 
 const STAFF_ROLES: Role[] = [Role.ADMIN, Role.CHEF, Role.RIDER];
+const ASSIGNABLE_ROLES: Role[] = [Role.CHEF, Role.RIDER];
+
+function generateStaffPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = crypto.randomBytes(12);
+  let out = "";
+  for (let i = 0; i < 12; i++) out += chars[bytes[i] % chars.length];
+  return out;
+}
 
 staffRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
   const staff = await prisma.user.findMany({
@@ -28,24 +38,29 @@ staffRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) => 
 });
 
 staffRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
-  const { name, email, phone, password, role } = req.body as {
+  const { name, email, phone, password, role, autoGeneratePassword } = req.body as {
     name?: string;
     email?: string;
     phone?: string;
     password?: string;
     role?: Role;
+    autoGeneratePassword?: boolean;
   };
   if (!name?.trim() || !email?.trim()) {
     return res.status(400).json({ error: "Name and email are required." });
   }
-  if (!role || !STAFF_ROLES.includes(role)) {
-    return res.status(400).json({ error: "Role must be ADMIN, CHEF, or RIDER." });
+  if (role === Role.ADMIN) {
+    return res.status(400).json({ error: "Cannot create additional admin accounts." });
+  }
+  if (!role || !ASSIGNABLE_ROLES.includes(role)) {
+    return res.status(400).json({ error: "Role must be CHEF or RIDER." });
   }
   const normalizedEmail = email.trim().toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) return res.status(409).json({ error: "An account with this email already exists." });
 
-  const plainPassword = password?.trim() || "demo123";
+  const generated = Boolean(autoGeneratePassword);
+  const plainPassword = generated ? generateStaffPassword() : password?.trim() || "demo123";
   if (plainPassword.length < 6) {
     return res.status(400).json({ error: "Password must be at least 6 characters." });
   }
@@ -69,8 +84,11 @@ staffRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
       createdAt: true,
     },
   });
-  void sendStaffWelcomeEmail(user.email, user.name, user.role, password?.trim() ? undefined : plainPassword);
-  res.status(201).json(user);
+  const emailed = generated || !password?.trim();
+  if (emailed) {
+    void sendStaffWelcomeEmail(user.email, user.name, user.role, plainPassword);
+  }
+  res.status(201).json({ ...user, emailed });
 });
 
 staffRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
@@ -98,8 +116,17 @@ staffRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res)
       return res.status(400).json({ error: "Keep at least one active admin." });
     }
   }
-  if (body.role && !STAFF_ROLES.includes(body.role)) {
+  if (body.role === Role.ADMIN && existing.role !== Role.ADMIN) {
+    return res.status(400).json({ error: "Cannot assign admin role." });
+  }
+  if (existing.role === Role.ADMIN && body.role && body.role !== Role.ADMIN) {
+    return res.status(400).json({ error: "The admin account role cannot be changed." });
+  }
+  if (body.role && !ASSIGNABLE_ROLES.includes(body.role) && body.role !== Role.ADMIN) {
     return res.status(400).json({ error: "Invalid staff role." });
+  }
+  if (body.role && existing.role !== Role.ADMIN && !ASSIGNABLE_ROLES.includes(body.role)) {
+    return res.status(400).json({ error: "Role must be CHEF or RIDER." });
   }
   if (body.password && body.password.length < 6) {
     return res.status(400).json({ error: "Password must be at least 6 characters." });

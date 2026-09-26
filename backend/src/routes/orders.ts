@@ -2,6 +2,7 @@ import { Router } from "express";
 import crypto from "crypto";
 import { FulfillmentType, OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { findOrderBlock } from "../lib/blocklist";
 import { canAccessOrder, phonesMatch, stripGuestToken } from "../lib/order-access";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth";
 import { trackLimiter } from "../middleware/security";
@@ -16,7 +17,9 @@ import {
   sendRiderAssignedEmail,
 } from "../lib/email";
 import { emitOrderChange } from "../lib/realtime";
+import { sendNewOrderStaffWhatsApp, sendOrderReceivedWhatsApp } from "../lib/whatsapp";
 import { generateInvoicePdf } from "../lib/invoice";
+import { clientIp, parseCoord } from "../lib/client-ip";
 import { deliveryNeedsRider, pickLeastBusyRider } from "../lib/rider-assign";
 import { getStoreSettings } from "../lib/settings-data";
 import { effectiveItemPrice, isStoreOpen } from "../lib/store-settings";
@@ -68,6 +71,9 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     customerEmail,
     fulfillmentType,
     deliveryAreaId,
+    customerLatitude,
+    customerLongitude,
+    customerLocationAccuracy,
   } = req.body as {
     items?: {
       menuItemId: string;
@@ -85,6 +91,9 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     customerEmail?: string;
     fulfillmentType?: FulfillmentType;
     deliveryAreaId?: string;
+    customerLatitude?: number;
+    customerLongitude?: number;
+    customerLocationAccuracy?: number;
   };
   const cartItems = items ?? [];
   const cartDeals = deals ?? [];
@@ -108,6 +117,14 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   if (!phone) {
     return res.status(400).json({ error: "Enter a valid phone number with at least 10 digits." });
   }
+
+  const blocked = await findOrderBlock(email, phone);
+  if (blocked) {
+    return res.status(403).json({
+      error: "Ordering is not available for this contact. Please call the restaurant if you need help.",
+    });
+  }
+
   if (mode === FulfillmentType.DELIVERY && !trimmedAddress) {
     return res.status(400).json({ error: "Delivery address is required." });
   }
@@ -265,6 +282,11 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
 
   const grandTotal = subtotal + deliveryCharge;
 
+  const lat = parseCoord(customerLatitude, -90, 90);
+  const lng = parseCoord(customerLongitude, -180, 180);
+  const locAccuracy = parseCoord(customerLocationAccuracy, 0, 50_000);
+  const ip = clientIp(req);
+
   const order = await prisma.order.create({
     data: {
       orderNumber: await nextOrderNumber(),
@@ -280,6 +302,10 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       customerName: trimmedName,
       customerPhone: phone,
       customerEmail: email,
+      customerIp: ip,
+      customerLatitude: lat,
+      customerLongitude: lng,
+      customerLocationAccuracy: locAccuracy,
       status: initialStatus,
       items: { create: lines },
     },
@@ -287,6 +313,8 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   });
 
   void sendOrderPlacedEmail(order, storeSettings.autoConfirmOrders);
+  void sendOrderReceivedWhatsApp(order, storeSettings.autoConfirmOrders);
+  void sendNewOrderStaffWhatsApp(order, storeSettings.whatsapp);
   const staff = await prisma.user.findMany({
     where: { role: { in: [Role.ADMIN, Role.CHEF] }, isActive: true },
     select: { email: true },

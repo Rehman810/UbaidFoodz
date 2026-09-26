@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, MapPin, Navigation, Phone, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
+import { Order, orderStatusLabel } from "@/lib/types";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 
