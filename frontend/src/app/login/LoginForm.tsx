@@ -15,6 +15,13 @@ const DEMOS = [
     hint: "Orders, menu & store settings",
   },
   {
+    role: "Chef",
+    email: "chef@ubaidfastfoodz.com",
+    password: "demo123",
+    icon: Flame,
+    hint: "Kitchen tickets & bump board",
+  },
+  {
     role: "Rider",
     email: "rider@ubaidfastfoodz.com",
     password: "demo123",
@@ -24,11 +31,13 @@ const DEMOS = [
 ];
 
 export default function LoginForm() {
-  const { login } = useAuth();
+  const { login, verifyTwoFactor } = useAuth();
   const router = useRouter();
   const next = useSearchParams().get("next");
   const [email, setEmail] = useState(DEMOS[0].email);
   const [password, setPassword] = useState("demo123");
+  const [otp, setOtp] = useState("");
+  const [challenge, setChallenge] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -36,8 +45,12 @@ export default function LoginForm() {
     setBusy(true);
     setError("");
     try {
-      const user = await login(asEmail, asPassword);
-      const dest = ignoreNext ? homeFor(user.role) : resolveLoginRedirect(user.role, next);
+      const result = await login(asEmail, asPassword);
+      if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
+        setChallenge(result.challengeToken);
+        return;
+      }
+      const dest = ignoreNext ? homeFor(result.user.role) : resolveLoginRedirect(result.user.role, next);
       router.replace(dest);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -48,6 +61,19 @@ export default function LoginForm() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (challenge) {
+      setBusy(true);
+      setError("");
+      try {
+        const user = await verifyTwoFactor(challenge, otp);
+        router.replace(resolveLoginRedirect(user.role, next));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Invalid code");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     await signIn(email, password);
   }
 
@@ -136,48 +162,67 @@ export default function LoginForm() {
               )}
 
               <form onSubmit={onSubmit} className="space-y-4">
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Email
-                  </span>
-                  <div className="flex overflow-hidden rounded-2xl border border-stone-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100">
-                    <span className="grid w-12 shrink-0 place-items-center border-r border-stone-100 bg-stone-50 text-stone-400">
-                      <Mail size={16} />
+                {challenge ? (
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
+                      Authenticator code
                     </span>
                     <input
-                      className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      type="email"
-                      autoComplete="email"
-                      placeholder="you@ubaidfastfoodz.com"
+                      className="input"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
                       required
                     />
-                  </div>
-                </label>
+                  </label>
+                ) : (
+                  <>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Email
+                      </span>
+                      <div className="flex overflow-hidden rounded-2xl border border-stone-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100">
+                        <span className="grid w-12 shrink-0 place-items-center border-r border-stone-100 bg-stone-50 text-stone-400">
+                          <Mail size={16} />
+                        </span>
+                        <input
+                          className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          type="email"
+                          autoComplete="email"
+                          placeholder="you@ubaidfastfoodz.com"
+                          required
+                        />
+                      </div>
+                    </label>
 
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Password
-                  </span>
-                  <div className="flex overflow-hidden rounded-2xl border border-stone-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100">
-                    <span className="grid w-12 shrink-0 place-items-center border-r border-stone-100 bg-stone-50 text-stone-400">
-                      <Lock size={16} />
-                    </span>
-                    <input
-                      className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      type="password"
-                      autoComplete="current-password"
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-                </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Password
+                      </span>
+                      <div className="flex overflow-hidden rounded-2xl border border-stone-200 bg-white transition focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-100">
+                        <span className="grid w-12 shrink-0 place-items-center border-r border-stone-100 bg-stone-50 text-stone-400">
+                          <Lock size={16} />
+                        </span>
+                        <input
+                          className="min-w-0 flex-1 border-0 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-stone-400"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          type="password"
+                          autoComplete="current-password"
+                          placeholder="••••••••"
+                          required
+                        />
+                      </div>
+                    </label>
+                  </>
+                )}
 
                 <button className="btn-primary h-12 w-full text-base shadow-float" disabled={busy}>
-                  {busy ? "Signing in…" : "Sign in"}
+                  {busy ? "Signing in…" : challenge ? "Verify code" : "Sign in"}
                 </button>
               </form>
             </div>

@@ -5,6 +5,7 @@ import { BellOff, ChefHat, RefreshCw, Timer, Volume2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Order, OrderStatus } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
+import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { KitchenTicket } from "@/components/admin/KitchenTicket";
 
@@ -47,6 +48,7 @@ export default function KitchenPage() {
 
   const load = useCallback(() => api<Order[]>("/orders"), []);
   const { data, loading, error, refresh } = usePoll(load, 5000);
+  useLiveOrders(refresh);
 
   const kitchenOrders = useMemo(() => {
     const list = (data || []).filter(

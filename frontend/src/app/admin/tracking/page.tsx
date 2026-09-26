@@ -7,6 +7,7 @@ import { pkr } from "@/lib/format";
 import { AdminStats } from "@/lib/admin-types";
 import { Order, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
+import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { KanbanBoard, kanbanActiveCount } from "@/components/admin/KanbanBoard";
 import { STATUS_THEME } from "@/lib/admin-status";
 
@@ -32,6 +33,7 @@ export default function TrackingPage() {
   }, []);
 
   const { data, loading, error, refresh } = usePoll(load, 8000);
+  useLiveOrders(refresh);
 
   const stats = useMemo(() => {
     const list = data?.orders || [];

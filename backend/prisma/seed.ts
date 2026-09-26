@@ -432,7 +432,7 @@ async function main() {
     });
   }
 
-  const [customer, admin, rider, rider2] = await Promise.all([
+  const [customer, admin, rider, rider2, chef] = await Promise.all([
     prisma.user.create({
       data: {
         name: "Ayesha Khan",
@@ -469,9 +469,19 @@ async function main() {
         phone: "0345-2211009",
       },
     }),
+    prisma.user.create({
+      data: {
+        name: "Chef Ali",
+        email: "chef@ubaidfastfoodz.com",
+        passwordHash: hash,
+        role: Role.CHEF,
+        phone: "0322-4455667",
+      },
+    }),
   ]);
 
   void admin;
+  void chef;
 
   const items: { id: string; name: string; imageUrl: string; price: number }[] = [];
   for (const m of MENU) {
@@ -743,6 +753,7 @@ async function main() {
   console.log("  customer@ubaidfastfoodz.com / demo123");
   console.log("  admin@ubaidfastfoodz.com    / demo123");
   console.log("  rider@ubaidfastfoodz.com    / demo123");
+  console.log("  chef@ubaidfastfoodz.com     / demo123");
 }
 
 main()

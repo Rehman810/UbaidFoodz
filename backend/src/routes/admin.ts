@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { sendStaffWelcomeEmail } from "../lib/email";
 
 export const adminRouter = Router();
 
@@ -455,6 +456,8 @@ adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, re
     },
     select: { id: true, name: true, email: true, phone: true },
   });
+
+  void sendStaffWelcomeEmail(rider.email, rider.name, Role.RIDER, password?.trim() ? undefined : plainPassword);
 
   res.status(201).json({
     ...rider,

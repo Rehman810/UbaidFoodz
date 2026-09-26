@@ -11,7 +11,7 @@ export function RoleRedirect() {
 
   useEffect(() => {
     if (loading || !user) return;
-    if (user.role === "RIDER") {
+    if (user.role === "RIDER" || user.role === "CHEF") {
       router.replace(homeFor(user.role));
     }
   }, [user, loading, router]);

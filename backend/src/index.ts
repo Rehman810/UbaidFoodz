@@ -1,9 +1,11 @@
 import path from "path";
+import http from "http";
 import dotenv from "dotenv";
 import express from "express";
+import cors from "cors";
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
-import cors from "cors";
+
 import { authRouter } from "./routes/auth";
 import { menuRouter } from "./routes/menu";
 import { ordersRouter } from "./routes/orders";
@@ -15,17 +17,30 @@ import { categoriesRouter } from "./routes/categories";
 import { dealsRouter } from "./routes/deals";
 import { deliveryAreasRouter } from "./routes/delivery-areas";
 import { settingsRouter } from "./routes/settings";
+import { staffRouter } from "./routes/staff";
 import { UPLOAD_DIR } from "./lib/uploads";
+import { initRealtime } from "./lib/realtime";
+import {
+  allowedOrigins,
+  errorHandler,
+  globalLimiter,
+  notFound,
+  securityHeaders,
+} from "./middleware/security";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 
-app.use(
-  cors({
-    origin: true,
-  })
-);
-app.use(express.json({ limit: "2mb" }));
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === "ubaid-fast-foodz-demo-secret") {
+  console.warn("[security] Set a strong JWT_SECRET in production.");
+}
+
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use(securityHeaders());
+app.use(cors({ origin: allowedOrigins(), credentials: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(globalLimiter);
 app.use("/uploads", express.static(UPLOAD_DIR));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -38,14 +53,24 @@ app.use("/delivery-areas", deliveryAreasRouter);
 app.use("/settings", settingsRouter);
 app.use("/orders", ordersRouter);
 app.use("/rider", riderRouter);
+app.use("/admin/staff", staffRouter);
 app.use("/admin", adminRouter);
 app.use("/invoices", invoicesRouter);
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err);
-  res.status(500).json({ error: "Something went wrong." });
+app.use(notFound);
+app.use(errorHandler);
+
+const server = http.createServer(app);
+initRealtime(server);
+
+server.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use. Stop the other API process, then run npm run dev again.`);
+    process.exit(1);
+  }
+  throw err;
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Ubaid Fast Foodz API on http://localhost:${PORT}`);
 });

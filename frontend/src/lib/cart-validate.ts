@@ -65,5 +65,8 @@ export function friendlyOrderError(message: string) {
   if (message.includes("Deal unavailable")) {
     return "A combo deal in your bag is no longer available. Please remove it and try again.";
   }
+  if (message.includes("at least 10 digits")) {
+    return "Enter a valid phone number with at least 10 digits (e.g. 0300 1234567).";
+  }
   return message;
 }

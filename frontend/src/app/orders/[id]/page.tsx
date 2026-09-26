@@ -13,6 +13,7 @@ import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { eta, formatWhen, pkr } from "@/lib/format";
 import { usePoll } from "@/hooks/usePoll";
+import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order, orderStatusLabel } from "@/lib/types";
 
@@ -42,7 +43,8 @@ export default function OrderDetailPage() {
     [id, guestToken]
   );
 
-  const { data: order, loading, error: pollError } = usePoll(fetchOrder, 15000, canLoad);
+  const { data: order, loading, error: pollError, refresh } = usePoll(fetchOrder, 15000, canLoad);
+  useLiveOrders(refresh, id);
 
   const accessDenied = needsTrack || pollError?.toLowerCase().includes("access");
 

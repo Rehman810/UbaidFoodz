@@ -15,6 +15,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Settings,
+  UserCog,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const NAV = [
   { href: "/admin/areas", label: "Areas", icon: MapPinned },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/riders", label: "Riders", icon: Bike },
+  { href: "/admin/staff", label: "Staff", icon: UserCog },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -70,10 +72,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [path]);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== "ADMIN")) router.replace("/login?next=/admin");
-  }, [user, loading, router]);
+    if (loading) return;
+    if (!user) {
+      router.replace("/login?next=/admin");
+      return;
+    }
+    if (user.role === "CHEF" && !path.startsWith("/admin/kitchen")) {
+      router.replace("/admin/kitchen");
+      return;
+    }
+    if (user.role !== "ADMIN" && user.role !== "CHEF") {
+      router.replace("/login?next=/admin");
+    }
+  }, [user, loading, router, path]);
 
-  if (loading || !user || user.role !== "ADMIN") {
+  if (loading || !user || (user.role !== "ADMIN" && user.role !== "CHEF")) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#fffaf5] text-stone-400">
         <div className="flex items-center gap-3">
@@ -103,7 +116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <nav className={`flex gap-1 overflow-x-auto py-2 lg:flex-1 lg:flex-col lg:overflow-y-auto ${collapsed ? "px-2 lg:px-2" : "px-3"}`}>
-            {NAV.map((n) => {
+            {(user.role === "CHEF" ? NAV.filter((n) => n.href === "/admin/kitchen") : NAV).map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
               const Icon = n.icon;
               return (
@@ -211,7 +224,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md lg:hidden">
           <div className="grid grid-cols-4">
-            {MOBILE_NAV.map((n) => {
+            {(user.role === "CHEF" ? [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }] : MOBILE_NAV).map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
               const Icon = n.icon;
               return (

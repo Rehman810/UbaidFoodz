@@ -23,6 +23,7 @@ import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { AdminStats } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
+import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { StatCard } from "@/components/admin/StatCard";
 import { PipelineFlow } from "@/components/admin/PipelineFlow";
 import { RecentOrderRow } from "@/components/admin/RecentOrderRow";
@@ -45,6 +46,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 export default function AdminDashboard() {
   const fetchStats = useCallback(() => api<AdminStats>("/admin/stats"), []);
   const { data: stats, loading, refresh } = usePoll(fetchStats, 12000);
+  useLiveOrders(refresh);
 
   async function setStatus(id: string, status: OrderStatus) {
     await api(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });

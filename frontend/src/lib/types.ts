@@ -1,4 +1,4 @@
-export type Role = "CUSTOMER" | "ADMIN" | "RIDER";
+export type Role = "CUSTOMER" | "ADMIN" | "RIDER" | "CHEF";
 
 export type User = {
   id: string;
@@ -6,6 +6,7 @@ export type User = {
   email: string;
   role: Role;
   phone?: string | null;
+  totpEnabled?: boolean;
 };
 
 export type MenuItemOption = {

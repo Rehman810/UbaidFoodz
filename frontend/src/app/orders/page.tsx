@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { StoreShell } from "@/components/StoreShell";
 import { OrderTrackForm } from "@/components/OrderTrackForm";
@@ -11,15 +11,21 @@ import { formatWhen, pkr } from "@/lib/format";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order } from "@/lib/types";
 import { ClipboardList } from "lucide-react";
+import { useLiveOrders } from "@/hooks/useLiveOrders";
 
 export default function OrdersPage() {
   const { user, loading } = useAuth();
   const [orders, setOrders] = useState<Order[] | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!user) return;
     api<Order[]>("/orders/mine").then(setOrders).catch(() => setOrders([]));
   }, [user]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+  useLiveOrders(load);
 
   return (
     <StoreShell>

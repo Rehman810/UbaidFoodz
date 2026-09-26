@@ -8,7 +8,7 @@ export function deliveryNeedsRider(fulfillmentType: FulfillmentType) {
 /** Pick the rider with the fewest active (out for delivery) orders. */
 export async function pickLeastBusyRider(): Promise<string | null> {
   const riders = await prisma.user.findMany({
-    where: { role: Role.RIDER },
+    where: { role: Role.RIDER, isActive: true },
     select: { id: true },
     orderBy: { createdAt: "asc" },
   });

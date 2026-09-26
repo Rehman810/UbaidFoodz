@@ -125,6 +125,11 @@ export default function CheckoutPage() {
       setOpenModal(true);
       return;
     }
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) {
+      setError("Enter a valid phone number with at least 10 digits (e.g. 0300 1234567).");
+      return;
+    }
     const payload = buildOrderPayload(items);
     if (!payload.items.length && !payload.deals.length) {
       setError("Your bag has no valid items. Go back to the menu and add items again.");
@@ -249,12 +254,13 @@ export default function CheckoutPage() {
           <input className="input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
           <input
             className="input"
-            placeholder="Phone"
+            placeholder="Phone (e.g. 0300 1234567)"
             type="tel"
             inputMode="tel"
             autoComplete="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+            minLength={10}
             required
           />
           <input

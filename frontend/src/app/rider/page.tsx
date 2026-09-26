@@ -5,7 +5,7 @@ import { Check, MapPin, Navigation, Phone, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
-import { Order, orderStatusLabel } from "@/lib/types";
+import { useLiveOrders } from "@/hooks/useLiveOrders";
 
 export default function RiderDeliveriesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -24,6 +24,11 @@ export default function RiderDeliveriesPage() {
       setRefreshing(false);
     }
   }, []);
+
+  const silentLoad = useCallback(() => {
+    load(true);
+  }, [load]);
+  useLiveOrders(silentLoad);
 
   useEffect(() => {
     load();

@@ -8,7 +8,7 @@ type OrderAccess = {
 };
 
 export function canAccessOrder(order: OrderAccess, user?: AuthUser, token?: string | null) {
-  if (user?.role === Role.ADMIN) return true;
+  if (user?.role === Role.ADMIN || user?.role === Role.CHEF) return true;
   if (user && order.customerId && order.customerId === user.id) return true;
   if (user && order.riderId && order.riderId === user.id) return true;
   if (token && order.guestAccessToken && token === order.guestAccessToken) return true;

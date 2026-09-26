@@ -14,6 +14,7 @@ import { STATUS_THEME } from "@/lib/admin-status";
 import { AdminStats } from "@/lib/admin-types";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
+import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { OrderDateFilter } from "@/components/admin/OrderDateFilter";
 import { OrderPanel } from "@/components/admin/OrderPanel";
 import { OrderTable } from "@/components/admin/OrderTable";
@@ -74,6 +75,7 @@ export default function AdminOrders() {
   }, []);
 
   const { data, loading, refresh } = usePoll(load, 10000);
+  useLiveOrders(refresh);
 
   async function setStatus(id: string, status: OrderStatus) {
     await api(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });

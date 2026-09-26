@@ -17,6 +17,7 @@ import {
   Youtube,
 } from "lucide-react";
 import { OpeningHoursEditor } from "@/components/admin/OpeningHoursEditor";
+import { TwoFactorSettings } from "@/components/admin/TwoFactorSettings";
 import { SettingsField, SettingsSection } from "@/components/admin/SettingsSection";
 import { api, apiUpload } from "@/lib/api";
 import { isStoreOpen } from "@/lib/store-hours";
@@ -162,6 +163,8 @@ export default function AdminSettingsPage() {
           {msg}
         </p>
       )}
+
+      <TwoFactorSettings />
 
       <form onSubmit={onSave} className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-2">

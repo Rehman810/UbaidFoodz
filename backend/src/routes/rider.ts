@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { sendOrderDeliveredEmail } from "../lib/email";
 import { generateInvoicePdf } from "../lib/invoice";
+import { emitOrderChange } from "../lib/realtime";
 
 export const riderRouter = Router();
 
@@ -45,5 +46,6 @@ riderRouter.patch("/orders/:id/status", requireAuth, requireRole(Role.RIDER), as
     if (withItems) void sendOrderDeliveredEmail(withItems);
   }
   const fresh = await prisma.order.findUnique({ where: { id: updated.id }, include });
+  emitOrderChange("order:updated", updated);
   res.json(fresh);
 });

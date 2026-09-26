@@ -4,11 +4,18 @@ import { FulfillmentType, OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { canAccessOrder, phonesMatch, stripGuestToken } from "../lib/order-access";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth";
+import { trackLimiter } from "../middleware/security";
 import {
+  sendOrderCancelledEmail,
   sendOrderConfirmedEmail,
   sendOrderDeliveredEmail,
+  sendOrderOnTheWayEmail,
   sendOrderPlacedEmail,
+  sendOrderPreparingEmail,
+  sendNewOrderStaffEmail,
+  sendRiderAssignedEmail,
 } from "../lib/email";
+import { emitOrderChange } from "../lib/realtime";
 import { generateInvoicePdf } from "../lib/invoice";
 import { deliveryNeedsRider, pickLeastBusyRider } from "../lib/rider-assign";
 import { getStoreSettings } from "../lib/settings-data";
@@ -92,8 +99,14 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   const trimmedAddress =
     mode === FulfillmentType.PICKUP ? pickupAddress : String(deliveryAddress || "").trim();
 
-  if ((!cartItems.length && !cartDeals.length) || !trimmedName || !phone) {
-    return res.status(400).json({ error: "Cart, name and phone are required." });
+  if (!cartItems.length && !cartDeals.length) {
+    return res.status(400).json({ error: "Your bag is empty. Add items before placing an order." });
+  }
+  if (!trimmedName) {
+    return res.status(400).json({ error: "Name is required." });
+  }
+  if (!phone) {
+    return res.status(400).json({ error: "Enter a valid phone number with at least 10 digits." });
   }
   if (mode === FulfillmentType.DELIVERY && !trimmedAddress) {
     return res.status(400).json({ error: "Delivery address is required." });
@@ -274,6 +287,13 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   });
 
   void sendOrderPlacedEmail(order, storeSettings.autoConfirmOrders);
+  const staff = await prisma.user.findMany({
+    where: { role: { in: [Role.ADMIN, Role.CHEF] }, isActive: true },
+    select: { email: true },
+  });
+  const extra = [process.env.NOTIFY_EMAIL, process.env.ADMIN_EMAIL].filter(Boolean) as string[];
+  void sendNewOrderStaffEmail(order, [...new Set([...staff.map((s) => s.email), ...extra])]);
+  emitOrderChange("order:created", order);
 
   const safeOrder = stripGuestToken(order);
   if (guestAccessToken) {
@@ -291,7 +311,7 @@ ordersRouter.get("/mine", requireAuth, async (req, res) => {
   res.json(orders);
 });
 
-ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
+ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF), async (_req, res) => {
   const orders = await prisma.order.findMany({
     include: { ...include, customer: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: "desc" },
@@ -299,7 +319,7 @@ ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) =>
   res.json(orders);
 });
 
-ordersRouter.post("/track", async (req, res) => {
+ordersRouter.post("/track", trackLimiter, async (req, res) => {
   const { orderNumber, phone } = req.body as { orderNumber?: string; phone?: string };
   const num = String(orderNumber || "").trim().toUpperCase();
   const phoneInput = String(phone || "").trim();
@@ -350,16 +370,28 @@ ordersRouter.patch("/:id/confirm", requireAuth, requireRole(Role.ADMIN), async (
     include,
   });
   void sendOrderConfirmedEmail(order);
+  emitOrderChange("order:updated", order);
   res.json(order);
 });
 
-ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN, Role.CHEF), async (req, res) => {
   const status = req.body.status as OrderStatus;
   if (!Object.values(OrderStatus).includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
   }
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
+
+  if (req.user!.role === Role.CHEF) {
+    const chefAllowed: OrderStatus[] = [
+      OrderStatus.PREPARING,
+      OrderStatus.OUT_FOR_DELIVERY,
+      OrderStatus.DELIVERED,
+    ];
+    if (!chefAllowed.includes(status) || existing.status === OrderStatus.AWAITING_CONFIRMATION) {
+      return res.status(403).json({ error: "Chefs can only bump kitchen tickets." });
+    }
+  }
 
   const storeSettings = await getStoreSettings();
   let riderId = existing.riderId;
@@ -399,10 +431,25 @@ ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN), async (r
   ) {
     void sendOrderConfirmedEmail(order);
   }
+  if (status === OrderStatus.PREPARING && existing.status !== OrderStatus.PREPARING) {
+    void sendOrderPreparingEmail(order);
+  }
+  if (status === OrderStatus.OUT_FOR_DELIVERY && existing.status !== OrderStatus.OUT_FOR_DELIVERY) {
+    void sendOrderOnTheWayEmail(order);
+    if (riderId && riderId !== existing.riderId) {
+      const rider = await prisma.user.findUnique({ where: { id: riderId } });
+      if (rider) void sendRiderAssignedEmail(rider.email, rider.name, order);
+    }
+  }
+  if (status === OrderStatus.CANCELLED && existing.status !== OrderStatus.CANCELLED) {
+    void sendOrderCancelledEmail(order);
+  }
   if (status === OrderStatus.DELIVERED) {
     await generateInvoicePdf(order.id);
     void sendOrderDeliveredEmail(order);
   }
+
+  emitOrderChange("order:updated", order);
 
   const fresh = await prisma.order.findUnique({ where: { id: order.id }, include });
   res.json(fresh);
@@ -411,7 +458,7 @@ ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN), async (r
 ordersRouter.patch("/:id/assign", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
   const { riderId } = req.body as { riderId?: string };
   if (!riderId) return res.status(400).json({ error: "riderId required" });
-  const rider = await prisma.user.findFirst({ where: { id: riderId, role: Role.RIDER } });
+  const rider = await prisma.user.findFirst({ where: { id: riderId, role: Role.RIDER, isActive: true } });
   if (!rider) return res.status(400).json({ error: "Rider not found" });
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
@@ -423,5 +470,10 @@ ordersRouter.patch("/:id/assign", requireAuth, requireRole(Role.ADMIN), async (r
     data: { riderId, status: OrderStatus.OUT_FOR_DELIVERY },
     include,
   });
+  if (existing.status !== OrderStatus.OUT_FOR_DELIVERY) {
+    void sendOrderOnTheWayEmail(order);
+  }
+  void sendRiderAssignedEmail(rider.email, rider.name, order);
+  emitOrderChange("order:updated", order);
   res.json(order);
 });

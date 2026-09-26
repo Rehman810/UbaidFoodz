@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "@prisma/client";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { uploadLimiter } from "../middleware/security";
 import { imageUpload } from "../lib/uploads";
 
 export const uploadRouter = Router();
@@ -9,6 +10,7 @@ uploadRouter.post(
   "/image",
   requireAuth,
   requireRole(Role.ADMIN),
+  uploadLimiter,
   (req, res) => {
     imageUpload.single("image")(req, res, (err) => {
       if (err) {
