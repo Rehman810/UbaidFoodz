@@ -25,7 +25,11 @@ export function RecentOrderRow({
   onStatus: (id: string, s: OrderStatus) => void;
   onAssign: (id: string, riderId: string) => void;
 }) {
-  const showRider = order.status !== "DELIVERED" && order.status !== "CANCELLED";
+  const showRider =
+    order.fulfillmentType !== "PICKUP" &&
+    order.status !== "DELIVERED" &&
+    order.status !== "CANCELLED" &&
+    order.status !== "AWAITING_CONFIRMATION";
   const theme = STATUS_THEME[order.status];
 
   return (
@@ -39,7 +43,7 @@ export function RecentOrderRow({
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-bold text-stone-900">{order.orderNumber}</p>
             <FulfillmentBadge type={order.fulfillmentType} />
-            <StatusBadge status={order.status} />
+            <StatusBadge status={order.status} fulfillmentType={order.fulfillmentType} />
           </div>
           <p className="mt-1 text-sm text-stone-500">
             {order.customerName} · {order.items.length} items

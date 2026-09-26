@@ -5,7 +5,7 @@ import { ArrowRight, Bike, ChevronRight, GripVertical, MapPin, Package } from "l
 import { formatElapsed, formatWhen, pkr } from "@/lib/format";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
-import { Order, OrderStatus, STATUS_LABEL, STATUS_FLOW } from "@/lib/types";
+import { Order, OrderStatus, STATUS_FLOW, orderStatusLabel } from "@/lib/types";
 
 export function KanbanCard({
   order,
@@ -113,7 +113,7 @@ export function KanbanCard({
             }}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-stone-900 py-2 text-xs font-medium text-white transition hover:bg-brand-600"
           >
-            {STATUS_LABEL[nextStatus as OrderStatus]}
+            {orderStatusLabel(nextStatus as OrderStatus, order.fulfillmentType)}
             <ArrowRight size={13} />
           </button>
         )}

@@ -100,7 +100,7 @@ export function OrderDetailSheet({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <FulfillmentBadge type={order.fulfillmentType} size="md" />
-                <StatusBadge status={order.status} size="md" />
+                <StatusBadge status={order.status} fulfillmentType={order.fulfillmentType} size="md" />
                 <span className="text-xs text-stone-500">{formatWhen(order.createdAt)}</span>
               </div>
               <p className="mt-2 text-sm text-stone-600">

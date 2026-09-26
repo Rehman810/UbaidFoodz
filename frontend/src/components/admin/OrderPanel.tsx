@@ -5,16 +5,10 @@ import { downloadInvoice } from "@/lib/api";
 import { formatWhen, pkr } from "@/lib/format";
 import { Rider } from "@/lib/admin-types";
 import { STATUS_THEME } from "@/lib/admin-status";
-import { isBackwardMove, Order, OrderStatus, STATUS_FLOW, STATUS_LABEL } from "@/lib/types";
+import { isBackwardMove, Order, OrderStatus, STATUS_FLOW, STATUS_LABEL, orderStatusLabel } from "@/lib/types";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { StatusBadge } from "./StatusBadge";
 import { AdminSelect } from "./AdminSelect";
-
-const STATUS_OPTIONS = Object.entries(STATUS_LABEL).map(([k, v]) => ({
-  value: k,
-  label: v,
-  status: k as OrderStatus,
-}));
 
 export function OrderPanel({
   order,
@@ -34,19 +28,18 @@ export function OrderPanel({
   forwardOnly?: boolean;
 }) {
   const showRider =
+    order.fulfillmentType !== "PICKUP" &&
     order.status !== "DELIVERED" &&
     order.status !== "CANCELLED" &&
     order.status !== "AWAITING_CONFIRMATION";
   const theme = STATUS_THEME[order.status];
   const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
-  const statusOptions = forwardOnly
-    ? STATUS_FLOW.map((k) => ({
-        value: k,
-        label: STATUS_LABEL[k],
-        status: k,
-        disabled: isBackwardMove(order.status, k),
-      }))
-    : STATUS_OPTIONS;
+  const statusOptions = (forwardOnly ? STATUS_FLOW : (Object.keys(STATUS_LABEL) as OrderStatus[])).map((k) => ({
+    value: k,
+    label: orderStatusLabel(k, order.fulfillmentType),
+    status: k,
+    disabled: forwardOnly ? isBackwardMove(order.status, k) : false,
+  }));
 
   return (
     <article
@@ -61,7 +54,7 @@ export function OrderPanel({
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-display text-lg font-bold text-stone-900">{order.orderNumber}</p>
               <FulfillmentBadge type={order.fulfillmentType} size="md" />
-              <StatusBadge status={order.status} size="md" />
+              <StatusBadge status={order.status} fulfillmentType={order.fulfillmentType} size="md" />
             </div>
             <p className="mt-1 text-xs text-stone-400">{formatWhen(order.createdAt)} · {itemCount} items</p>
           </div>

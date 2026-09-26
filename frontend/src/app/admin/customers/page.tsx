@@ -318,7 +318,7 @@ export default function CustomersPage() {
                           <ArrowUpRight size={12} />
                         </p>
                         <div className="mt-2 flex items-center justify-between gap-2">
-                          <StatusBadge status={c.lastOrder.status} />
+              <StatusBadge status={c.lastOrder.status} fulfillmentType={c.lastOrder.fulfillmentType} />
                           <span className="text-sm font-bold text-stone-900">{pkr(c.lastOrder.total)}</span>
                         </div>
                         <p className="mt-1 text-[11px] text-stone-400">{formatWhen(c.lastOrder.createdAt)}</p>

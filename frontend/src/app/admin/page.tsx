@@ -91,6 +91,12 @@ export default function AdminDashboard() {
               <p className="text-xs text-orange-200">Today&apos;s revenue</p>
               <p className="font-display text-3xl font-bold">{pkr(stats.todayRevenue)}</p>
             </div>
+            <Link
+              href="/admin/kitchen"
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-stone-900 shadow-lg hover:bg-brand-50"
+            >
+              Open kitchen
+            </Link>
             <button
               onClick={refresh}
               className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-5 py-4 text-sm font-bold shadow-lg shadow-brand-900/40 hover:bg-brand-500"

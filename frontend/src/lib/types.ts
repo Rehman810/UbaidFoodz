@@ -189,6 +189,14 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
+export function orderStatusLabel(status: OrderStatus, fulfillment?: FulfillmentType | null) {
+  if (fulfillment === "PICKUP") {
+    if (status === "OUT_FOR_DELIVERY") return "Ready for pickup";
+    if (status === "DELIVERED") return "Collected";
+  }
+  return STATUS_LABEL[status];
+}
+
 export const STATUS_FLOW: OrderStatus[] = [
   "AWAITING_CONFIRMATION",
   "PENDING",

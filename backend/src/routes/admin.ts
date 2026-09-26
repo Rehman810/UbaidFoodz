@@ -401,7 +401,7 @@ adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN), async (_req,
       phone: true,
       createdAt: true,
       orders: {
-        select: { id: true, total: true, status: true, createdAt: true },
+        select: { id: true, total: true, status: true, createdAt: true, fulfillmentType: true },
         orderBy: { createdAt: "desc" },
       },
     },

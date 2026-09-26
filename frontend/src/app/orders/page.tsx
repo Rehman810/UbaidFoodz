@@ -64,7 +64,7 @@ export default function OrdersPage() {
                     </div>
                     <p className="mt-1 text-xs text-stone-500">{formatWhen(o.createdAt)}</p>
                     <div className="mt-5">
-                      <StatusTrack status={o.status} />
+                      <StatusTrack status={o.status} fulfillmentType={o.fulfillmentType} />
                     </div>
                   </Link>
                 </li>

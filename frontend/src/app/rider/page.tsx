@@ -5,8 +5,7 @@ import { Check, MapPin, Navigation, Phone, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
-import { Order } from "@/lib/types";
-import { STATUS_LABEL } from "@/lib/types";
+import { Order, orderStatusLabel } from "@/lib/types";
 
 export default function RiderDeliveriesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -84,7 +83,7 @@ export default function RiderDeliveriesPage() {
                     <FulfillmentBadge type={o.fulfillmentType} />
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-bold text-violet-700 ring-1 ring-violet-200">
-                    {STATUS_LABEL[o.status]}
+                    {orderStatusLabel(o.status, o.fulfillmentType)}
                   </span>
                 </div>
                 <p className="mt-1 font-display text-2xl text-stone-900">{pkr(o.total)}</p>

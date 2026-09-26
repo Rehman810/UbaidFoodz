@@ -12,6 +12,8 @@ import {
   LogOut,
   Map,
   MapPinned,
+  PanelLeft,
+  PanelLeftClose,
   Settings,
   Users,
   UtensilsCrossed,
@@ -22,6 +24,7 @@ import { PublicStore } from "@/lib/types";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/tracking", label: "Live tracking", icon: Map },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -34,16 +37,31 @@ const NAV = [
 
 const MOBILE_NAV = [
   { href: "/admin", label: "Home", icon: LayoutDashboard },
+  { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-  { href: "/admin/tracking", label: "Board", icon: Map },
   { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
 ];
+
+const SIDEBAR_KEY = "uff-admin-sidebar-collapsed";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const path = usePathname();
   const [kitchenOpen, setKitchenOpen] = useState<boolean | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
+  }, []);
+
+  function toggleSidebar() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
 
   useEffect(() => {
     api<PublicStore>("/settings/public")
@@ -57,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (loading || !user || user.role !== "ADMIN") {
     return (
-      <div className="grid min-h-screen place-items-center bg-stone-950 text-stone-400">
+      <div className="grid min-h-screen place-items-center bg-[#fffaf5] text-stone-400">
         <div className="flex items-center gap-3">
           <span className="h-2 w-2 animate-ping rounded-full bg-brand-500" />
           Opening kitchen dashboard…
@@ -67,21 +85,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f2ef] lg:flex">
-      {/* Sidebar */}
-      <aside className="lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-72 lg:flex-col">
-        <div className="flex h-full flex-col border-b border-stone-800 bg-stone-950 lg:border-b-0 lg:border-r">
-          <div className="flex items-center gap-3 px-5 py-5">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-600 text-white">
+    <div className="min-h-screen bg-[#fffaf5] lg:flex">
+      <aside
+        className={`lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:flex-col lg:transition-[width] lg:duration-300 ${
+          collapsed ? "lg:w-[4.75rem]" : "lg:w-72"
+        }`}
+      >
+        <div className="flex h-full flex-col border-b border-orange-100/80 bg-white shadow-sm lg:border-b-0 lg:border-r">
+          <div className={`flex items-center gap-3 py-4 ${collapsed ? "lg:justify-center lg:px-2" : "px-4"}`}>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-orange-600 text-white shadow-md shadow-brand-500/20">
               <Flame size={18} />
             </span>
-            <div>
-              <p className="font-display text-lg leading-tight text-white">Kitchen OS</p>
+            <div className={collapsed ? "lg:hidden" : ""}>
+              <p className="font-display text-lg leading-tight text-stone-900">Kitchen OS</p>
               <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">Ubaid Fast Foodz</p>
             </div>
           </div>
 
-          <nav className="flex gap-1 overflow-x-auto px-3 py-2 lg:flex-1 lg:flex-col lg:overflow-visible">
+          <nav className={`flex gap-1 overflow-x-auto py-2 lg:flex-1 lg:flex-col lg:overflow-y-auto ${collapsed ? "px-2 lg:px-2" : "px-3"}`}>
             {NAV.map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
               const Icon = n.icon;
@@ -89,38 +110,73 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={n.href}
                   href={n.href}
-                  className={`flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                  title={n.label}
+                  className={`flex shrink-0 items-center rounded-xl text-sm font-semibold transition ${
+                    collapsed ? "lg:justify-center lg:px-0 lg:py-3" : "gap-2.5 px-3 py-2.5"
+                  } ${
                     active
-                      ? "bg-brand-600 text-white shadow-lg shadow-brand-900/30"
-                      : "text-stone-400 hover:bg-stone-900 hover:text-white"
+                      ? "bg-brand-50 text-brand-800 ring-1 ring-brand-100"
+                      : "text-stone-500 hover:bg-stone-50 hover:text-stone-900"
                   }`}
                 >
-                  <Icon size={17} />
-                  {n.label}
+                  <Icon size={18} className={active ? "text-brand-600" : ""} />
+                  <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
                 </Link>
               );
             })}
           </nav>
 
-          <div className="hidden border-t border-stone-800 p-4 lg:block">
-            <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-            <p className="truncate text-xs text-stone-400">{user.email}</p>
+          <div className={`hidden border-t border-orange-100/80 p-3 lg:block ${collapsed ? "px-2" : ""}`}>
+            {!collapsed && (
+              <div className="mb-2 px-1">
+                <p className="truncate text-sm font-semibold text-stone-900">{user.name}</p>
+                <p className="truncate text-xs text-stone-400">{user.email}</p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className={`mb-1 flex w-full items-center rounded-xl py-2 text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 ${
+                collapsed ? "justify-center" : "gap-2 px-3"
+              }`}
+            >
+              {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+              <span className={collapsed ? "sr-only" : ""}>Collapse</span>
+            </button>
             <button
               onClick={() => { logout(); router.push("/"); }}
-              className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-stone-400 hover:bg-stone-900 hover:text-white"
+              title="Sign out"
+              className={`flex w-full items-center rounded-xl py-2 text-sm font-medium text-stone-500 hover:bg-rose-50 hover:text-rose-700 ${
+                collapsed ? "justify-center" : "gap-2 px-3"
+              }`}
             >
-              <LogOut size={16} /> Sign out
+              <LogOut size={16} />
+              <span className={collapsed ? "sr-only" : ""}>Sign out</span>
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-72">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-stone-200/80 bg-[#f4f2ef]/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
-          <p className="text-sm text-stone-500">
-            {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
-          </p>
+      <div
+        className={`flex min-h-screen flex-1 flex-col transition-[padding] duration-300 ${
+          collapsed ? "lg:pl-[4.75rem]" : "lg:pl-72"
+        }`}
+      >
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-orange-100/80 bg-[#fffaf5]/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="hidden h-9 w-9 place-items-center rounded-xl border border-stone-200 bg-white text-stone-500 shadow-sm transition hover:border-brand-200 hover:text-brand-700 lg:grid"
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+            </button>
+            <p className="text-sm font-bold text-stone-900">
+              {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
+            </p>
+          </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span
               className={`hidden items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold sm:flex ${
@@ -153,8 +209,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
         <main className="flex-1 p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8">{children}</main>
 
-        {/* Mobile quick nav */}
-        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white/95 backdrop-blur-md lg:hidden">
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md lg:hidden">
           <div className="grid grid-cols-4">
             {MOBILE_NAV.map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));

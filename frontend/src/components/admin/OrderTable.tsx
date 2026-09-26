@@ -51,6 +51,7 @@ export function OrderTable({
           <tbody>
             {orders.map((order) => {
               const showRider =
+                order.fulfillmentType !== "PICKUP" &&
                 order.status !== "DELIVERED" &&
                 order.status !== "CANCELLED" &&
                 order.status !== "AWAITING_CONFIRMATION";

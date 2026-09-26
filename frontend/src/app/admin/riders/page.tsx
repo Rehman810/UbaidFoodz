@@ -322,7 +322,7 @@ export default function RidersPage() {
                                 {formatWhen(o.createdAt)} · {pkr(o.total)}
                               </p>
                             </div>
-                            <StatusBadge status={o.status} />
+                            <StatusBadge status={o.status} fulfillmentType={o.fulfillmentType} />
                           </div>
                           <p className="mt-2 flex items-start gap-1.5 text-xs text-stone-600">
                             <MapPin size={12} className="mt-0.5 shrink-0 text-violet-500" />

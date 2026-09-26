@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { eta, formatWhen, pkr } from "@/lib/format";
 import { usePoll } from "@/hooks/usePoll";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
-import { Order, STATUS_LABEL } from "@/lib/types";
+import { Order, orderStatusLabel } from "@/lib/types";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -118,12 +118,12 @@ export default function OrderDetailPage() {
               </p>
             ) : (
               <p className="rounded-2xl bg-brand-50 px-4 py-3.5 text-sm">
-                Status: <strong>{STATUS_LABEL[order.status]}</strong> · Est. {eta(order.createdAt)}
+                Status: <strong>{orderStatusLabel(order.status, order.fulfillmentType)}</strong> · Est. {eta(order.createdAt)}
               </p>
             )}
 
             <div className="pt-2">
-              <StatusTrack status={order.status} />
+              <StatusTrack status={order.status} fulfillmentType={order.fulfillmentType} />
             </div>
 
             <div className="space-y-3 border-t border-orange-100 pt-6">

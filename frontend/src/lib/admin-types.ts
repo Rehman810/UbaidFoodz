@@ -1,4 +1,4 @@
-import { Order, OrderStatus } from "./types";
+import { FulfillmentType, Order, OrderStatus } from "./types";
 
 export type Rider = {
   id: string;
@@ -58,7 +58,7 @@ export type AdminCustomer = {
   createdAt: string;
   orderCount: number;
   totalSpent: number;
-  lastOrder: { id: string; total: string | number; status: OrderStatus; createdAt: string } | null;
+  lastOrder: { id: string; total: string | number; status: OrderStatus; createdAt: string; fulfillmentType?: FulfillmentType } | null;
 };
 
 export type AdminRider = {

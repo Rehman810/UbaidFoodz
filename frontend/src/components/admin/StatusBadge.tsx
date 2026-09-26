@@ -1,7 +1,15 @@
-import { OrderStatus, STATUS_LABEL } from "@/lib/types";
+import { FulfillmentType, OrderStatus, orderStatusLabel } from "@/lib/types";
 import { STATUS_THEME } from "@/lib/admin-status";
 
-export function StatusBadge({ status, size = "sm" }: { status: OrderStatus; size?: "sm" | "md" }) {
+export function StatusBadge({
+  status,
+  fulfillmentType,
+  size = "sm",
+}: {
+  status: OrderStatus;
+  fulfillmentType?: FulfillmentType | null;
+  size?: "sm" | "md";
+}) {
   const t = STATUS_THEME[status];
   return (
     <span
@@ -10,7 +18,7 @@ export function StatusBadge({ status, size = "sm" }: { status: OrderStatus; size
       }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${t.dot}`} />
-      {STATUS_LABEL[status]}
+      {orderStatusLabel(status, fulfillmentType)}
     </span>
   );
 }
