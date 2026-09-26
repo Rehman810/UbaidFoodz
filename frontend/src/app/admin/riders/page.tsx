@@ -18,6 +18,7 @@ import { api, ApiError } from "@/lib/api";
 import { pkr, formatWhen } from "@/lib/format";
 import { AdminRider } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { RiderFormSheet, RiderFormData } from "@/components/admin/RiderFormSheet";
 
@@ -313,7 +314,10 @@ export default function RidersPage() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <p className="font-bold text-stone-900">{o.orderNumber}</p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-bold text-stone-900">{o.orderNumber}</p>
+                                <FulfillmentBadge type={o.fulfillmentType} />
+                              </div>
                               <p className="mt-0.5 text-xs text-stone-500">
                                 {formatWhen(o.createdAt)} · {pkr(o.total)}
                               </p>

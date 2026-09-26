@@ -6,6 +6,7 @@ import { formatWhen, pkr } from "@/lib/format";
 import { Rider } from "@/lib/admin-types";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { isBackwardMove, Order, OrderStatus, STATUS_FLOW, STATUS_LABEL } from "@/lib/types";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { StatusBadge } from "./StatusBadge";
 import { AdminSelect } from "./AdminSelect";
 
@@ -59,6 +60,7 @@ export function OrderPanel({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-display text-lg font-bold text-stone-900">{order.orderNumber}</p>
+              <FulfillmentBadge type={order.fulfillmentType} size="md" />
               <StatusBadge status={order.status} size="md" />
             </div>
             <p className="mt-1 text-xs text-stone-400">{formatWhen(order.createdAt)} · {itemCount} items</p>

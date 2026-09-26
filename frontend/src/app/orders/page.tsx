@@ -8,6 +8,7 @@ import { StatusTrack } from "@/components/StatusTrack";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatWhen, pkr } from "@/lib/format";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order } from "@/lib/types";
 import { ClipboardList } from "lucide-react";
 
@@ -55,7 +56,10 @@ export default function OrdersPage() {
                     className="card block p-6 transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold">{o.orderNumber}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{o.orderNumber}</p>
+                        <FulfillmentBadge type={o.fulfillmentType} size="md" />
+                      </div>
                       <p className="text-brand-700">{pkr(o.total)}</p>
                     </div>
                     <p className="mt-1 text-xs text-stone-500">{formatWhen(o.createdAt)}</p>

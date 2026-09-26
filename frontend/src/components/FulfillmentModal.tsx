@@ -98,7 +98,7 @@ export function FulfillmentModal() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Delivery or pickup"
+        aria-label="Delivery or takeaway"
         className={`relative flex w-full flex-col overflow-hidden bg-white shadow-[0_-8px_40px_rgba(0,0,0,0.18)] transition-all duration-300 sm:shadow-[0_24px_80px_rgba(0,0,0,0.22)] ${
           isChoose
             ? "max-w-[360px] rounded-t-[22px] sm:rounded-[22px]"
@@ -175,7 +175,7 @@ export function FulfillmentModal() {
                 <Store size={20} strokeWidth={2} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-base font-bold text-stone-900">Pickup</p>
+                <p className="text-base font-bold text-stone-900">Takeaway</p>
                 <p className="mt-0.5 text-xs text-stone-600">No delivery fee · ready in ~20 min</p>
                 <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-stone-500">
                   <Clock size={11} /> Clifton Block 5
@@ -188,7 +188,7 @@ export function FulfillmentModal() {
             </button>
 
             <p className="pt-0.5 text-center text-[10px] leading-snug text-stone-400">
-              Pickup: {PICKUP_LOCATION}
+              Takeaway: {PICKUP_LOCATION}
             </p>
           </div>
         ) : (

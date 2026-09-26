@@ -40,9 +40,10 @@ export async function generateInvoicePdf(orderId: string) {
     doc.font("Helvetica-Bold").text("Bill to", 340, 120);
     doc.font("Helvetica").text(order.customerName, 340, 136);
     doc.text(order.customerPhone, 340, 152);
-    doc.text(order.deliveryAddress, 340, 168, { width: 200 });
+    doc.text(order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery", 340, 168);
+    doc.text(order.deliveryAddress, 340, 184, { width: 200 });
 
-    let y = 230;
+    let y = 250;
     doc.rect(48, y, 500, 24).fill("#FFF7ED");
     doc.fillColor("#9A3412").font("Helvetica-Bold").fontSize(10);
     doc.text("Item", 56, y + 7);

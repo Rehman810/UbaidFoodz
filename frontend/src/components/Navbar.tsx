@@ -70,10 +70,10 @@ export function Navbar() {
               <button
                 onClick={() => setOpenModal(true)}
                 className="hidden h-9 max-w-[120px] items-center gap-1.5 truncate rounded-full border border-stone-200 bg-white px-3 text-xs font-semibold text-ink sm:inline-flex sm:h-10"
-                title="Change delivery or pickup"
+                title="Change delivery or takeaway"
               >
                 <MapPin size={14} className="shrink-0 text-brand-600" />
-                <span className="truncate">{mode === "PICKUP" ? "Pickup" : areaName || "Delivery"}</span>
+                <span className="truncate">{mode === "PICKUP" ? "Takeaway" : areaName || "Delivery"}</span>
               </button>
             )}
             {isCustomer && (

@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { ArrowRight, Bike, ChevronRight, GripVertical, MapPin, Package } from "lucide-react";
 import { formatElapsed, formatWhen, pkr } from "@/lib/format";
 import { STATUS_THEME } from "@/lib/admin-status";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order, OrderStatus, STATUS_LABEL, STATUS_FLOW } from "@/lib/types";
 
 export function KanbanCard({
@@ -64,6 +65,9 @@ export function KanbanCard({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-semibold text-stone-900">{order.orderNumber}</p>
+                <div className="mt-1">
+                  <FulfillmentBadge type={order.fulfillmentType} />
+                </div>
                 <p className="mt-0.5 text-[11px] text-stone-400">{formatWhen(order.createdAt)}</p>
               </div>
               <p className="shrink-0 rounded-lg bg-brand-50 px-2 py-1 text-sm font-semibold text-brand-700 ring-1 ring-brand-100">

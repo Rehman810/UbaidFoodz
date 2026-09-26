@@ -245,7 +245,7 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, deliveryEstimateMin: Number(e.target.value) })}
                 />
               </SettingsField>
-              <SettingsField label="Pickup estimate (min)">
+              <SettingsField label="Takeaway estimate (min)">
                 <input
                   className="input"
                   type="number"

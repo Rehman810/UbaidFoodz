@@ -15,6 +15,7 @@ import { downloadInvoice } from "@/lib/api";
 import { formatWhen, pkr } from "@/lib/format";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { Order } from "@/lib/types";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { StatusBadge } from "./StatusBadge";
 
 const CLOSE_MS = 340;
@@ -98,6 +99,7 @@ export function OrderDetailSheet({
           <div className="mt-4 flex items-start justify-between gap-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3.5">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
+                <FulfillmentBadge type={order.fulfillmentType} size="md" />
                 <StatusBadge status={order.status} size="md" />
                 <span className="text-xs text-stone-500">{formatWhen(order.createdAt)}</span>
               </div>
@@ -140,7 +142,9 @@ export function OrderDetailSheet({
               <div className="flex gap-3 px-4 py-3">
                 <MapPin size={16} className="mt-0.5 shrink-0 text-stone-400" />
                 <div className="min-w-0">
-                  <dt className="text-[11px] font-medium text-stone-400">Address</dt>
+                  <dt className="text-[11px] font-medium text-stone-400">
+                    {order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery address"}
+                  </dt>
                   <dd className="mt-0.5 text-sm leading-relaxed text-stone-700">{order.deliveryAddress}</dd>
                 </div>
               </div>

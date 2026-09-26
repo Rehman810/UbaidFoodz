@@ -223,7 +223,7 @@ export default function CheckoutPage() {
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">{isDelivery ? "Delivery" : "Pickup"}</p>
+              <p className="text-sm font-semibold">{isDelivery ? "Delivery" : "Takeaway"}</p>
               <p className="truncate text-xs text-stone-500">
                 {isDelivery ? areaName || "Select area" : pickupAddress}
               </p>
@@ -278,7 +278,7 @@ export default function CheckoutPage() {
             <div className="space-y-2 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
               <div className="flex items-start gap-3">
                 <MapPin className="mt-0.5 shrink-0 text-brand-600" size={16} />
-                <p>Pickup from <strong>{pickupAddress}</strong>. We will call when your order is ready.</p>
+                <p>Takeaway from <strong>{pickupAddress}</strong>. We will call when your order is ready.</p>
               </div>
               {mapsUrl && (
                 <a

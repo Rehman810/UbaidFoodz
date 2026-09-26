@@ -19,7 +19,7 @@ const FAQS = [
   },
   {
     q: "Can I pick up instead of delivery?",
-    a: "Yes. Choose Pickup when prompted and collect from our restaurant location.",
+    a: "Yes. Choose Takeaway when prompted and collect from our restaurant location.",
   },
 ];
 

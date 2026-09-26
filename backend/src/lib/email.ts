@@ -88,7 +88,7 @@ export async function sendOrderPlacedEmail(order: OrderWithItems, autoConfirmed:
       <p style="line-height:1.6">${intro}</p>
       <table style="width:100%;margin-top:16px;font-size:14px">${itemsHtml(order.items)}</table>
       <p style="margin-top:16px;font-size:15px"><strong>Total: ${formatPkr(Number(order.total))}</strong></p>
-      <p style="font-size:13px;color:#57534e">${order.fulfillmentType === "PICKUP" ? "Pickup" : "Delivery"} · ${order.deliveryAddress}</p>
+      <p style="font-size:13px;color:#57534e">${order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery"} · ${order.deliveryAddress}</p>
     `
   );
 
@@ -108,6 +108,7 @@ export async function sendOrderConfirmedEmail(order: OrderWithItems) {
     `
       <p style="line-height:1.6">Hi ${order.customerName}, your order <strong>${order.orderNumber}</strong> is now confirmed after our verification call. The kitchen is preparing your food.</p>
       <p style="margin-top:16px;font-size:15px"><strong>Total: ${formatPkr(Number(order.total))}</strong></p>
+      <p style="font-size:13px;color:#57534e">${order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery"} · ${order.deliveryAddress}</p>
     `
   );
   await sendEmail(order.customerEmail, `Order ${order.orderNumber} confirmed — Ubaid Fast Foodz`, html);

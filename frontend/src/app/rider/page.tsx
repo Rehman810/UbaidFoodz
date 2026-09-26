@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, MapPin, Navigation, Phone, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order } from "@/lib/types";
 import { STATUS_LABEL } from "@/lib/types";
 
@@ -78,7 +79,10 @@ export default function RiderDeliveriesPage() {
             <article key={o.id} className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
               <div className="border-b border-stone-100 bg-violet-50/50 px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-violet-700">{o.orderNumber}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-violet-700">{o.orderNumber}</p>
+                    <FulfillmentBadge type={o.fulfillmentType} />
+                  </div>
                   <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-bold text-violet-700 ring-1 ring-violet-200">
                     {STATUS_LABEL[o.status]}
                   </span>
@@ -151,7 +155,10 @@ export default function RiderDeliveriesPage() {
           <ul className="mt-2 space-y-2">
             {done.slice(0, 8).map((o) => (
               <li key={o.id} className="flex items-center justify-between rounded-xl border border-stone-100 bg-white px-4 py-3 text-sm">
-                <span className="font-medium">{o.orderNumber}</span>
+                <span className="flex items-center gap-2 font-medium">
+                  {o.orderNumber}
+                  <FulfillmentBadge type={o.fulfillmentType} />
+                </span>
                 <span className="text-emerald-600">{pkr(o.total)}</span>
               </li>
             ))}

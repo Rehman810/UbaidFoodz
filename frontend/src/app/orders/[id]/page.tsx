@@ -13,6 +13,7 @@ import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { eta, formatWhen, pkr } from "@/lib/format";
 import { usePoll } from "@/hooks/usePoll";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order, STATUS_LABEL } from "@/lib/types";
 
 export default function OrderDetailPage() {
@@ -98,6 +99,9 @@ export default function OrderDetailPage() {
                   {order.status === "AWAITING_CONFIRMATION" ? "Order received" : "Order confirmed"}
                 </p>
                 <h1 className="font-display text-4xl">{order.orderNumber}</h1>
+                <div className="pt-1">
+                  <FulfillmentBadge type={order.fulfillmentType} size="md" />
+                </div>
                 <p className="text-sm text-stone-500">{formatWhen(order.createdAt)}</p>
               </div>
               <CheckCircle2
@@ -159,7 +163,7 @@ export default function OrderDetailPage() {
 
             <div className="rounded-2xl bg-[#fffaf5] px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
-                {order.fulfillmentType === "PICKUP" ? "Pickup" : "Delivery"}
+                {order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery"}
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-stone-600">{order.deliveryAddress}</p>
               {order.notes && (

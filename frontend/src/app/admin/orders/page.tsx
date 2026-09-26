@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { ClipboardList, RefreshCw, Search, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ClipboardList, LayoutGrid, RefreshCw, Search, Sparkles, Table2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import {
@@ -16,6 +16,10 @@ import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
 import { OrderDateFilter } from "@/components/admin/OrderDateFilter";
 import { OrderPanel } from "@/components/admin/OrderPanel";
+import { OrderTable } from "@/components/admin/OrderTable";
+
+type OrderView = "grid" | "table";
+const VIEW_KEY = "uff-orders-view";
 
 const FILTERS: (OrderStatus | "ALL")[] = [
   "ALL",
@@ -49,6 +53,17 @@ export default function AdminOrders() {
   const [dateFrom, setDateFrom] = useState(DEFAULT_RANGE.from);
   const [dateTo, setDateTo] = useState(DEFAULT_RANGE.to);
   const [datePreset, setDatePreset] = useState<QuickDatePreset | null>("today");
+  const [view, setView] = useState<OrderView>("table");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(VIEW_KEY);
+    if (saved === "grid" || saved === "table") setView(saved);
+  }, []);
+
+  function changeView(next: OrderView) {
+    setView(next);
+    localStorage.setItem(VIEW_KEY, next);
+  }
 
   const load = useCallback(async () => {
     const [orders, stats] = await Promise.all([
@@ -168,12 +183,36 @@ export default function AdminOrders() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button
-          onClick={refresh}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-brand-200 transition hover:bg-brand-500"
-        >
-          <RefreshCw size={16} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-2xl bg-stone-100 p-1 ring-1 ring-stone-200">
+            <button
+              type="button"
+              onClick={() => changeView("table")}
+              aria-pressed={view === "table"}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                view === "table" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              <Table2 size={15} /> Table
+            </button>
+            <button
+              type="button"
+              onClick={() => changeView("grid")}
+              aria-pressed={view === "grid"}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                view === "grid" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              <LayoutGrid size={15} /> Grid
+            </button>
+          </div>
+          <button
+            onClick={refresh}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-brand-200 transition hover:bg-brand-500"
+          >
+            <RefreshCw size={16} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Status filters */}
@@ -199,13 +238,16 @@ export default function AdminOrders() {
         })}
       </div>
 
-      {loading && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="skeleton h-72 rounded-2xl" />
-          ))}
-        </div>
-      )}
+      {loading &&
+        (view === "table" ? (
+          <div className="skeleton h-80 rounded-2xl" />
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton h-72 rounded-2xl" />
+            ))}
+          </div>
+        ))}
 
       {!loading && filtered.length === 0 && (
         <div className="rounded-3xl border border-dashed border-stone-300 bg-white px-6 py-20 text-center shadow-sm">
@@ -219,18 +261,30 @@ export default function AdminOrders() {
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {filtered.map((o) => (
-          <OrderPanel
-            key={o.id}
-            order={o}
-            riders={data?.riders || []}
-            onStatus={setStatus}
-            onAssign={assign}
-            onConfirm={confirmOrder}
-          />
-        ))}
-      </div>
+      {!loading && filtered.length > 0 && view === "table" && (
+        <OrderTable
+          orders={filtered}
+          riders={data?.riders || []}
+          onStatus={setStatus}
+          onAssign={assign}
+          onConfirm={confirmOrder}
+        />
+      )}
+
+      {!loading && filtered.length > 0 && view === "grid" && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          {filtered.map((o) => (
+            <OrderPanel
+              key={o.id}
+              order={o}
+              riders={data?.riders || []}
+              onStatus={setStatus}
+              onAssign={assign}
+              onConfirm={confirmOrder}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

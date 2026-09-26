@@ -4,6 +4,7 @@ import { pkr, formatWhen } from "@/lib/format";
 import { Rider } from "@/lib/admin-types";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
+import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { StatusBadge } from "./StatusBadge";
 import { AdminSelect } from "./AdminSelect";
 
@@ -37,6 +38,7 @@ export function RecentOrderRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-bold text-stone-900">{order.orderNumber}</p>
+            <FulfillmentBadge type={order.fulfillmentType} />
             <StatusBadge status={order.status} />
           </div>
           <p className="mt-1 text-sm text-stone-500">
