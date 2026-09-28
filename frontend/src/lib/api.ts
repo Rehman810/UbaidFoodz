@@ -4,10 +4,9 @@
 function resolveApiUrl() {
   const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
   if (configured) return configured;
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-    return "/api/proxy";
-  }
-  return "http://localhost:4000";
+  // Must not use `window` here — at Next.js build time window is undefined,
+  // which incorrectly baked `http://localhost:4000` into the Vercel bundle.
+  return process.env.NODE_ENV === "production" ? "/api/proxy" : "http://localhost:4000";
 }
 
 export const API_URL = resolveApiUrl();

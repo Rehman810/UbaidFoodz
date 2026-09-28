@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
-/** Server-side ping — used by Vercel Cron to wake Render backend. */
+/** Server-side ping — used by Vercel Cron to wake the backend. */
 export async function GET() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  const apiUrl =
+    process.env.API_PROXY_TARGET?.replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
   if (!apiUrl || apiUrl.includes("localhost")) {
     return NextResponse.json({ ok: true, skipped: true, reason: "no production API URL" });
   }
