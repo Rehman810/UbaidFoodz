@@ -93,43 +93,49 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
+    env:
+      ORACLE_SSH_HOST: ${{ secrets.ORACLE_SSH_HOST || vars.ORACLE_SSH_HOST }}
+      ORACLE_SSH_USER: ${{ secrets.ORACLE_SSH_USER || vars.ORACLE_SSH_USER }}
+      ORACLE_SSH_PRIVATE_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY || vars.ORACLE_SSH_PRIVATE_KEY }}
+      ORACLE_APP_DIR: ${{ secrets.ORACLE_APP_DIR || vars.ORACLE_APP_DIR }}
+      API_SERVICE_NAME: ${{ secrets.API_SERVICE_NAME || vars.API_SERVICE_NAME }}
 
     steps:
-      - name: Verify deploy secrets
+      - name: Verify deploy configuration
         run: |
           missing=0
-          if [ -z "${{ secrets.ORACLE_SSH_HOST }}" ]; then
-            echo "::error::Missing ORACLE_SSH_HOST — set to 80.225.219.189"
+          if [ -z "$ORACLE_SSH_HOST" ]; then
+            echo "::error::Missing ORACLE_SSH_HOST (Secrets or Variables tab) — set to 80.225.219.189"
             missing=1
           fi
-          if [ -z "${{ secrets.ORACLE_SSH_USER }}" ]; then
+          if [ -z "$ORACLE_SSH_USER" ]; then
             echo "::error::Missing ORACLE_SSH_USER — set to ubuntu"
             missing=1
           fi
-          if [ -z "${{ secrets.ORACLE_SSH_PRIVATE_KEY }}" ]; then
-            echo "::error::Missing ORACLE_SSH_PRIVATE_KEY — paste your .key file contents"
+          if [ -z "$ORACLE_SSH_PRIVATE_KEY" ]; then
+            echo "::error::Missing ORACLE_SSH_PRIVATE_KEY — use the Secrets tab (not Variables) for the SSH key"
             missing=1
           fi
-          if [ -z "${{ secrets.ORACLE_APP_DIR }}" ]; then
+          if [ -z "$ORACLE_APP_DIR" ]; then
             echo "::error::Missing ORACLE_APP_DIR — set to /home/ubuntu/UbaidFoodz"
             missing=1
           fi
           if [ "$missing" -eq 1 ]; then
-            echo "Add secrets: GitHub repo → Settings → Secrets and variables → Actions"
+            echo "GitHub → Settings → Secrets and variables → Actions (Secrets or Variables)"
             exit 1
           fi
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.ORACLE_SSH_HOST }}
-          username: ${{ secrets.ORACLE_SSH_USER }}
-          key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
+          host: ${{ env.ORACLE_SSH_HOST }}
+          username: ${{ env.ORACLE_SSH_USER }}
+          key: ${{ env.ORACLE_SSH_PRIVATE_KEY }}
           port: 22
           envs: APP_DIR,API_SERVICE_NAME
           script: |
             cd "$APP_DIR"
             bash scripts/deploy-backend.sh
         env:
-          APP_DIR: ${{ secrets.ORACLE_APP_DIR }}
-          API_SERVICE_NAME: ${{ secrets.API_SERVICE_NAME }}
+          APP_DIR: ${{ env.ORACLE_APP_DIR }}
+          API_SERVICE_NAME: ${{ env.API_SERVICE_NAME }}

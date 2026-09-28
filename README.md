@@ -80,23 +80,21 @@ Deploy script: [`scripts/deploy-backend.sh`](scripts/deploy-backend.sh) — `git
 
 ### One-time: GitHub secrets
 
-Repo → **Settings** → **Secrets and variables** → **Actions** → add:
+Repo → **Settings** → **Secrets and variables** → **Actions**.
 
-| Secret | Your Oracle server |
+Use either **Secrets** or **Variables** (workflow checks both). **Put the SSH private key in Secrets only** — Variables are visible in plain text.
+
+| Name | Value |
 | --- | --- |
 | `ORACLE_SSH_HOST` | `80.225.219.189` |
 | `ORACLE_SSH_USER` | `ubuntu` |
 | `ORACLE_APP_DIR` | `/home/ubuntu/UbaidFoodz` |
-| `ORACLE_SSH_PRIVATE_KEY` | Contents of your `.key` file (entire PEM, including `BEGIN`/`END` lines) |
-| `API_SERVICE_NAME` | `backend` (optional — this is the default pm2 name on your VM) |
-
-Copy the private key into the secret (do not commit it):
+| `ORACLE_SSH_PRIVATE_KEY` | Full `.key` file (Secrets tab) |
+| `API_SERVICE_NAME` | `backend` (optional) |
 
 ```bash
 cat "/home/abdulrehman/oracle keys/ssh-key-2026-09-22.key"
 ```
-
-Paste the full output into `ORACLE_SSH_PRIVATE_KEY` in GitHub.
 
 Until these secrets are set, **push to `main` runs CI only** — nothing is deployed.
 
