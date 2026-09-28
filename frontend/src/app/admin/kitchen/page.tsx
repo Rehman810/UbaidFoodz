@@ -10,7 +10,7 @@ import { STATUS_THEME } from "@/lib/admin-status";
 import { KitchenTicket } from "@/components/admin/KitchenTicket";
 
 type Lane = "PENDING" | "PREPARING" | "OUT_FOR_DELIVERY";
-type TypeFilter = "ALL" | "DELIVERY" | "PICKUP";
+type TypeFilter = "ALL" | "DELIVERY" | "PICKUP" | "DINE_IN";
 
 const LANES: { status: Lane; title: string; hint: string }[] = [
   { status: "PENDING", title: "New", hint: "Start cooking" },
@@ -94,13 +94,22 @@ export default function KitchenPage() {
       return { label: "Start cooking", run: () => bump(order, "PREPARING") };
     }
     if (order.status === "PREPARING") {
-      return {
-        label: order.fulfillmentType === "PICKUP" ? "Ready for pickup" : "Ready — send out",
-        run: () => bump(order, "OUT_FOR_DELIVERY"),
-      };
+      if (order.fulfillmentType === "PICKUP") {
+        return { label: "Ready for pickup", run: () => bump(order, "OUT_FOR_DELIVERY") };
+      }
+      if (order.fulfillmentType === "DINE_IN") {
+        return { label: "Ready — serve table", run: () => bump(order, "OUT_FOR_DELIVERY") };
+      }
+      return { label: "Ready — send out", run: () => bump(order, "OUT_FOR_DELIVERY") };
     }
-    if (order.status === "OUT_FOR_DELIVERY" && order.fulfillmentType === "PICKUP") {
-      return { label: "Collected", run: () => bump(order, "DELIVERED") };
+    if (
+      order.status === "OUT_FOR_DELIVERY" &&
+      (order.fulfillmentType === "PICKUP" || order.fulfillmentType === "DINE_IN")
+    ) {
+      return {
+        label: order.fulfillmentType === "DINE_IN" ? "Served" : "Collected",
+        run: () => bump(order, "DELIVERED"),
+      };
     }
     return null;
   }
@@ -165,6 +174,7 @@ export default function KitchenPage() {
                   ["ALL", "All"],
                   ["DELIVERY", "Delivery"],
                   ["PICKUP", "Takeaway"],
+                  ["DINE_IN", "Dine-in"],
                 ] as const
               ).map(([id, label]) => (
                 <button

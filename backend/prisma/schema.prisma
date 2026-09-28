@@ -12,6 +12,17 @@ enum Role {
   ADMIN
   RIDER
   CHEF
+  CASHIER
+}
+
+enum OrderSource {
+  ONLINE
+  POS
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
 }
 
 enum OrderStatus {
@@ -26,6 +37,7 @@ enum OrderStatus {
 enum FulfillmentType {
   DELIVERY
   PICKUP
+  DINE_IN
 }
 
 model User {
@@ -44,6 +56,7 @@ model User {
 
   orders         Order[] @relation("CustomerOrders")
   assignedOrders Order[] @relation("RiderOrders")
+  posOrders      Order[] @relation("PosOrders")
 }
 
 model Category {
@@ -194,10 +207,16 @@ model Order {
   orderNumber      String          @unique
   customerId       String?
   customer         User?           @relation("CustomerOrders", fields: [customerId], references: [id])
+  createdById      String?
+  createdBy        User?           @relation("PosOrders", fields: [createdById], references: [id])
   guestAccessToken String?         @unique
   riderId          String?
   rider            User?           @relation("RiderOrders", fields: [riderId], references: [id])
   status           OrderStatus     @default(PENDING)
+  orderSource      OrderSource     @default(ONLINE)
+  paymentMethod    PaymentMethod?
+  paymentStatus    String          @default("PAID")
+  tableNumber      String?
   fulfillmentType  FulfillmentType @default(DELIVERY)
   deliveryAreaId   String?
   deliveryArea     DeliveryArea?   @relation(fields: [deliveryAreaId], references: [id])

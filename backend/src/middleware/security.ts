@@ -33,6 +33,14 @@ export const trackLimiter = rateLimit({
   message: { error: "Too many tracking lookups. Please wait." },
 });
 
+export const posLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many POS orders. Slow down." },
+});
+
 export const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,

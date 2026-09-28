@@ -95,6 +95,7 @@ export function useAuth() {
 export function homeFor(role?: Role) {
   if (role === "ADMIN") return "/admin";
   if (role === "CHEF") return "/admin/kitchen";
+  if (role === "CASHIER") return "/admin/pos";
   if (role === "RIDER") return "/rider";
   return "/menu";
 }
@@ -104,6 +105,7 @@ export function resolveLoginRedirect(role: Role, next: string | null) {
   if (!next) return home;
   if (role === "ADMIN" && next.startsWith("/admin")) return next;
   if (role === "CHEF" && next.startsWith("/admin/kitchen")) return next;
+  if (role === "CASHIER" && next.startsWith("/admin/pos")) return next;
   if (role === "RIDER" && next.startsWith("/rider")) return next;
   if (role === "CUSTOMER" && !next.startsWith("/admin") && !next.startsWith("/rider")) return next;
   return home;

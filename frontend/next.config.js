@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ;
 let apiPattern = { protocol: "http", hostname: "localhost", port: "4000", pathname: "/uploads/**" };
 try {
   const parsed = new URL(apiUrl);

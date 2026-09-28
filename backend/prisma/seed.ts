@@ -478,6 +478,15 @@ async function main() {
         phone: "0322-4455667",
       },
     }),
+    prisma.user.create({
+      data: {
+        name: "Counter Cashier",
+        email: "cashier@ubaidfastfoodz.com",
+        passwordHash: hash,
+        role: Role.CASHIER,
+        phone: "0311-2233445",
+      },
+    }),
   ]);
 
   void admin;
@@ -754,6 +763,7 @@ async function main() {
   console.log("  admin@ubaidfastfoodz.com    / demo123");
   console.log("  rider@ubaidfastfoodz.com    / demo123");
   console.log("  chef@ubaidfastfoodz.com     / demo123");
+  console.log("  cashier@ubaidfastfoodz.com  / demo123");
 }
 
 main()

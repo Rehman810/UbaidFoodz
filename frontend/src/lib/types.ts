@@ -1,4 +1,4 @@
-export type Role = "CUSTOMER" | "ADMIN" | "RIDER" | "CHEF";
+export type Role = "CUSTOMER" | "ADMIN" | "RIDER" | "CHEF" | "CASHIER";
 
 export type User = {
   id: string;
@@ -144,7 +144,10 @@ export type OrderItem = {
   instructions?: string;
 };
 
-export type FulfillmentType = "DELIVERY" | "PICKUP";
+export type FulfillmentType = "DELIVERY" | "PICKUP" | "DINE_IN";
+
+export type OrderSource = "ONLINE" | "POS";
+export type PaymentMethod = "CASH" | "CARD";
 
 export type DeliveryArea = {
   id: string;
@@ -169,7 +172,11 @@ export type Order = {
   guestAccessToken?: string;
   riderId?: string | null;
   status: OrderStatus;
+  orderSource?: OrderSource;
   fulfillmentType?: FulfillmentType;
+  paymentMethod?: PaymentMethod | null;
+  paymentStatus?: string | null;
+  tableNumber?: string | null;
   deliveryAreaId?: string | null;
   deliveryArea?: { id: string; name: string; deliveryCharge?: string | number } | null;
   subtotal?: string | number;
@@ -212,9 +219,13 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 export function orderStatusLabel(status: OrderStatus, fulfillment?: FulfillmentType | null) {
-  if (fulfillment === "PICKUP") {
-    if (status === "OUT_FOR_DELIVERY") return "Ready for pickup";
-    if (status === "DELIVERED") return "Collected";
+  if (fulfillment === "PICKUP" || fulfillment === "DINE_IN") {
+    if (status === "OUT_FOR_DELIVERY") {
+      return fulfillment === "DINE_IN" ? "Ready to serve" : "Ready for pickup";
+    }
+    if (status === "DELIVERED") {
+      return fulfillment === "DINE_IN" ? "Served" : "Collected";
+    }
   }
   return STATUS_LABEL[status];
 }

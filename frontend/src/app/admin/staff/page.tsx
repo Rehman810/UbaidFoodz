@@ -6,6 +6,7 @@ import {
   ChefHat,
   Flame,
   Plus,
+  Receipt,
   RefreshCw,
   Shield,
   ShieldCheck,
@@ -31,13 +32,23 @@ type Staff = {
 const ASSIGNABLE_ROLES: { value: Role; label: string; icon: typeof ChefHat }[] = [
   { value: "CHEF", label: "Chef", icon: ChefHat },
   { value: "RIDER", label: "Rider", icon: Bike },
+  { value: "CASHIER", label: "Cashier", icon: Receipt },
 ];
 
 const ROLE_STYLES: Record<Role, string> = {
   ADMIN: "bg-violet-50 text-violet-800 ring-violet-100",
   CHEF: "bg-orange-50 text-orange-800 ring-orange-100",
   RIDER: "bg-sky-50 text-sky-800 ring-sky-100",
+  CASHIER: "bg-emerald-50 text-emerald-800 ring-emerald-100",
   CUSTOMER: "bg-stone-50 text-stone-600 ring-stone-100",
+};
+
+const ROLE_LABEL: Record<Role, string> = {
+  ADMIN: "Admin",
+  CHEF: "Chef",
+  RIDER: "Rider",
+  CASHIER: "Cashier",
+  CUSTOMER: "Customer",
 };
 
 const AVATAR_GRADIENTS = [
@@ -294,7 +305,14 @@ export default function StaffPage() {
           {staff.map((s) => {
             const isSelf = s.id === user?.id;
             const isAdmin = s.role === "ADMIN";
-            const RoleIcon = s.role === "CHEF" ? ChefHat : s.role === "RIDER" ? Bike : Shield;
+            const RoleIcon =
+              s.role === "CHEF"
+                ? ChefHat
+                : s.role === "RIDER"
+                  ? Bike
+                  : s.role === "CASHIER"
+                    ? Receipt
+                    : Shield;
             return (
               <article
                 key={s.id}
@@ -322,7 +340,7 @@ export default function StaffPage() {
                   </div>
                   <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${ROLE_STYLES[s.role]}`}>
                     <RoleIcon size={12} />
-                    {s.role === "ADMIN" ? "Admin" : s.role === "CHEF" ? "Chef" : "Rider"}
+                    {ROLE_LABEL[s.role]}
                   </span>
                 </div>
 

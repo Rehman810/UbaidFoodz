@@ -30,8 +30,18 @@ export function KitchenTicket({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="font-semibold text-stone-900">{order.orderNumber}</p>
-            <div className="mt-1">
+            <div className="mt-1 flex flex-wrap items-center gap-1">
               <FulfillmentBadge type={order.fulfillmentType} />
+              {order.orderSource === "POS" && (
+                <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-800 ring-1 ring-violet-100">
+                  POS
+                </span>
+              )}
+              {order.tableNumber && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 ring-1 ring-emerald-100">
+                  T{order.tableNumber}
+                </span>
+              )}
             </div>
           </div>
           <p className="inline-flex shrink-0 items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-600">

@@ -19,6 +19,7 @@ import { deliveryAreasRouter } from "./routes/delivery-areas";
 import { settingsRouter } from "./routes/settings";
 import { staffRouter } from "./routes/staff";
 import { blocklistRouter } from "./routes/blocklist";
+import { posRouter } from "./routes/pos";
 import { UPLOAD_DIR } from "./lib/uploads";
 import { initRealtime } from "./lib/realtime";
 import {
@@ -60,6 +61,7 @@ app.use("/deals", dealsRouter);
 app.use("/delivery-areas", deliveryAreasRouter);
 app.use("/settings", settingsRouter);
 app.use("/orders", ordersRouter);
+app.use("/pos", posRouter);
 app.use("/rider", riderRouter);
 app.use("/admin/staff", staffRouter);
 app.use("/admin/blocks", blocklistRouter);

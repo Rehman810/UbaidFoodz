@@ -14,11 +14,13 @@ import {
   MapPinned,
   PanelLeft,
   PanelLeftClose,
+  Receipt,
   Settings,
   UserCog,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
+import { Role } from "@/lib/types";
 import { PoweredByDevsora } from "@/components/PoweredByDevsora";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -27,6 +29,7 @@ import { PublicStore } from "@/lib/types";
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+  { href: "/admin/pos", label: "POS", icon: Receipt },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/tracking", label: "Live tracking", icon: Map },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
@@ -47,6 +50,20 @@ const MOBILE_NAV = [
 ];
 
 const SIDEBAR_KEY = "uff-admin-sidebar-collapsed";
+
+function navForRole(role: Role) {
+  if (role === "CHEF") return NAV.filter((n) => n.href === "/admin/kitchen");
+  if (role === "CASHIER") return NAV.filter((n) => n.href === "/admin/pos");
+  return NAV;
+}
+
+const MOBILE_FOR_ROLE: Record<Role, typeof MOBILE_NAV> = {
+  ADMIN: MOBILE_NAV,
+  CHEF: [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }],
+  CASHIER: [{ href: "/admin/pos", label: "POS", icon: Receipt }],
+  RIDER: MOBILE_NAV,
+  CUSTOMER: MOBILE_NAV,
+};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -83,21 +100,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/admin/kitchen");
       return;
     }
-    if (user.role !== "ADMIN" && user.role !== "CHEF") {
+    if (user.role === "CASHIER" && !path.startsWith("/admin/pos")) {
+      router.replace("/admin/pos");
+      return;
+    }
+    if (user.role !== "ADMIN" && user.role !== "CHEF" && user.role !== "CASHIER") {
       router.replace("/login?next=/admin");
     }
   }, [user, loading, router, path]);
 
-  if (loading || !user || (user.role !== "ADMIN" && user.role !== "CHEF")) {
+  const allowed =
+    user?.role === "ADMIN" || user?.role === "CHEF" || user?.role === "CASHIER";
+
+  if (loading || !user || !allowed) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#fffaf5] text-stone-400">
         <div className="flex items-center gap-3">
           <span className="h-2 w-2 animate-ping rounded-full bg-brand-500" />
-          Opening kitchen dashboard…
+          Opening staff dashboard…
         </div>
       </div>
     );
   }
+
+  const sidebarNav = navForRole(user.role);
+  const mobileNav = MOBILE_FOR_ROLE[user.role];
 
   return (
     <div className="min-h-screen bg-[#fffaf5] lg:flex">
@@ -118,7 +145,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <nav className={`flex gap-1 overflow-x-auto py-2 lg:flex-1 lg:flex-col lg:overflow-y-auto ${collapsed ? "px-2 lg:px-2" : "px-3"}`}>
-            {(user.role === "CHEF" ? NAV.filter((n) => n.href === "/admin/kitchen") : NAV).map((n) => {
+            {sidebarNav.map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
               const Icon = n.icon;
               return (
@@ -222,7 +249,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md lg:hidden">
           <div className="grid grid-cols-5">
-            {(user.role === "CHEF" ? [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }] : MOBILE_NAV).map((n) => {
+            {mobileNav.map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
               const Icon = n.icon;
               return (
