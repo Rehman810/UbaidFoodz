@@ -113,8 +113,9 @@ jobs:
             echo "::error::Missing ORACLE_SSH_USER — set to ubuntu"
             missing=1
           fi
-          if [ -z "$ORACLE_SSH_PRIVATE_KEY" ] && [ -z "$ORACLE_SSH_PRIVATE_KEY_B64" ]; then
-            echo "::error::Set ORACLE_SSH_PRIVATE_KEY_B64 (recommended) or ORACLE_SSH_PRIVATE_KEY in Secrets"
+          if [ -z "$ORACLE_SSH_PRIVATE_KEY_B64" ]; then
+            echo "::error::Missing ORACLE_SSH_PRIVATE_KEY_B64 in Secrets (required)"
+            echo "Run locally: bash scripts/print-github-ssh-b64.sh \"/path/to/ssh-key.key\""
             missing=1
           fi
           if [ -z "$ORACLE_APP_DIR" ]; then
@@ -128,21 +129,20 @@ jobs:
       - name: Prepare SSH key file
         run: |
           KEY_FILE="$RUNNER_TEMP/oracle_deploy_key"
-          if [ -n "$ORACLE_SSH_PRIVATE_KEY_B64" ]; then
-            echo "$ORACLE_SSH_PRIVATE_KEY_B64" | base64 -d > "$KEY_FILE"
-          else
-            printf '%s\n' "$ORACLE_SSH_PRIVATE_KEY" > "$KEY_FILE"
+          # Trim whitespace; secret must be one-line base64 only
+          B64="$(echo -n "$ORACLE_SSH_PRIVATE_KEY_B64" | tr -d '\n\r ')"
+          if ! echo "$B64" | base64 -d > "$KEY_FILE" 2>/dev/null; then
+            echo "::error::ORACLE_SSH_PRIVATE_KEY_B64 is not valid base64."
+            echo "Regenerate: bash scripts/print-github-ssh-b64.sh \"/path/to/ssh-key.key\""
+            exit 1
           fi
           chmod 600 "$KEY_FILE"
           if ! grep -q 'BEGIN.*PRIVATE KEY' "$KEY_FILE"; then
-            echo "::error::Invalid SSH key — must include -----BEGIN RSA PRIVATE KEY----- lines."
-            echo "Use base64 instead (one line, no newlines):"
-            echo '  base64 -w 0 "/path/to/ssh-key-2026-09-22.key"'
-            echo "Save output as secret ORACLE_SSH_PRIVATE_KEY_B64"
+            echo "::error::Decoded key is invalid. Paste the FULL base64 line from print-github-ssh-b64.sh"
             exit 1
           fi
           if ! ssh-keygen -y -f "$KEY_FILE" >/dev/null 2>&1; then
-            echo "::error::Could not parse SSH private key. Re-create ORACLE_SSH_PRIVATE_KEY_B64 from your .key file."
+            echo "::error::Decoded key cannot be parsed. Regenerate ORACLE_SSH_PRIVATE_KEY_B64."
             exit 1
           fi
           echo "SSH key OK"
