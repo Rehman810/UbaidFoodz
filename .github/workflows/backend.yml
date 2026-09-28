@@ -165,8 +165,20 @@ jobs:
           port: 22
           envs: APP_DIR,API_SERVICE_NAME
           script: |
+            set -e
+            SERVICE_NAME="${API_SERVICE_NAME:-backend}"
+            echo "==> Deploying from $APP_DIR"
             cd "$APP_DIR"
-            bash scripts/deploy-backend.sh
+            git fetch origin main
+            git reset --hard origin/main
+            npm install
+            cd backend
+            npx prisma generate
+            npx prisma migrate deploy
+            npm run build
+            pm2 restart "$SERVICE_NAME"
+            pm2 save
+            echo "==> Deploy complete"
         env:
           APP_DIR: ${{ env.ORACLE_APP_DIR }}
           API_SERVICE_NAME: ${{ env.API_SERVICE_NAME }}
