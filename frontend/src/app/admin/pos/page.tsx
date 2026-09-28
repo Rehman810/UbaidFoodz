@@ -1,20 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Banknote,
+  Bike,
+  ChevronRight,
   CreditCard,
+  LayoutGrid,
+  LogOut,
   Minus,
   Plus,
   Printer,
-  Receipt,
   Search,
-  ShoppingCart,
+  ShoppingBag,
   Trash2,
   UtensilsCrossed,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { buildPosOrderPayload, posCartTotal, usePosCart } from "@/lib/pos-cart";
 import { buildQuickAddConfig, itemHasConfigurableOptions, menuItemPrice } from "@/lib/menu-price";
 import { printReceipt } from "@/lib/print-receipt";
@@ -23,14 +28,52 @@ import { Deal, DeliveryArea, FulfillmentType, MenuItem, Order, PaymentMethod } f
 import { PosItemSheet } from "@/components/admin/PosItemSheet";
 
 type PosMode = FulfillmentType;
+type MobileView = "menu" | "cart";
 
-const MODES: { id: PosMode; label: string }[] = [
-  { id: "DINE_IN", label: "Dine-in" },
-  { id: "PICKUP", label: "Takeaway" },
-  { id: "DELIVERY", label: "Delivery" },
+const MODES: { id: PosMode; label: string; short: string; icon: typeof UtensilsCrossed }[] = [
+  { id: "DINE_IN", label: "Dine-in", short: "Dine", icon: UtensilsCrossed },
+  { id: "PICKUP", label: "Takeaway", short: "Take", icon: ShoppingBag },
+  { id: "DELIVERY", label: "Delivery", short: "Deliv", icon: Bike },
 ];
 
+function PosProductCard({ item, onTap }: { item: MenuItem; onTap: () => void }) {
+  const price = menuItemPrice(item);
+  const hasOptions = itemHasConfigurableOptions(item) || (item.optionGroups?.length ?? 0) > 0;
+
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-stone-200/80 bg-white text-left shadow-sm transition active:scale-[0.98] sm:rounded-2xl sm:hover:-translate-y-0.5 sm:hover:border-brand-300 sm:hover:shadow-lg"
+    >
+      <div className="relative h-24 w-full shrink-0 overflow-hidden bg-gradient-to-br from-stone-100 to-stone-200 sm:h-28">
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt="" className="h-full w-full object-cover sm:transition sm:duration-300 sm:group-hover:scale-105" />
+        ) : (
+          <div className="grid h-full place-items-center text-stone-400">
+            <UtensilsCrossed size={24} strokeWidth={1.5} />
+          </div>
+        )}
+        <span className="absolute bottom-1.5 right-1.5 rounded-md bg-white/95 px-1.5 py-0.5 text-[10px] font-bold text-brand-700 shadow ring-1 ring-brand-100 sm:bottom-2 sm:right-2 sm:px-2 sm:py-1 sm:text-[11px]">
+          {pkr(price)}
+        </span>
+        {hasOptions && (
+          <span className="absolute left-1.5 top-1.5 rounded bg-white/95 px-1 py-0.5 text-[8px] font-bold uppercase text-brand-700 shadow-sm sm:left-2 sm:top-2 sm:text-[9px]">
+            Opt
+          </span>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col p-2 sm:p-2.5">
+        <p className="line-clamp-2 text-xs font-bold leading-snug text-stone-900 sm:text-[13px]">{item.name}</p>
+        <p className="mt-0.5 hidden text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:block">{item.category}</p>
+      </div>
+    </button>
+  );
+}
+
 export default function PosPage() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const lines = usePosCart((s) => s.lines);
   const addItem = usePosCart((s) => s.addItem);
   const addDeal = usePosCart((s) => s.addDeal);
@@ -56,6 +99,9 @@ export default function PosPage() {
   const [error, setError] = useState("");
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [store, setStore] = useState({ name: "Ubaid Fast Foodz", phone: "", address: "" });
+  const [showDetails, setShowDetails] = useState(false);
+  const [clock, setClock] = useState("");
+  const [mobileView, setMobileView] = useState<MobileView>("menu");
 
   const load = useCallback(async () => {
     const [m, d, a, s] = await Promise.all([
@@ -77,6 +123,14 @@ export default function PosPage() {
     load().catch(() => setError("Could not load menu."));
   }, [load]);
 
+  useEffect(() => {
+    const tick = () =>
+      setClock(new Date().toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit", hour12: true }));
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const categories = useMemo(() => {
     const cats = [...new Set(menu.map((m) => m.category))].sort();
     return ["All", ...cats];
@@ -87,14 +141,14 @@ export default function PosPage() {
     if (category !== "All") list = list.filter((m) => m.category === category);
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter((m) => m.name.toLowerCase().includes(q));
+      list = list.filter((m) => m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q));
     }
     return list;
   }, [menu, category, search]);
 
+  const itemCount = lines.reduce((n, l) => n + l.quantity, 0);
   const subtotal = posCartTotal(lines);
-  const deliveryFee =
-    mode === "DELIVERY" ? Number(areas.find((a) => a.id === areaId)?.deliveryCharge || 0) : 0;
+  const deliveryFee = mode === "DELIVERY" ? Number(areas.find((a) => a.id === areaId)?.deliveryCharge || 0) : 0;
   const total = subtotal + deliveryFee;
 
   function tapItem(item: MenuItem) {
@@ -103,12 +157,7 @@ export default function PosPage() {
       return;
     }
     const cfg = buildQuickAddConfig(item);
-    addItem({
-      item,
-      price: cfg.price,
-      optionIds: cfg.optionIds,
-      optionsLabel: cfg.optionsLabel,
-    });
+    addItem({ item, price: cfg.price, optionIds: cfg.optionIds, optionsLabel: cfg.optionsLabel });
   }
 
   async function placeOrder() {
@@ -142,7 +191,8 @@ export default function PosPage() {
       setLastOrder(order);
       clear();
       setNotes("");
-      printReceipt(order, store);
+      setMobileView("menu");
+      printReceipt(order, store, { cashier: user?.name });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not place order.");
     } finally {
@@ -154,65 +204,304 @@ export default function PosPage() {
     if (!lastOrder) return;
     try {
       const data = await api<{ order: Order; store: typeof store }>(`/pos/receipt/${lastOrder.id}`);
-      printReceipt(data.order, data.store);
+      printReceipt(data.order, data.store, { cashier: user?.name });
     } catch {
-      printReceipt(lastOrder, store);
+      printReceipt(lastOrder, store, { cashier: user?.name });
     }
   }
 
-  return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 lg:-m-2">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600 text-white">
-            <Receipt size={20} />
-          </span>
+  const cartPanel = (
+    <>
+      <div className="flex shrink-0 items-center justify-between border-b border-orange-100/80 bg-orange-50/50 px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMobileView("menu")}
+            className="grid h-8 w-8 place-items-center rounded-lg bg-white text-stone-700 ring-1 ring-stone-200 lg:hidden"
+          >
+            <ArrowLeft size={16} />
+          </button>
           <div>
-            <h1 className="text-lg font-bold text-stone-900">Point of Sale</h1>
-            <p className="text-xs text-stone-500">Counter orders · prints to thermal printer</p>
+            <p className="text-sm font-bold text-stone-900">Current order</p>
+            <p className="text-[11px] text-stone-500">
+              {itemCount} item{itemCount !== 1 ? "s" : ""} · {MODES.find((m) => m.id === mode)?.label}
+            </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMode(m.id)}
-              className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
-                mode === m.id ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-600"
-              }`}
-            >
-              {m.label}
+        <div className="flex items-center gap-1.5">
+          {lines.length > 0 && (
+            <button type="button" onClick={clear} className="rounded-lg px-2 py-1.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50">
+              Clear
             </button>
-          ))}
+          )}
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-stone-700 ring-1 ring-stone-200"
+          >
+            {showDetails ? "Hide" : "Customer"}
+          </button>
+        </div>
+      </div>
+
+      {showDetails && (
+        <div className="shrink-0 space-y-2 border-b border-orange-100/80 bg-[#fffaf5] px-3 py-3">
+          <input className="input h-9 text-sm" placeholder="Customer name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+          <input className="input h-9 text-sm" placeholder="Phone (optional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+          {mode === "DINE_IN" && (
+            <input className="input h-9 text-sm" placeholder="Table number" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
+          )}
+          {mode === "DELIVERY" && (
+            <>
+              <select className="input h-9 text-sm" value={areaId} onChange={(e) => setAreaId(e.target.value)}>
+                {areas.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name} (+{pkr(a.deliveryCharge)})</option>
+                ))}
+              </select>
+              <input className="input h-9 text-sm" placeholder="Delivery address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
+            </>
+          )}
+          <input className="input h-9 text-sm" placeholder="Order notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+      )}
+
+      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3">
+        {lines.length === 0 ? (
+          <li className="flex min-h-[120px] flex-col items-center justify-center rounded-2xl border border-dashed border-orange-200 bg-orange-50/40 px-4 py-8 text-center sm:min-h-[160px]">
+            <ShoppingBag size={28} className="text-orange-300" strokeWidth={1.5} />
+            <p className="mt-3 text-sm font-semibold text-stone-500">Cart is empty</p>
+            <p className="mt-1 text-xs text-stone-400">Tap items from the menu to add</p>
+          </li>
+        ) : (
+          lines.map((l) => (
+            <li key={l.id} className="flex items-start gap-2 rounded-xl border border-orange-100 bg-[#fffaf5] p-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold leading-snug text-stone-900">{l.name}</p>
+                {l.optionsLabel && l.optionsLabel !== l.name && (
+                  <p className="mt-0.5 text-[10px] text-stone-500">{l.optionsLabel}</p>
+                )}
+                <p className="mt-1 text-xs font-bold text-brand-700">{pkr(l.price * l.quantity)}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-0.5">
+                <button type="button" className="grid h-9 w-9 place-items-center rounded-lg border border-stone-200 bg-white" onClick={() => setQty(l.id, l.quantity - 1)}>
+                  <Minus size={14} />
+                </button>
+                <span className="w-5 text-center text-sm font-black tabular-nums">{l.quantity}</span>
+                <button type="button" className="grid h-9 w-9 place-items-center rounded-lg border border-stone-200 bg-white" onClick={() => setQty(l.id, l.quantity + 1)}>
+                  <Plus size={14} />
+                </button>
+                <button type="button" className="grid h-9 w-9 place-items-center rounded-lg border border-rose-200 bg-white text-rose-600" onClick={() => remove(l.id)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </li>
+          ))
+        )}
+      </ul>
+
+      <div className="shrink-0 border-t border-orange-100/80 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+        <div className="rounded-2xl bg-orange-50/60 p-3 ring-1 ring-orange-100">
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between text-stone-600">
+              <span>Subtotal</span>
+              <span className="font-medium tabular-nums">{pkr(subtotal)}</span>
+            </div>
+            {deliveryFee > 0 && (
+              <div className="flex justify-between text-stone-600">
+                <span>Delivery</span>
+                <span className="font-medium tabular-nums">{pkr(deliveryFee)}</span>
+              </div>
+            )}
+            <div className="flex items-end justify-between border-t border-orange-100 pt-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Total due</span>
+              <span className="text-2xl font-black tabular-nums text-brand-700">{pkr(total)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setPayment("CASH")}
+            className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold ring-1 ${
+              payment === "CASH" ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-stone-600 ring-stone-200"
+            }`}
+          >
+            <Banknote size={16} /> Cash
+          </button>
+          <button
+            type="button"
+            onClick={() => setPayment("CARD")}
+            className={`flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold ring-1 ${
+              payment === "CARD" ? "bg-violet-600 text-white ring-violet-600" : "bg-white text-stone-600 ring-stone-200"
+            }`}
+          >
+            <CreditCard size={16} /> Card
+          </button>
+        </div>
+
+        <button
+          type="button"
+          disabled={busy || !lines.length}
+          onClick={placeOrder}
+          className="btn-primary mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold disabled:opacity-40 sm:h-14 sm:text-base"
+        >
+          {busy ? "Processing…" : (
+            <>
+              <Printer size={18} />
+              Charge &amp; Print · {pkr(total)}
+            </>
+          )}
+        </button>
+
+        {lastOrder && (
+          <button
+            type="button"
+            onClick={reprintLast}
+            className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-600"
+          >
+            <Printer size={14} /> Reprint {lastOrder.orderNumber}
+          </button>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#fffaf5] lg:-m-4 lg:h-[calc(100dvh-4.5rem)] lg:rounded-2xl lg:border lg:border-orange-100/80 lg:shadow-sm">
+      {/* Header */}
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-orange-100/80 bg-white px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-orange-600 text-white shadow-md sm:h-10 sm:w-10">
+            <UtensilsCrossed size={16} className="sm:hidden" />
+            <UtensilsCrossed size={18} className="hidden sm:block" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-stone-900">Point of Sale</p>
+            <p className="hidden text-[11px] text-stone-500 sm:block">Ubaid Fast Foodz · Counter</p>
+          </div>
+        </div>
+
+        <div className="hidden items-center gap-1 rounded-xl bg-orange-50 p-1 ring-1 ring-orange-100 md:flex">
+          {MODES.map((m) => {
+            const Icon = m.icon;
+            const active = mode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMode(m.id)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold ${
+                  active ? "bg-white text-brand-800 shadow-sm ring-1 ring-orange-100" : "text-stone-500"
+                }`}
+              >
+                <Icon size={14} />
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <p className="hidden text-sm font-bold tabular-nums text-stone-700 sm:block">{clock}</p>
+          <button
+            type="button"
+            onClick={() => setMobileView("cart")}
+            className="relative rounded-xl bg-brand-50 px-2.5 py-1.5 ring-1 ring-brand-100 lg:hidden"
+          >
+            <ShoppingBag size={18} className="text-brand-700" />
+            {itemCount > 0 && (
+              <span className="absolute -right-1 -top-1 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-bold text-white">
+                {itemCount}
+              </span>
+            )}
+          </button>
+          <div className="hidden rounded-xl bg-brand-50 px-3 py-2 text-center ring-1 ring-brand-100 lg:block">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-brand-600">Cart</p>
+            <p className="text-lg font-black tabular-nums leading-none text-brand-800">{itemCount}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { logout(); router.replace("/login"); }}
+            className="grid h-9 w-9 place-items-center rounded-xl text-stone-500 ring-1 ring-stone-200 lg:hidden"
+            title="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile mode + view tabs */}
+      <div className="flex shrink-0 flex-col gap-1.5 border-b border-orange-100/80 bg-white px-2 py-2 md:hidden">
+        <div className="flex gap-1">
+          {MODES.map((m) => {
+            const Icon = m.icon;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMode(m.id)}
+                className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-bold ${
+                  mode === m.id ? "bg-brand-600 text-white" : "bg-orange-50 text-stone-600"
+                }`}
+              >
+                <Icon size={13} />
+                {m.short}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-1 rounded-xl bg-stone-100 p-1 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileView("menu")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold ${
+              mobileView === "menu" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"
+            }`}
+          >
+            <LayoutGrid size={14} /> Menu
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileView("cart")}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold ${
+              mobileView === "cart" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500"
+            }`}
+          >
+            <ShoppingBag size={14} /> Cart ({itemCount})
+          </button>
         </div>
       </div>
 
       {error && (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>
+        <div className="shrink-0 border-b border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</div>
       )}
 
-      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[1fr_360px]">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Menu */}
-        <div className="flex min-h-0 flex-col rounded-2xl border border-stone-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center gap-2 border-b border-stone-100 p-3">
-            <div className="relative min-w-[180px] flex-1">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+        <section
+          className={`min-h-0 min-w-0 flex-1 flex-col bg-[#fffaf5] ${
+            mobileView === "cart" ? "hidden lg:flex" : "flex"
+          }`}
+        >
+          <div className="shrink-0 border-b border-stone-200 bg-white px-3 py-2.5">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
               <input
-                className="w-full rounded-xl border border-stone-200 py-2 pl-9 pr-3 text-sm"
+                className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-400/30"
                 placeholder="Search menu…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {categories.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setCategory(c)}
-                  className={`rounded-lg px-2.5 py-1.5 text-[11px] font-bold ${
-                    category === c ? "bg-brand-600 text-white" : "bg-stone-100 text-stone-600"
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold sm:px-3.5 sm:text-xs ${
+                    category === c ? "bg-brand-600 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200"
                   }`}
                 >
                   {c}
@@ -222,194 +511,68 @@ export default function PosPage() {
           </div>
 
           {deals.length > 0 && (
-            <div className="border-b border-stone-100 px-3 py-2">
-              <p className="mb-1.5 text-[10px] font-bold uppercase text-stone-400">Deals</p>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="shrink-0 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">Deals</p>
+              <div className="flex gap-2 overflow-x-auto pb-0.5">
                 {deals.map((d) => (
                   <button
                     key={d.id}
                     type="button"
                     onClick={() => addDeal(d)}
-                    className="shrink-0 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-left text-xs font-semibold text-brand-800"
+                    className="flex shrink-0 items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold"
                   >
-                    {d.title} · {pkr(d.dealPrice)}
+                    {d.title}
+                    <span className="rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] text-white">{pkr(d.dealPrice)}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto p-3 sm:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => tapItem(item)}
-                className="flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-stone-50 text-left transition hover:border-brand-300 hover:bg-brand-50/50 active:scale-[0.98]"
-              >
-                <div className="relative aspect-[4/3] bg-stone-200">
-                  {item.imageUrl ? (
-                    <Image src={item.imageUrl} alt="" fill className="object-cover" sizes="160px" />
-                  ) : (
-                    <div className="grid h-full place-items-center text-stone-400">
-                      <UtensilsCrossed size={24} />
-                    </div>
-                  )}
-                </div>
-                <div className="p-2">
-                  <p className="line-clamp-2 text-xs font-bold text-stone-900">{item.name}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-brand-700">{pkr(menuItemPrice(item))}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Cart */}
-        <div className="flex min-h-0 flex-col rounded-2xl border border-stone-200 bg-white shadow-sm">
-          <div className="border-b border-stone-100 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <ShoppingCart size={18} className="text-stone-500" />
-              <h2 className="font-bold text-stone-900">Current order</h2>
-            </div>
-          </div>
-
-          <div className="space-y-2 border-b border-stone-100 p-3">
-            <input
-              className="input h-9 text-sm"
-              placeholder="Customer name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-            />
-            <input
-              className="input h-9 text-sm"
-              placeholder="Phone (optional)"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-            />
-            {mode === "DINE_IN" && (
-              <input
-                className="input h-9 text-sm"
-                placeholder="Table number"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-              />
-            )}
-            {mode === "DELIVERY" && (
-              <>
-                <select className="input h-9 text-sm" value={areaId} onChange={(e) => setAreaId(e.target.value)}>
-                  {areas.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} (+{pkr(a.deliveryCharge)})
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="input h-9 text-sm"
-                  placeholder="Delivery address"
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                />
-              </>
-            )}
-            <input
-              className="input h-9 text-sm"
-              placeholder="Order notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-            {lines.length === 0 ? (
-              <li className="py-8 text-center text-sm text-stone-400">Tap menu items to add</li>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2 pb-20 sm:p-3 lg:pb-3">
+            {filtered.length === 0 ? (
+              <div className="grid min-h-[200px] place-items-center rounded-2xl border border-dashed border-stone-300 bg-white text-center">
+                <p className="text-sm font-semibold text-stone-500">No items found</p>
+              </div>
             ) : (
-              lines.map((l) => (
-                <li key={l.id} className="flex items-start gap-2 rounded-xl bg-stone-50 p-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-stone-900">{l.name}</p>
-                    {l.optionsLabel && l.optionsLabel !== l.name && (
-                      <p className="text-[10px] text-stone-500">{l.optionsLabel}</p>
-                    )}
-                    <p className="text-xs font-bold text-brand-700">{pkr(l.price * l.quantity)}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button type="button" className="grid h-7 w-7 place-items-center rounded-lg border border-stone-200" onClick={() => setQty(l.id, l.quantity - 1)}>
-                      <Minus size={12} />
-                    </button>
-                    <span className="w-5 text-center text-xs font-bold">{l.quantity}</span>
-                    <button type="button" className="grid h-7 w-7 place-items-center rounded-lg border border-stone-200" onClick={() => setQty(l.id, l.quantity + 1)}>
-                      <Plus size={12} />
-                    </button>
-                    <button type="button" className="grid h-7 w-7 place-items-center rounded-lg border border-red-200 text-red-600" onClick={() => remove(l.id)}>
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-
-          <div className="border-t border-stone-100 p-3">
-            <div className="mb-2 space-y-1 text-sm">
-              <div className="flex justify-between text-stone-600">
-                <span>Subtotal</span>
-                <span>{pkr(subtotal)}</span>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                {filtered.map((item) => (
+                  <PosProductCard key={item.id} item={item} onTap={() => tapItem(item)} />
+                ))}
               </div>
-              {deliveryFee > 0 && (
-                <div className="flex justify-between text-stone-600">
-                  <span>Delivery</span>
-                  <span>{pkr(deliveryFee)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-base font-bold text-stone-900">
-                <span>Total</span>
-                <span className="text-brand-700">{pkr(total)}</span>
-              </div>
-            </div>
-
-            <div className="mb-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setPayment("CASH")}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-bold ${
-                  payment === "CASH" ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-stone-200"
-                }`}
-              >
-                <Banknote size={14} /> Cash
-              </button>
-              <button
-                type="button"
-                onClick={() => setPayment("CARD")}
-                className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-xs font-bold ${
-                  payment === "CARD" ? "border-violet-500 bg-violet-50 text-violet-800" : "border-stone-200"
-                }`}
-              >
-                <CreditCard size={14} /> Card
-              </button>
-            </div>
-
-            <button
-              type="button"
-              className="btn-primary h-12 w-full text-sm font-bold"
-              disabled={busy || !lines.length}
-              onClick={placeOrder}
-            >
-              {busy ? "Placing…" : `Charge & print · ${pkr(total)}`}
-            </button>
-
-            {lastOrder && (
-              <button
-                type="button"
-                className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-stone-200 text-xs font-semibold text-stone-700"
-                onClick={reprintLast}
-              >
-                <Printer size={14} /> Reprint {lastOrder.orderNumber}
-              </button>
             )}
           </div>
-        </div>
+        </section>
+
+        {/* Cart — side panel on desktop, full screen tab on mobile */}
+        <aside
+          className={`w-full shrink-0 flex-col border-orange-100/80 bg-white lg:flex lg:w-[380px] lg:border-l ${
+            mobileView === "menu" ? "hidden lg:flex" : "flex min-h-0 flex-1"
+          }`}
+        >
+          {cartPanel}
+        </aside>
       </div>
+
+      {/* Floating cart bar — mobile menu view only */}
+      {mobileView === "menu" && itemCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-orange-200 bg-white/95 p-3 backdrop-blur-md lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={() => setMobileView("cart")}
+            className="btn-primary flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold"
+          >
+            <span className="flex items-center gap-2">
+              <ShoppingBag size={18} />
+              {itemCount} item{itemCount !== 1 ? "s" : ""}
+            </span>
+            <span className="flex items-center gap-1">
+              {pkr(total)}
+              <ChevronRight size={18} />
+            </span>
+          </button>
+        </div>
+      )}
 
       <PosItemSheet item={configItem} onClose={() => setConfigItem(null)} />
     </div>

@@ -23,7 +23,7 @@ const include = {
 
 function normalizePhone(phone: string) {
   const cleaned = phone.replace(/[^\d+]/g, "").trim();
-  return cleaned.length >= 10 ? cleaned : "03000000000";
+  return cleaned.length >= 10 ? cleaned : "";
 }
 
 posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (req, res) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { Check, Minus, Plus, X } from "lucide-react";
 import { usePosCart } from "@/lib/pos-cart";
 import { menuItemPrice, optionPrice } from "@/lib/menu-price";
 import { pkr } from "@/lib/format";
@@ -83,70 +83,117 @@ export function PosItemSheet({
 
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4">
-      <button type="button" className="absolute inset-0 bg-stone-950/50" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-semibold text-stone-900">{item.name}</h3>
-            <p className="text-sm text-brand-700">{pkr(unitPrice)} each</p>
+      <button type="button" className="absolute inset-0 bg-stone-950/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+        {item.imageUrl && (
+          <div className="relative h-36 shrink-0 overflow-hidden bg-stone-100">
+            <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
           </div>
-          <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full border border-stone-200">
+        )}
+
+        <div className="flex items-start justify-between gap-3 px-5 pt-4">
+          <div>
+            <h3 className="text-lg font-bold text-stone-900">{item.name}</h3>
+            <p className="mt-0.5 text-sm font-semibold text-brand-600">{pkr(unitPrice)} each</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-600 transition hover:bg-stone-200"
+          >
             <X size={16} />
           </button>
         </div>
 
-        <div className="mt-4 max-h-[50vh] space-y-4 overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           {item.optionGroups?.map((g) => (
             <div key={g.id}>
-              <p className="text-xs font-bold uppercase text-stone-500">{g.name}{g.required ? " *" : ""}</p>
-              <div className="mt-1.5 space-y-1">
-                {g.options.map((o) => (
-                  <label key={o.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-stone-200 px-3 py-2">
-                    <span className="text-sm">{o.name} · {pkr(optionPrice(o))}</span>
-                    <input
-                      type="radio"
-                      name={g.id}
-                      checked={selected[g.id] === o.id}
-                      onChange={() => setSelected({ ...selected, [g.id]: o.id })}
-                    />
-                  </label>
-                ))}
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
+                {g.name}{g.required ? " *" : ""}
+              </p>
+              <div className="mt-2 grid gap-1.5">
+                {g.options.map((o) => {
+                  const active = selected[g.id] === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => setSelected({ ...selected, [g.id]: o.id })}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                        active
+                          ? "border-brand-500 bg-brand-50 font-semibold text-brand-900 ring-1 ring-brand-200"
+                          : "border-stone-200 hover:border-stone-300"
+                      }`}
+                    >
+                      <span>{o.name}</span>
+                      <span className="font-bold text-stone-700">{pkr(optionPrice(o))}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
           {item.addons?.length ? (
             <div>
-              <p className="text-xs font-bold uppercase text-stone-500">Add-ons</p>
-              <div className="mt-1.5 space-y-1">
-                {item.addons.map((a) => (
-                  <label key={a.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-stone-200 px-3 py-2">
-                    <span className="text-sm">{a.name} (+{pkr(a.price)})</span>
-                    <input
-                      type="checkbox"
-                      checked={addons.has(a.id)}
-                      onChange={() => {
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-500">Add-ons</p>
+              <div className="mt-2 grid gap-1.5">
+                {item.addons.map((a) => {
+                  const active = addons.has(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
                         const next = new Set(addons);
                         if (next.has(a.id)) next.delete(a.id);
                         else next.add(a.id);
                         setAddons(next);
                       }}
-                    />
-                  </label>
-                ))}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                        active
+                          ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-900 ring-1 ring-emerald-200"
+                          : "border-stone-200 hover:border-stone-300"
+                      }`}
+                    >
+                      <span>{a.name}</span>
+                      <span className="font-bold text-stone-700">+{pkr(a.price)}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
-          <div className="flex items-center rounded-xl border border-stone-200">
-            <button type="button" className="px-3 py-2 font-bold" onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
-            <span className="min-w-[2rem] text-center font-bold">{qty}</span>
-            <button type="button" className="px-3 py-2 font-bold" onClick={() => setQty(qty + 1)}>+</button>
+        <div className="shrink-0 border-t border-stone-100 bg-stone-50 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center rounded-xl border border-stone-200 bg-white shadow-sm">
+              <button
+                type="button"
+                className="grid h-11 w-11 place-items-center text-lg font-bold text-stone-600"
+                onClick={() => setQty(Math.max(1, qty - 1))}
+              >
+                <Minus size={16} />
+              </button>
+              <span className="min-w-[2.5rem] text-center text-lg font-black tabular-nums">{qty}</span>
+              <button
+                type="button"
+                className="grid h-11 w-11 place-items-center text-lg font-bold text-stone-600"
+                onClick={() => setQty(qty + 1)}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-stone-900 text-sm font-bold text-white shadow-lg transition hover:bg-stone-800"
+              onClick={submit}
+            >
+              <Check size={16} />
+              Add to order · {pkr(unitPrice * qty)}
+            </button>
           </div>
-          <button type="button" className="btn-primary h-11 flex-1" onClick={submit}>
-            Add · {pkr(unitPrice * qty)}
-          </button>
         </div>
       </div>
     </div>

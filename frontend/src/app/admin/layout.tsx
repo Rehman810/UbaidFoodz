@@ -44,8 +44,8 @@ const NAV = [
 const MOBILE_NAV = [
   { href: "/admin", label: "Home", icon: LayoutDashboard },
   { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+  { href: "/admin/pos", label: "POS", icon: Receipt },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-  { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -125,11 +125,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const sidebarNav = navForRole(user.role);
   const mobileNav = MOBILE_FOR_ROLE[user.role];
+  const isPos = path.startsWith("/admin/pos");
 
   return (
     <div className="min-h-screen bg-[#fffaf5] lg:flex">
       <aside
-        className={`lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:flex-col lg:transition-[width] lg:duration-300 ${
+        className={`${isPos ? "hidden lg:flex" : ""} lg:fixed lg:inset-y-0 lg:z-30 lg:flex-col lg:transition-[width] lg:duration-300 ${
           collapsed ? "lg:w-[4.75rem]" : "lg:w-72"
         }`}
       >
@@ -201,7 +202,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           collapsed ? "lg:pl-[4.75rem]" : "lg:pl-72"
         }`}
       >
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-orange-100/80 bg-[#fffaf5]/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8">
+        <header
+          className={`sticky top-0 z-20 flex items-center justify-between border-b border-orange-100/80 bg-[#fffaf5]/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8 ${
+            isPos ? "hidden lg:flex" : ""
+          }`}
+        >
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -245,9 +250,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </button>
           </div>
         </header>
-        <main className="flex-1 p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8">{children}</main>
+        <main
+          className={
+            isPos
+              ? "flex-1 p-0 lg:p-8 lg:pb-8"
+              : "flex-1 p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8"
+          }
+        >
+          {children}
+        </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md lg:hidden">
+        <nav
+          className={`fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md lg:hidden ${
+            isPos ? "hidden" : ""
+          }`}
+        >
           <div className="grid grid-cols-5">
             {mobileNav.map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
