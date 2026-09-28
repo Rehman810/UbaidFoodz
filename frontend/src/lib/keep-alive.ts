@@ -2,12 +2,13 @@ import { API_URL } from "./api";
 
 const INTERVAL_MS = 10 * 60 * 1000; // 10 min — Render sleeps after ~15 min idle
 
-function isProductionApi() {
-  return !API_URL.includes("localhost") && !API_URL.includes("127.0.0.1");
+/** Only ping same-origin proxy — never hit localhost/private IP/public IP from the browser. */
+function shouldClientPing() {
+  return API_URL.startsWith("/");
 }
 
 export function pingApi() {
-  if (!isProductionApi()) return;
+  if (!shouldClientPing()) return;
   fetch(`${API_URL}/health`, { method: "GET", cache: "no-store" }).catch(() => {
     /* ignore — best-effort wake */
   });
@@ -15,7 +16,7 @@ export function pingApi() {
 
 /** Ping Render while a browser tab is open (storefront / admin). */
 export function startClientKeepAlive() {
-  if (!isProductionApi() || typeof window === "undefined") return () => {};
+  if (!shouldClientPing() || typeof window === "undefined") return () => {};
 
   pingApi();
   const id = window.setInterval(pingApi, INTERVAL_MS);
