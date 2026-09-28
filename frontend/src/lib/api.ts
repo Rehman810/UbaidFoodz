@@ -1,11 +1,19 @@
 // Production (Vercel): use same-origin proxy — avoids CORS & dead Cloudflare tunnel URLs.
 // Set API_PROXY_TARGET=http://YOUR_ORACLE_IP:4000 on Vercel (server env).
 // Optional: NEXT_PUBLIC_API_URL=https://your-https-api.com for direct API + websockets.
+function isLocalApiUrl(url: string) {
+  return /localhost|127\.0\.0\.1/i.test(url);
+}
+
 function resolveApiUrl() {
   const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (configured) return configured;
-  // Must not use `window` here — at Next.js build time window is undefined,
-  // which incorrectly baked `http://localhost:4000` into the Vercel bundle.
+  if (configured) {
+    // Vercel builds bake NEXT_PUBLIC_* at build time — never ship localhost to production.
+    if (process.env.NODE_ENV === "production" && isLocalApiUrl(configured)) {
+      return "/api/proxy";
+    }
+    return configured;
+  }
   return process.env.NODE_ENV === "production" ? "/api/proxy" : "http://localhost:4000";
 }
 
