@@ -1,14 +1,27 @@
 /** @type {import('next').NextConfig} */
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ;
+const proxyTarget =
+  process.env.API_PROXY_TARGET?.replace(/\/$/, "") || "http://80.225.219.189:4000";
+
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 let apiPattern = { protocol: "http", hostname: "localhost", port: "4000", pathname: "/uploads/**" };
 try {
-  const parsed = new URL(apiUrl);
-  apiPattern = {
-    protocol: parsed.protocol.replace(":", ""),
-    hostname: parsed.hostname,
-    ...(parsed.port ? { port: parsed.port } : {}),
-    pathname: "/uploads/**",
-  };
+  if (apiUrl && !apiUrl.startsWith("/")) {
+    const parsed = new URL(apiUrl);
+    apiPattern = {
+      protocol: parsed.protocol.replace(":", ""),
+      hostname: parsed.hostname,
+      ...(parsed.port ? { port: parsed.port } : {}),
+      pathname: "/uploads/**",
+    };
+  } else {
+    const parsed = new URL(proxyTarget);
+    apiPattern = {
+      protocol: parsed.protocol.replace(":", ""),
+      hostname: parsed.hostname,
+      ...(parsed.port ? { port: parsed.port } : {}),
+      pathname: "/uploads/**",
+    };
+  }
 } catch {
   /* keep localhost default */
 }
@@ -20,6 +33,14 @@ const nextConfig = {
       { protocol: "https", hostname: "images.unsplash.com" },
       apiPattern,
     ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/proxy/:path*",
+        destination: `${proxyTarget}/:path*`,
+      },
+    ];
   },
 };
 

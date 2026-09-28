@@ -61,11 +61,41 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   res.status(500).json({ error: "Something went wrong." });
 }
 
-export function allowedOrigins() {
+function parseOriginList() {
   const raw = process.env.CLIENT_URL || process.env.FRONTEND_URL || "";
-  const list = raw
+  return raw
     .split(",")
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\/$/, ""))
     .filter(Boolean);
-  return list.length ? list : true;
+}
+
+/** CORS: explicit CLIENT_URL origins + any *.vercel.app preview/production deploys. */
+export function allowedOrigins():
+  | boolean
+  | string[]
+  | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void) {
+  const list = parseOriginList();
+  if (!list.length) return true;
+
+  return (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    const normalized = origin.replace(/\/$/, "");
+    if (list.includes(normalized)) {
+      callback(null, true);
+      return;
+    }
+    try {
+      const host = new URL(normalized).hostname;
+      if (host.endsWith(".vercel.app") || host === "vercel.app") {
+        callback(null, true);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    callback(null, false);
+  };
 }

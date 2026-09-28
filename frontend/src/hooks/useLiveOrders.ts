@@ -2,14 +2,15 @@
 
 import { useEffect } from "react";
 import { io, Socket } from "socket.io-client";
-import { API_URL } from "@/lib/api";
+import { SOCKET_URL } from "@/lib/api";
 
 let socket: Socket | null = null;
 
-function getSocket() {
+function getSocket(): Socket | null {
+  if (!SOCKET_URL) return null;
   if (socket) return socket;
   const token = typeof window !== "undefined" ? localStorage.getItem("uff_token") : null;
-  socket = io(API_URL, {
+  socket = io(SOCKET_URL, {
     path: "/socket.io",
     transports: ["websocket", "polling"],
     auth: token ? { token } : {},
@@ -21,6 +22,7 @@ function getSocket() {
 export function useLiveOrders(onChange: () => void, orderId?: string, guestToken?: string | null) {
   useEffect(() => {
     const s = getSocket();
+    if (!s) return;
     const handler = () => onChange();
     s.on("order:created", handler);
     s.on("order:updated", handler);

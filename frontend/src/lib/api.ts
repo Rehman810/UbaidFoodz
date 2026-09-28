@@ -1,7 +1,21 @@
-// Live: set NEXT_PUBLIC_API_URL=https://ubaidfoodz.onrender.com on Vercel/Netlify.
-// Local: falls back to localhost.
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:4000";
+// Production (Vercel): use same-origin proxy — avoids CORS & dead Cloudflare tunnel URLs.
+// Set API_PROXY_TARGET=http://YOUR_ORACLE_IP:4000 on Vercel (server env).
+// Optional: NEXT_PUBLIC_API_URL=https://your-https-api.com for direct API + websockets.
+function resolveApiUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+    return "/api/proxy";
+  }
+  return "http://localhost:4000";
+}
+
+export const API_URL = resolveApiUrl();
+
+/** Socket.io needs a real host — set NEXT_PUBLIC_SOCKET_URL when using /api/proxy for REST. */
+export const SOCKET_URL =
+  process.env.NEXT_PUBLIC_SOCKET_URL?.replace(/\/$/, "") ||
+  (API_URL.startsWith("/") ? "" : API_URL);
 
 export class ApiError extends Error {
   status: number;
