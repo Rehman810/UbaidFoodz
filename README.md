@@ -67,6 +67,46 @@ npm run dev:frontend
 - Menu images are from Unsplash.  
 - Invoices are generated with PDFKit into `backend/invoices/` when an order is marked delivered.
 
+## Backend CI/CD (GitHub Actions → Oracle server)
+
+Workflow: [`.github/workflows/backend.yml`](.github/workflows/backend.yml)
+
+| Event | What happens |
+| --- | --- |
+| **Pull request** to `main` | CI only — build, migrate, smoke-test `/health` |
+| **Push** to `main` | CI, then **SSH deploy** to your Oracle server |
+
+Deploy script: [`scripts/deploy-backend.sh`](scripts/deploy-backend.sh) — `git pull` → `npm install` → `prisma migrate deploy` → `npm run build` → restart **pm2** or **systemd**.
+
+### One-time: GitHub secrets
+
+Repo → **Settings** → **Secrets and variables** → **Actions** → add:
+
+| Secret | Your Oracle server |
+| --- | --- |
+| `ORACLE_SSH_HOST` | `80.225.219.189` |
+| `ORACLE_SSH_USER` | `ubuntu` |
+| `ORACLE_APP_DIR` | `/home/ubuntu/UbaidFoodz` |
+| `ORACLE_SSH_PRIVATE_KEY` | Contents of your `.key` file (entire PEM, including `BEGIN`/`END` lines) |
+| `API_SERVICE_NAME` | `backend` (optional — this is the default pm2 name on your VM) |
+
+Copy the private key into the secret (do not commit it):
+
+```bash
+cat "/home/abdulrehman/oracle keys/ssh-key-2026-09-22.key"
+```
+
+Paste the full output into `ORACLE_SSH_PRIVATE_KEY` in GitHub.
+
+Until these secrets are set, **push to `main` runs CI only** — nothing is deployed.
+
+Your server already has pm2 process **`backend`** running from `/home/ubuntu/UbaidFoodz/backend`. Each deploy runs `git pull`, `prisma migrate deploy`, `npm run build`, then `pm2 restart backend`.
+
+**Important:** Push this workflow to the same GitHub repo the server pulls from (`Rehman810/UbaidFoodz`).
+
+Manual deploy on the server: `bash scripts/deploy-backend.sh`  
+Manual workflow: **Actions** → **Backend CI/CD** → **Run workflow**.
+
 ## Deploy (Render + Vercel, no paid Shell)
 
 ### Backend on Render
