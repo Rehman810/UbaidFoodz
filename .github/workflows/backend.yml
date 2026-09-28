@@ -97,6 +97,7 @@ jobs:
       ORACLE_SSH_HOST: ${{ secrets.ORACLE_SSH_HOST || vars.ORACLE_SSH_HOST }}
       ORACLE_SSH_USER: ${{ secrets.ORACLE_SSH_USER || vars.ORACLE_SSH_USER }}
       ORACLE_SSH_PRIVATE_KEY: ${{ secrets.ORACLE_SSH_PRIVATE_KEY || vars.ORACLE_SSH_PRIVATE_KEY }}
+      ORACLE_SSH_PRIVATE_KEY_B64: ${{ secrets.ORACLE_SSH_PRIVATE_KEY_B64 || vars.ORACLE_SSH_PRIVATE_KEY_B64 }}
       ORACLE_APP_DIR: ${{ secrets.ORACLE_APP_DIR || vars.ORACLE_APP_DIR }}
       API_SERVICE_NAME: ${{ secrets.API_SERVICE_NAME || vars.API_SERVICE_NAME }}
 
@@ -105,15 +106,15 @@ jobs:
         run: |
           missing=0
           if [ -z "$ORACLE_SSH_HOST" ]; then
-            echo "::error::Missing ORACLE_SSH_HOST (Secrets or Variables tab) — set to 80.225.219.189"
+            echo "::error::Missing ORACLE_SSH_HOST — set to 80.225.219.189"
             missing=1
           fi
           if [ -z "$ORACLE_SSH_USER" ]; then
             echo "::error::Missing ORACLE_SSH_USER — set to ubuntu"
             missing=1
           fi
-          if [ -z "$ORACLE_SSH_PRIVATE_KEY" ]; then
-            echo "::error::Missing ORACLE_SSH_PRIVATE_KEY — use the Secrets tab (not Variables) for the SSH key"
+          if [ -z "$ORACLE_SSH_PRIVATE_KEY" ] && [ -z "$ORACLE_SSH_PRIVATE_KEY_B64" ]; then
+            echo "::error::Set ORACLE_SSH_PRIVATE_KEY_B64 (recommended) or ORACLE_SSH_PRIVATE_KEY in Secrets"
             missing=1
           fi
           if [ -z "$ORACLE_APP_DIR" ]; then
@@ -121,16 +122,37 @@ jobs:
             missing=1
           fi
           if [ "$missing" -eq 1 ]; then
-            echo "GitHub → Settings → Secrets and variables → Actions (Secrets or Variables)"
             exit 1
           fi
+
+      - name: Prepare SSH key file
+        run: |
+          KEY_FILE="$RUNNER_TEMP/oracle_deploy_key"
+          if [ -n "$ORACLE_SSH_PRIVATE_KEY_B64" ]; then
+            echo "$ORACLE_SSH_PRIVATE_KEY_B64" | base64 -d > "$KEY_FILE"
+          else
+            printf '%s\n' "$ORACLE_SSH_PRIVATE_KEY" > "$KEY_FILE"
+          fi
+          chmod 600 "$KEY_FILE"
+          if ! grep -q 'BEGIN.*PRIVATE KEY' "$KEY_FILE"; then
+            echo "::error::Invalid SSH key — must include -----BEGIN RSA PRIVATE KEY----- lines."
+            echo "Use base64 instead (one line, no newlines):"
+            echo '  base64 -w 0 "/path/to/ssh-key-2026-09-22.key"'
+            echo "Save output as secret ORACLE_SSH_PRIVATE_KEY_B64"
+            exit 1
+          fi
+          if ! ssh-keygen -y -f "$KEY_FILE" >/dev/null 2>&1; then
+            echo "::error::Could not parse SSH private key. Re-create ORACLE_SSH_PRIVATE_KEY_B64 from your .key file."
+            exit 1
+          fi
+          echo "SSH key OK"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ env.ORACLE_SSH_HOST }}
           username: ${{ env.ORACLE_SSH_USER }}
-          key: ${{ env.ORACLE_SSH_PRIVATE_KEY }}
+          key_path: ${{ runner.temp }}/oracle_deploy_key
           port: 22
           envs: APP_DIR,API_SERVICE_NAME
           script: |
