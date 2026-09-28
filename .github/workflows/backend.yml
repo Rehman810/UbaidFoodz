@@ -95,6 +95,30 @@ jobs:
     environment: production
 
     steps:
+      - name: Verify deploy secrets
+        run: |
+          missing=0
+          if [ -z "${{ secrets.ORACLE_SSH_HOST }}" ]; then
+            echo "::error::Missing ORACLE_SSH_HOST — set to 80.225.219.189"
+            missing=1
+          fi
+          if [ -z "${{ secrets.ORACLE_SSH_USER }}" ]; then
+            echo "::error::Missing ORACLE_SSH_USER — set to ubuntu"
+            missing=1
+          fi
+          if [ -z "${{ secrets.ORACLE_SSH_PRIVATE_KEY }}" ]; then
+            echo "::error::Missing ORACLE_SSH_PRIVATE_KEY — paste your .key file contents"
+            missing=1
+          fi
+          if [ -z "${{ secrets.ORACLE_APP_DIR }}" ]; then
+            echo "::error::Missing ORACLE_APP_DIR — set to /home/ubuntu/UbaidFoodz"
+            missing=1
+          fi
+          if [ "$missing" -eq 1 ]; then
+            echo "Add secrets: GitHub repo → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -103,7 +127,9 @@ jobs:
           key: ${{ secrets.ORACLE_SSH_PRIVATE_KEY }}
           port: 22
           envs: APP_DIR,API_SERVICE_NAME
-          script: bash scripts/deploy-backend.sh
+          script: |
+            cd "$APP_DIR"
+            bash scripts/deploy-backend.sh
         env:
           APP_DIR: ${{ secrets.ORACLE_APP_DIR }}
           API_SERVICE_NAME: ${{ secrets.API_SERVICE_NAME }}
