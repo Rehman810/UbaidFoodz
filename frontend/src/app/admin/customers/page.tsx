@@ -109,6 +109,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("spent");
   const [blocks, setBlocks] = useState<OrderBlock[]>([]);
+  const [actionMsg, setActionMsg] = useState("");
 
   const load = useCallback(() => api<AdminCustomer[]>("/admin/customers"), []);
   const { data: customers, loading, refresh } = usePoll(load, 30000);
@@ -120,23 +121,27 @@ export default function CustomersPage() {
   }, [loadBlocks]);
 
   async function blockCustomer(c: AdminCustomer) {
+    setActionMsg("");
     try {
       await api("/admin/blocks", {
         method: "POST",
         body: JSON.stringify({ email: c.email, phone: c.phone, reason: "Blocked from customer records" }),
       });
       setBlocks(await loadBlocks());
-    } catch {
-      /* ignore */
+      setActionMsg(`${c.name} blocked from placing orders.`);
+    } catch (err) {
+      setActionMsg(err instanceof Error ? err.message : "Could not block customer.");
     }
   }
 
-  async function unblockCustomer(blockId: string) {
+  async function unblockCustomer(blockId: string, name: string) {
+    setActionMsg("");
     try {
       await api(`/admin/blocks/${blockId}`, { method: "DELETE" });
       setBlocks(await loadBlocks());
-    } catch {
-      /* ignore */
+      setActionMsg(`${name} can order again.`);
+    } catch (err) {
+      setActionMsg(err instanceof Error ? err.message : "Could not unblock customer.");
     }
   }
 
@@ -236,6 +241,12 @@ export default function CustomersPage() {
           accent="violet"
         />
       </div>
+
+      {actionMsg && (
+        <p className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700 shadow-sm">
+          {actionMsg}
+        </p>
+      )}
 
       {/* Search & sort */}
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
@@ -386,7 +397,7 @@ export default function CustomersPage() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => block && unblockCustomer(block.id)}
+                        onClick={() => block && unblockCustomer(block.id, c.name)}
                         className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
                       >
                         Unblock

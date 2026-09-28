@@ -42,7 +42,7 @@ export function DealDetailModal() {
   const image = dealImage(deal);
 
   function addToCart() {
-    if (!storeOpen) return;
+    if (!storeOpen || !deal) return;
     for (let i = 0; i < qty; i++) addDeal(deal, { openDrawer: false });
     close();
   }

@@ -222,6 +222,18 @@ export async function sendRiderAssignedEmail(
   await sendEmail(riderEmail, `Delivery ${order.orderNumber} assigned to you`, html);
 }
 
+export async function sendPasswordResetEmail(email: string, name: string, resetUrl: string) {
+  const html = wrap(
+    "Reset your password",
+    `
+      <p style="line-height:1.6">Hi ${esc(name)}, we received a request to reset your Ubaid Fast Foodz password.</p>
+      <p style="margin:24px 0"><a href="${esc(resetUrl)}" style="display:inline-block;background:#ea580c;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Reset password</a></p>
+      <p style="font-size:13px;color:#57534e">This link expires in 1 hour. If you did not request this, ignore this email.</p>
+    `
+  );
+  await sendEmail(email, "Reset your Ubaid Fast Foodz password", html);
+}
+
 export async function sendStaffWelcomeEmail(
   email: string,
   name: string,

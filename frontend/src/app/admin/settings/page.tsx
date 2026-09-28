@@ -196,6 +196,17 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setSettings({ ...settings, address: e.target.value })}
               />
             </SettingsField>
+            <SettingsField
+              label="Google Place ID"
+              hint="For live Google reviews on homepage. Find it in Google Maps → Share → Embed. Requires GOOGLE_PLACES_API_KEY on server."
+            >
+              <input
+                className="input"
+                placeholder="ChIJ..."
+                value={settings.googlePlaceId ?? ""}
+                onChange={(e) => setSettings({ ...settings, googlePlaceId: e.target.value })}
+              />
+            </SettingsField>
             <div className="grid gap-4 sm:grid-cols-2">
               <SettingsField label="Latitude">
                 <input

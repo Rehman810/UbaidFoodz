@@ -1,11 +1,13 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import QRCode from "qrcode";
 import { generateSecret, generateURI, verifyTotp } from "../lib/totp";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole, signToken } from "../middleware/auth";
+import { sendPasswordResetEmail } from "../lib/email";
 import { authLimiter } from "../middleware/security";
 
 const JWT_SECRET = process.env.JWT_SECRET || "ubaid-fast-foodz-demo-secret";
@@ -100,6 +102,63 @@ authRouter.post("/login/2fa", authLimiter, async (req, res) => {
   } catch {
     return res.status(401).json({ error: "Challenge expired. Sign in again." });
   }
+});
+
+function clientAppUrl() {
+  const raw = process.env.CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+  return raw.split(",")[0].trim();
+}
+
+authRouter.post("/forgot-password", authLimiter, async (req, res) => {
+  const email = String((req.body as { email?: string }).email || "")
+    .trim()
+    .toLowerCase();
+  if (!email) return res.status(400).json({ error: "Email is required." });
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (user && user.isActive && user.role === Role.CUSTOMER) {
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetToken: token, passwordResetExpires: expires },
+    });
+    const resetUrl = `${clientAppUrl()}/reset-password?token=${token}`;
+    void sendPasswordResetEmail(user.email, user.name, resetUrl);
+  }
+
+  res.json({ ok: true, message: "If an account exists for that email, a reset link has been sent." });
+});
+
+authRouter.post("/reset-password", authLimiter, async (req, res) => {
+  const { token, password } = req.body as { token?: string; password?: string };
+  if (!token?.trim() || !password) {
+    return res.status(400).json({ error: "Token and new password are required." });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  }
+
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetToken: token.trim(),
+      passwordResetExpires: { gt: new Date() },
+    },
+  });
+  if (!user) {
+    return res.status(400).json({ error: "Reset link is invalid or has expired." });
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: await bcrypt.hash(password, 12),
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    },
+  });
+
+  res.json({ ok: true, message: "Password updated. You can sign in now." });
 });
 
 authRouter.get("/me", requireAuth, async (req, res) => {

@@ -71,6 +71,23 @@ export type StoreSettings = {
   instagramUrl: string;
   tiktokUrl: string;
   youtubeUrl: string;
+  googlePlaceId?: string;
+};
+
+export type GoogleReview = {
+  name: string;
+  text: string;
+  rating: number;
+  timeAgo: string;
+  photoUrl?: string;
+};
+
+export type GoogleReviewsPayload = {
+  rating: number;
+  total: number;
+  url?: string;
+  reviews: GoogleReview[];
+  source: "google" | "fallback";
 };
 
 export type PromoBanner = {

@@ -42,7 +42,8 @@ const MOBILE_NAV = [
   { href: "/admin", label: "Home", icon: LayoutDashboard },
   { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-  { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+  { href: "/admin/customers", label: "Customers", icon: Users },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 const SIDEBAR_KEY = "uff-admin-sidebar-collapsed";
@@ -220,7 +221,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main className="flex-1 p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8">{children}</main>
 
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md lg:hidden">
-          <div className="grid grid-cols-4">
+          <div className="grid grid-cols-5">
             {(user.role === "CHEF" ? [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }] : MOBILE_NAV).map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
               const Icon = n.icon;

@@ -15,6 +15,11 @@ export function orderApiPath(orderId: string, token?: string | null) {
   return `/orders/${orderId}?token=${encodeURIComponent(token)}`;
 }
 
+export function orderCancelPath(orderId: string, token?: string | null) {
+  if (!token) return `/orders/${orderId}/cancel`;
+  return `/orders/${orderId}/cancel?token=${encodeURIComponent(token)}`;
+}
+
 export function invoiceApiPath(orderId: string, token?: string | null) {
   if (!token) return `/invoices/${orderId}/download`;
   return `/invoices/${orderId}/download?token=${encodeURIComponent(token)}`;

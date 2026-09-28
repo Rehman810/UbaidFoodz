@@ -386,6 +386,30 @@ ordersRouter.get("/:id", optionalAuth, async (req, res) => {
   res.json(stripGuestToken(order));
 });
 
+ordersRouter.patch("/:id/cancel", optionalAuth, async (req, res) => {
+  const token = typeof req.query.token === "string" ? req.query.token : null;
+  const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include });
+  if (!existing) return res.status(404).json({ error: "Order not found." });
+  if (!canAccessOrder(existing, req.user, token)) {
+    return res.status(403).json({ error: "You do not have access to this order." });
+  }
+  if (
+    existing.status !== OrderStatus.AWAITING_CONFIRMATION &&
+    existing.status !== OrderStatus.PENDING
+  ) {
+    return res.status(400).json({ error: "This order can no longer be cancelled." });
+  }
+
+  const order = await prisma.order.update({
+    where: { id: existing.id },
+    data: { status: OrderStatus.CANCELLED },
+    include,
+  });
+  void sendOrderCancelledEmail(order);
+  emitOrderChange("order:updated", order);
+  res.json(stripGuestToken(order));
+});
+
 ordersRouter.patch("/:id/confirm", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include });
   if (!existing) return res.status(404).json({ error: "Order not found." });

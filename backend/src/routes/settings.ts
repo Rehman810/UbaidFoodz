@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { fetchGoogleReviews } from "../lib/google-reviews";
 import { getPublicStorePayload, getStoreSettings } from "../lib/settings-data";
 import { requireAuth, requireRole } from "../middleware/auth";
 
@@ -8,6 +9,12 @@ export const settingsRouter = Router();
 
 settingsRouter.get("/public", async (_req, res) => {
   res.json(await getPublicStorePayload());
+});
+
+settingsRouter.get("/reviews", async (_req, res) => {
+  const settings = await getStoreSettings();
+  const google = await fetchGoogleReviews(settings.googlePlaceId);
+  res.json(google || { rating: 0, total: 0, reviews: [], source: "fallback" });
 });
 
 settingsRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
@@ -56,6 +63,7 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
       ...(body.instagramUrl !== undefined ? { instagramUrl: String(body.instagramUrl) } : {}),
       ...(body.tiktokUrl !== undefined ? { tiktokUrl: String(body.tiktokUrl) } : {}),
       ...(body.youtubeUrl !== undefined ? { youtubeUrl: String(body.youtubeUrl) } : {}),
+      ...(body.googlePlaceId !== undefined ? { googlePlaceId: String(body.googlePlaceId).trim() } : {}),
     },
   });
   res.json(settings);

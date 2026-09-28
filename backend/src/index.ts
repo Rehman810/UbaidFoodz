@@ -32,8 +32,15 @@ import {
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === "ubaid-fast-foodz-demo-secret") {
-  console.warn("[security] Set a strong JWT_SECRET in production.");
+const jwtSecret = process.env.JWT_SECRET || "";
+const weakJwt =
+  !jwtSecret || jwtSecret === "ubaid-fast-foodz-demo-secret" || jwtSecret.length < 32;
+if (process.env.NODE_ENV === "production" && weakJwt) {
+  console.error("[security] FATAL: Set JWT_SECRET to a random string of at least 32 characters.");
+  process.exit(1);
+}
+if (weakJwt) {
+  console.warn("[security] Set a strong JWT_SECRET before deploying to production.");
 }
 
 app.set("trust proxy", 1);

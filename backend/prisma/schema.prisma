@@ -36,9 +36,11 @@ model User {
   role         Role
   phone        String?
   isActive     Boolean  @default(true)
-  totpSecret   String?
-  totpEnabled  Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  totpSecret           String?
+  totpEnabled          Boolean   @default(false)
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  createdAt            DateTime  @default(now())
 
   orders         Order[] @relation("CustomerOrders")
   assignedOrders Order[] @relation("RiderOrders")
@@ -140,6 +142,7 @@ model StoreSettings {
   instagramUrl        String   @default("")
   tiktokUrl           String   @default("")
   youtubeUrl          String   @default("")
+  googlePlaceId       String   @default("")
   updatedAt           DateTime @updatedAt
 }
 

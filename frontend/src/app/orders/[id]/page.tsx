@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Download, CheckCircle2, RotateCcw } from "lucide-react";
+import { Download, CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { OrderTrackForm } from "@/components/OrderTrackForm";
 import { StatusTrack } from "@/components/StatusTrack";
 import { api, downloadInvoice } from "@/lib/api";
-import { getGuestOrderToken, orderApiPath, saveGuestOrderToken } from "@/lib/guest-order";
+import { getGuestOrderToken, orderApiPath, orderCancelPath, saveGuestOrderToken } from "@/lib/guest-order";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
 import { eta, formatWhen, pkr } from "@/lib/format";
@@ -45,8 +45,28 @@ export default function OrderDetailPage() {
 
   const { data: order, loading, error: pollError, refresh } = usePoll(fetchOrder, 15000, canLoad);
   useLiveOrders(refresh, id);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   const accessDenied = needsTrack || pollError?.toLowerCase().includes("access");
+  const canCancel =
+    order &&
+    (order.status === "AWAITING_CONFIRMATION" || order.status === "PENDING");
+
+  async function cancelOrder() {
+    if (!order || !canCancel) return;
+    if (!window.confirm("Cancel this order? This cannot be undone.")) return;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      await api(orderCancelPath(order.id, guestToken), { method: "PATCH" });
+      refresh();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Could not cancel order.");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   async function repeatOrder() {
     if (!order) return;
@@ -173,7 +193,21 @@ export default function OrderDetailPage() {
               )}
             </div>
 
+            {cancelError && (
+              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{cancelError}</p>
+            )}
+
             <div className="space-y-3 border-t border-orange-100 pt-6">
+              {canCancel && (
+                <button
+                  type="button"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700 hover:bg-red-100"
+                  onClick={cancelOrder}
+                  disabled={cancelling}
+                >
+                  <XCircle size={16} /> {cancelling ? "Cancelling…" : "Cancel order"}
+                </button>
+              )}
               <button type="button" className="btn-ghost h-12 w-full" onClick={repeatOrder}>
                 <RotateCcw size={16} /> Order again
               </button>

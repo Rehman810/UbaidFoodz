@@ -43,6 +43,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState("");
   const [cartNotice, setCartNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [cartChecked, setCartChecked] = useState(false);
 
   const isDelivery = mode === "DELIVERY";
@@ -138,8 +139,10 @@ export default function CheckoutPage() {
     }
 
     setBusy(true);
+    setLocating(true);
     try {
       const location = await getCheckoutLocation();
+      setLocating(false);
       const order = await api<Order>("/orders", {
         method: "POST",
         body: JSON.stringify({
@@ -179,6 +182,7 @@ export default function CheckoutPage() {
         }
       }
     } finally {
+      setLocating(false);
       setBusy(false);
     }
   }
@@ -319,7 +323,7 @@ export default function CheckoutPage() {
             className="btn-primary mt-2 h-14 w-full text-base"
             disabled={busy || !cartChecked || items.length === 0 || storeClosed || belowMinimum}
           >
-            {busy ? "Placing…" : `Place order · ${pkr(grandTotal)}`}
+            {locating ? "Getting location…" : busy ? "Placing…" : `Place order · ${pkr(grandTotal)}`}
           </button>
         </form>
         <aside className="card h-fit p-6 md:sticky md:top-24">

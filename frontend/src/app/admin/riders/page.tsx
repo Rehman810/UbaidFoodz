@@ -193,6 +193,14 @@ export default function RidersPage() {
         </div>
       </div>
 
+      <p className="rounded-xl border border-violet-100 bg-violet-50/80 px-4 py-3 text-sm text-violet-900">
+        To create rider logins with auto-generated passwords and welcome emails, use{" "}
+        <Link href="/admin/staff" className="font-semibold underline hover:text-violet-700">
+          Staff → Add staff (Rider)
+        </Link>
+        . This page is for fleet overview and quick rider creation.
+      </p>
+
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Fleet size" value={stats.total} hint="Registered riders" icon={Users} accent="violet" />
