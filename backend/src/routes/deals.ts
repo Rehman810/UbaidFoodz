@@ -70,6 +70,9 @@ dealsRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) =
     if (!existing) return res.status(404).json({ error: "Deal not found." });
 
     if (Array.isArray(items)) {
+      if (items.length === 0) {
+        return res.status(400).json({ error: "Add at least one menu item to the deal." });
+      }
       await prisma.dealItem.deleteMany({ where: { dealId: req.params.id } });
       if (items.length > 0) {
         await prisma.dealItem.createMany({

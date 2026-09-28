@@ -99,6 +99,7 @@ export default function PosPage() {
   const [error, setError] = useState("");
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [store, setStore] = useState({ name: "Ubaid Fast Foodz", phone: "", address: "" });
+  const [freeDeliveryAbove, setFreeDeliveryAbove] = useState<number | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [clock, setClock] = useState("");
   const [mobileView, setMobileView] = useState<MobileView>("menu");
@@ -108,7 +109,9 @@ export default function PosPage() {
       api<MenuItem[]>("/menu"),
       api<Deal[]>("/deals"),
       api<DeliveryArea[]>("/delivery-areas"),
-      api<{ settings: { phone: string; address: string } }>("/settings/public").catch(() => null),
+      api<{ settings: { phone: string; address: string; freeDeliveryAbove?: string | number | null } }>(
+        "/settings/public"
+      ).catch(() => null),
     ]);
     setMenu(m.filter((i) => i.isAvailable));
     setDeals(d.filter((x) => x.isActive));
@@ -116,6 +119,9 @@ export default function PosPage() {
     if (a[0]) setAreaId(a[0].id);
     if (s?.settings) {
       setStore({ name: "Ubaid Fast Foodz", phone: s.settings.phone, address: s.settings.address });
+      setFreeDeliveryAbove(
+        s.settings.freeDeliveryAbove != null ? Number(s.settings.freeDeliveryAbove) : null
+      );
     }
   }, []);
 
@@ -148,7 +154,10 @@ export default function PosPage() {
 
   const itemCount = lines.reduce((n, l) => n + l.quantity, 0);
   const subtotal = posCartTotal(lines);
-  const deliveryFee = mode === "DELIVERY" ? Number(areas.find((a) => a.id === areaId)?.deliveryCharge || 0) : 0;
+  const rawDeliveryFee =
+    mode === "DELIVERY" ? Number(areas.find((a) => a.id === areaId)?.deliveryCharge || 0) : 0;
+  const deliveryFee =
+    mode === "DELIVERY" && freeDeliveryAbove != null && subtotal >= freeDeliveryAbove ? 0 : rawDeliveryFee;
   const total = subtotal + deliveryFee;
 
   function tapItem(item: MenuItem) {
@@ -306,6 +315,12 @@ export default function PosPage() {
               <span>Subtotal</span>
               <span className="font-medium tabular-nums">{pkr(subtotal)}</span>
             </div>
+            {mode === "DELIVERY" && rawDeliveryFee > 0 && deliveryFee === 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Delivery</span>
+                <span className="font-medium">Free</span>
+              </div>
+            )}
             {deliveryFee > 0 && (
               <div className="flex justify-between text-stone-600">
                 <span>Delivery</span>

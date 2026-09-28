@@ -29,6 +29,44 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
   const body = req.body as Record<string, unknown>;
   const num = (v: unknown) => (v === undefined || v === "" ? undefined : Number(v));
 
+  const hour = (v: unknown) => {
+    if (v === undefined || v === "") return undefined;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 23) return null;
+    return Math.floor(n);
+  };
+  const minute = (v: unknown) => {
+    if (v === undefined || v === "") return undefined;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 59) return null;
+    return Math.floor(n);
+  };
+
+  if (body.openHour !== undefined && hour(body.openHour) === null) {
+    return res.status(400).json({ error: "Open hour must be between 0 and 23." });
+  }
+  if (body.closeHour !== undefined && hour(body.closeHour) === null) {
+    return res.status(400).json({ error: "Close hour must be between 0 and 23." });
+  }
+  if (body.openMinute !== undefined && minute(body.openMinute) === null) {
+    return res.status(400).json({ error: "Open minute must be between 0 and 59." });
+  }
+  if (body.closeMinute !== undefined && minute(body.closeMinute) === null) {
+    return res.status(400).json({ error: "Close minute must be between 0 and 59." });
+  }
+  if (body.minimumOrder !== undefined) {
+    const min = num(body.minimumOrder);
+    if (min !== undefined && (!Number.isFinite(min) || min < 0)) {
+      return res.status(400).json({ error: "Minimum order must be zero or greater." });
+    }
+  }
+  if (body.freeDeliveryAbove !== undefined && body.freeDeliveryAbove !== null) {
+    const free = num(body.freeDeliveryAbove);
+    if (free !== undefined && (!Number.isFinite(free) || free < 0)) {
+      return res.status(400).json({ error: "Free delivery threshold must be zero or greater." });
+    }
+  }
+
   const settings = await prisma.storeSettings.update({
     where: { id: "default" },
     data: {
@@ -47,10 +85,10 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
       ...(body.pickupEstimateMin !== undefined
         ? { pickupEstimateMin: Number(body.pickupEstimateMin) || 20 }
         : {}),
-      ...(body.openHour !== undefined ? { openHour: Number(body.openHour) } : {}),
-      ...(body.openMinute !== undefined ? { openMinute: Number(body.openMinute) } : {}),
-      ...(body.closeHour !== undefined ? { closeHour: Number(body.closeHour) } : {}),
-      ...(body.closeMinute !== undefined ? { closeMinute: Number(body.closeMinute) } : {}),
+      ...(body.openHour !== undefined ? { openHour: hour(body.openHour) ?? 0 } : {}),
+      ...(body.openMinute !== undefined ? { openMinute: minute(body.openMinute) ?? 0 } : {}),
+      ...(body.closeHour !== undefined ? { closeHour: hour(body.closeHour) ?? 23 } : {}),
+      ...(body.closeMinute !== undefined ? { closeMinute: minute(body.closeMinute) ?? 59 } : {}),
       ...(body.closedMessage !== undefined ? { closedMessage: String(body.closedMessage) } : {}),
       ...(body.forceClosed !== undefined ? { forceClosed: Boolean(body.forceClosed) } : {}),
       ...(body.autoConfirmOrders !== undefined

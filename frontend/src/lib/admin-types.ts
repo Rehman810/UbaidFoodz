@@ -31,6 +31,8 @@ export type AdminStats = {
   categoryBreakdown: { category: string; revenue: number; orders: number }[];
   statusBreakdown: Partial<Record<OrderStatus, number>>;
   recentOrders: Order[];
+  posTodayOrders: number;
+  posTodayRevenue: number;
 };
 
 export type AnalyticsPeriod = "today" | "week" | "month" | "year";

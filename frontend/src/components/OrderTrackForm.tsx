@@ -19,19 +19,17 @@ export function OrderTrackForm({ compact }: { compact?: boolean }) {
     setError("");
     setBusy(true);
     try {
-      const order = await api<Order & { guestAccessToken?: string }>("/orders/track", {
+      const order = await api<Order & { accessToken?: string }>("/orders/track", {
         method: "POST",
         body: JSON.stringify({
           orderNumber: orderNumber.trim().toUpperCase(),
           phone: phone.trim(),
         }),
       });
-      if (order.guestAccessToken) {
-        saveGuestOrderToken(order.id, order.guestAccessToken);
-        router.push(`/orders/${order.id}?token=${encodeURIComponent(order.guestAccessToken)}`);
-      } else {
-        router.push(`/orders/${order.id}`);
+      if (order.accessToken) {
+        saveGuestOrderToken(order.id, order.accessToken);
       }
+      router.push(`/orders/${order.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not find order.");
     } finally {

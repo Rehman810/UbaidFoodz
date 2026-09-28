@@ -7,6 +7,7 @@ import {
   Role,
 } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { findOrderBlock } from "../lib/blocklist";
 import { buildOrderLines, nextOrderNumber } from "../lib/order-lines";
 import { emitOrderChange } from "../lib/realtime";
 import { getStoreSettings } from "../lib/settings-data";
@@ -108,6 +109,13 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIE
 
   const name = String(customerName || "").trim() || "Walk-in";
   const phone = normalizePhone(String(customerPhone || ""));
+
+  const blocked = await findOrderBlock(null, phone || "");
+  if (blocked) {
+    return res.status(403).json({
+      error: "This contact is blocked from ordering. Contact a manager.",
+    });
+  }
 
   const order = await prisma.order.create({
     data: {

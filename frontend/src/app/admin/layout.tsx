@@ -26,19 +26,45 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { PublicStore } from "@/lib/types";
 
-const NAV = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
-  { href: "/admin/pos", label: "POS", icon: Receipt },
-  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-  { href: "/admin/tracking", label: "Live tracking", icon: Map },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
-  { href: "/admin/areas", label: "Areas", icon: MapPinned },
-  { href: "/admin/customers", label: "Customers", icon: Users },
-  { href: "/admin/riders", label: "Riders", icon: Bike },
-  { href: "/admin/staff", label: "Staff", icon: UserCog },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
+type NavSection = { title: string; items: NavItem[] };
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: "Overview",
+    items: [
+      { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+      { href: "/admin/pos", label: "POS", icon: Receipt },
+      { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+      { href: "/admin/tracking", label: "Live tracking", icon: Map },
+    ],
+  },
+  {
+    title: "Catalog",
+    items: [
+      { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+      { href: "/admin/areas", label: "Areas", icon: MapPinned },
+    ],
+  },
+  {
+    title: "People",
+    items: [
+      { href: "/admin/customers", label: "Customers", icon: Users },
+      { href: "/admin/riders", label: "Riders", icon: Bike },
+      { href: "/admin/staff", label: "Staff", icon: UserCog },
+    ],
+  },
+  {
+    title: "System",
+    items: [{ href: "/admin/settings", label: "Settings", icon: Settings }],
+  },
 ];
 
 const MOBILE_NAV = [
@@ -51,10 +77,24 @@ const MOBILE_NAV = [
 
 const SIDEBAR_KEY = "uff-admin-sidebar-collapsed";
 
-function navForRole(role: Role) {
-  if (role === "CHEF") return NAV.filter((n) => n.href === "/admin/kitchen");
-  if (role === "CASHIER") return NAV.filter((n) => n.href === "/admin/pos");
-  return NAV;
+function navSectionsForRole(role: Role): NavSection[] {
+  if (role === "CHEF") {
+    return [
+      {
+        title: "Operations",
+        items: [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }],
+      },
+    ];
+  }
+  if (role === "CASHIER") {
+    return [
+      {
+        title: "Operations",
+        items: [{ href: "/admin/pos", label: "POS", icon: Receipt }],
+      },
+    ];
+  }
+  return NAV_SECTIONS;
 }
 
 const MOBILE_FOR_ROLE: Record<Role, typeof MOBILE_NAV> = {
@@ -123,7 +163,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  const sidebarNav = navForRole(user.role);
+  const sidebarSections = navSectionsForRole(user.role);
   const mobileNav = MOBILE_FOR_ROLE[user.role];
   const isPos = path.startsWith("/admin/pos");
 
@@ -145,28 +185,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          <nav className={`flex gap-1 overflow-x-auto py-2 lg:flex-1 lg:flex-col lg:overflow-y-auto ${collapsed ? "px-2 lg:px-2" : "px-3"}`}>
-            {sidebarNav.map((n) => {
-              const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
-              const Icon = n.icon;
-              return (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  title={n.label}
-                  className={`flex shrink-0 items-center rounded-xl text-sm font-semibold transition ${
-                    collapsed ? "lg:justify-center lg:px-0 lg:py-3" : "gap-2.5 px-3 py-2.5"
-                  } ${
-                    active
-                      ? "bg-brand-50 text-brand-800 ring-1 ring-brand-100"
-                      : "text-stone-500 hover:bg-stone-50 hover:text-stone-900"
+          <nav className={`flex gap-1 overflow-x-auto py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:overflow-y-auto ${collapsed ? "px-2 lg:px-2" : "px-3"}`}>
+            {sidebarSections.map((section, sectionIdx) => (
+              <div
+                key={section.title}
+                className={`flex shrink-0 gap-1 lg:mb-3 lg:w-full lg:flex-col lg:last:mb-0 ${
+                  sectionIdx > 0 ? "lg:border-t lg:border-orange-100/80 lg:pt-3" : ""
+                }`}
+              >
+                <p
+                  className={`mb-1.5 hidden px-3 text-[10px] font-bold uppercase tracking-widest text-stone-400 lg:block ${
+                    collapsed ? "lg:hidden" : ""
                   }`}
                 >
-                  <Icon size={18} className={active ? "text-brand-600" : ""} />
-                  <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
-                </Link>
-              );
-            })}
+                  {section.title}
+                </p>
+                {section.items.map((n) => {
+                  const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
+                  const Icon = n.icon;
+                  return (
+                    <Link
+                      key={n.href}
+                      href={n.href}
+                      title={n.label}
+                      className={`flex shrink-0 items-center rounded-xl text-sm font-semibold transition ${
+                        collapsed ? "lg:justify-center lg:px-0 lg:py-3" : "gap-2.5 px-3 py-2.5"
+                      } ${
+                        active
+                          ? "bg-brand-50 text-brand-800 ring-1 ring-brand-100"
+                          : "text-stone-500 hover:bg-stone-50 hover:text-stone-900"
+                      }`}
+                    >
+                      <Icon size={18} className={active ? "text-brand-600" : ""} />
+                      <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           <div className={`hidden border-t border-orange-100/80 p-3 lg:block ${collapsed ? "px-2" : ""}`}>

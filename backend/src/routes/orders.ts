@@ -22,6 +22,12 @@ import { generateInvoicePdf } from "../lib/invoice";
 import { clientIp, parseCoord } from "../lib/client-ip";
 import { deliveryNeedsRider, pickLeastBusyRider } from "../lib/rider-assign";
 import { getStoreSettings } from "../lib/settings-data";
+import { buildOrderLines, nextOrderNumber } from "../lib/order-lines";
+import {
+  canTransitionStatus,
+  chefNextStatus,
+} from "../lib/order-status";
+import { signOrderViewToken } from "../lib/order-access";
 import { effectiveItemPrice, isStoreOpen } from "../lib/store-settings";
 
 export const ordersRouter = Router();
@@ -32,15 +38,6 @@ const include = {
   invoice: true,
   deliveryArea: { select: { id: true, name: true, deliveryCharge: true } },
 };
-
-async function nextOrderNumber() {
-  const last = await prisma.order.findFirst({
-    orderBy: { orderNumber: "desc" },
-    select: { orderNumber: true },
-  });
-  const n = last ? parseInt(last.orderNumber.replace(/\D/g, ""), 10) || 1000 : 1000;
-  return `UF-${n + 1}`;
-}
 
 function normalizePhone(phone: string) {
   const cleaned = phone.replace(/[^\d+]/g, "").trim();
@@ -144,7 +141,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   }
 
   const user = req.user;
-  const isRegisteredCustomer = user?.role === Role.CUSTOMER || user?.role === Role.ADMIN;
+  const isRegisteredCustomer = user?.role === Role.CUSTOMER;
   const guestAccessToken = isRegisteredCustomer ? null : crypto.randomBytes(32).toString("base64url");
 
   const menuItems = await prisma.menuItem.findMany({
@@ -339,12 +336,36 @@ ordersRouter.get("/mine", requireAuth, async (req, res) => {
   res.json(orders);
 });
 
-ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF), async (_req, res) => {
-  const orders = await prisma.order.findMany({
-    include: { ...include, customer: { select: { id: true, name: true, email: true } } },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json(orders);
+ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF), async (req, res) => {
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const status = req.query.status as OrderStatus | undefined;
+  const search = String(req.query.search || "").trim();
+
+  const where = {
+    ...(status && Object.values(OrderStatus).includes(status) ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { orderNumber: { contains: search, mode: "insensitive" as const } },
+            { customerName: { contains: search, mode: "insensitive" as const } },
+            { customerPhone: { contains: search.replace(/\D/g, "") } },
+          ],
+        }
+      : {}),
+  };
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: { ...include, customer: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.order.count({ where }),
+  ]);
+  res.json({ orders, total, limit, offset });
 });
 
 ordersRouter.post("/track", trackLimiter, async (req, res) => {
@@ -366,11 +387,7 @@ ordersRouter.post("/track", trackLimiter, async (req, res) => {
     return res.status(403).json({ error: "Phone number does not match this order." });
   }
 
-  const payload = stripGuestToken(order);
-  if (order.guestAccessToken) {
-    return res.json({ ...payload, guestAccessToken: order.guestAccessToken });
-  }
-  res.json(payload);
+  res.json({ ...stripGuestToken(order), accessToken: signOrderViewToken(order.id) });
 });
 
 ordersRouter.get("/:id", optionalAuth, async (req, res) => {
@@ -435,13 +452,15 @@ ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN, Role.CHEF
   if (!existing) return res.status(404).json({ error: "Order not found." });
 
   if (req.user!.role === Role.CHEF) {
-    const chefAllowed: OrderStatus[] = [
-      OrderStatus.PREPARING,
-      OrderStatus.OUT_FOR_DELIVERY,
-      OrderStatus.DELIVERED,
-    ];
-    if (!chefAllowed.includes(status) || existing.status === OrderStatus.AWAITING_CONFIRMATION) {
-      return res.status(403).json({ error: "Chefs can only bump kitchen tickets." });
+    const next = chefNextStatus(existing.status);
+    if (!next || status !== next) {
+      return res.status(403).json({ error: "Chefs can only advance orders one kitchen step at a time." });
+    }
+  } else if (req.user!.role === Role.ADMIN) {
+    if (!canTransitionStatus(existing.status, status)) {
+      return res.status(400).json({
+        error: `Cannot change status from ${existing.status} to ${status}.`,
+      });
     }
   }
 

@@ -139,10 +139,18 @@ export async function buildOrderLines(
 }
 
 export async function nextOrderNumber() {
-  const last = await prisma.order.findFirst({
-    orderBy: { orderNumber: "desc" },
-    select: { orderNumber: true },
-  });
-  const n = last ? parseInt(last.orderNumber.replace(/\D/g, ""), 10) || 1000 : 1000;
-  return `UF-${n + 1}`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const last = await prisma.order.findFirst({
+      orderBy: { orderNumber: "desc" },
+      select: { orderNumber: true },
+    });
+    const n = last ? parseInt(last.orderNumber.replace(/\D/g, ""), 10) || 1000 : 1000;
+    const candidate = `UF-${n + 1 + attempt}`;
+    const exists = await prisma.order.findFirst({
+      where: { orderNumber: candidate },
+      select: { id: true },
+    });
+    if (!exists) return candidate;
+  }
+  return `UF-${Date.now().toString().slice(-6)}`;
 }

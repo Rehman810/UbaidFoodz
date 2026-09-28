@@ -48,15 +48,28 @@ authRouter.post("/register", authLimiter, async (req, res) => {
   const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   if (exists) return res.status(409).json({ error: "An account with this email already exists." });
 
+  const normalizedPhone = phone?.replace(/[^\d+]/g, "").trim() || null;
   const user = await prisma.user.create({
     data: {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       passwordHash: await bcrypt.hash(password, 12),
       role: Role.CUSTOMER,
-      phone: phone?.trim() || null,
+      phone: normalizedPhone,
     },
   });
+
+  if (normalizedPhone && normalizedPhone.length >= 10) {
+    const digits = normalizedPhone.slice(-10);
+    await prisma.order.updateMany({
+      where: {
+        customerId: null,
+        customerPhone: { endsWith: digits },
+      },
+      data: { customerId: user.id },
+    });
+  }
+
   const payload = { id: user.id, role: user.role, email: user.email, name: user.name };
   res.json({ token: signToken(payload), user: publicUser(user) });
 });
@@ -116,7 +129,15 @@ authRouter.post("/forgot-password", authLimiter, async (req, res) => {
   if (!email) return res.status(400).json({ error: "Email is required." });
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (user && user.isActive && user.role === Role.CUSTOMER) {
+  if (
+    user &&
+    user.isActive &&
+    (user.role === Role.CUSTOMER ||
+      user.role === Role.ADMIN ||
+      user.role === Role.CHEF ||
+      user.role === Role.RIDER ||
+      user.role === Role.CASHIER)
+  ) {
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 60 * 60 * 1000);
     await prisma.user.update({

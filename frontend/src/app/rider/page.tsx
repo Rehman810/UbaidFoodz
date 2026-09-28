@@ -12,6 +12,7 @@ export default function RiderDeliveriesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -38,8 +39,13 @@ export default function RiderDeliveriesPage() {
   }, [load]);
 
   async function act(id: string, action: "PICKED_UP" | "DELIVERED") {
-    await api(`/rider/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ action }) });
-    load(true);
+    setActionError("");
+    try {
+      await api(`/rider/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ action }) });
+      await load(true);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not update delivery status.");
+    }
   }
 
   const active = orders.filter((o) => o.status !== "DELIVERED");
@@ -64,6 +70,10 @@ export default function RiderDeliveriesPage() {
           Refresh
         </button>
       </div>
+
+      {actionError && (
+        <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p>
+      )}
 
       {loading ? (
         <div className="space-y-3">

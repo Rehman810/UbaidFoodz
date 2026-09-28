@@ -103,12 +103,20 @@ export function Navbar() {
                 Sign out
               </button>
             ) : (
-              <Link
-                href="/login"
-                className="hidden h-9 items-center rounded-full bg-brand-600 px-3 text-xs font-semibold leading-none text-white hover:bg-brand-700 sm:inline-flex sm:h-10 sm:px-4 sm:text-sm"
-              >
-                Sign in
-              </Link>
+              <>
+                <Link
+                  href="/register"
+                  className="hidden h-9 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-semibold leading-none text-ink hover:bg-brand-50 sm:inline-flex sm:h-10 sm:px-4 sm:text-sm"
+                >
+                  Register
+                </Link>
+                <Link
+                  href="/login"
+                  className="hidden h-9 items-center rounded-full bg-brand-600 px-3 text-xs font-semibold leading-none text-white hover:bg-brand-700 sm:inline-flex sm:h-10 sm:px-4 sm:text-sm"
+                >
+                  Sign in
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -162,9 +170,14 @@ export function Navbar() {
                   Sign out
                 </button>
               ) : (
-                <Link href="/login" onClick={() => setOpen(false)} className="btn-primary w-full">
-                  Sign in
-                </Link>
+                <div className="grid gap-2">
+                  <Link href="/register" onClick={() => setOpen(false)} className="btn-ghost w-full">
+                    Create account
+                  </Link>
+                  <Link href="/login" onClick={() => setOpen(false)} className="btn-primary w-full">
+                    Sign in
+                  </Link>
+                </div>
               )}
             </div>
           </aside>

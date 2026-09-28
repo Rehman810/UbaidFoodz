@@ -15,6 +15,7 @@ import {
 import {
   ClipboardList,
   PackageCheck,
+  Receipt,
   RefreshCw,
   TrendingUp,
   Wallet,
@@ -115,11 +116,11 @@ export default function AdminDashboard() {
         <StatCard label="Avg order value" value={pkr(stats.avgOrderValue)} icon={TrendingUp} accent="emerald" sub="PKR" />
         <StatCard label="Delivered today" value={stats.deliveredToday} icon={PackageCheck} accent="emerald" sub="done" />
         <StatCard
-          label="This month revenue"
-          value={pkr(stats.monthRevenue ?? 0)}
-          icon={Wallet}
+          label="POS sales today"
+          value={pkr(stats.posTodayRevenue ?? 0)}
+          icon={Receipt}
           accent="brand"
-          sub={new Date().toLocaleDateString("en-PK", { month: "short" })}
+          sub={`${stats.posTodayOrders ?? 0} counter orders`}
         />
       </div>
 

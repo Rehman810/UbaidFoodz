@@ -37,7 +37,11 @@ export function initRealtime(httpServer: HttpServer) {
 
   io.on("connection", (socket) => {
     const user = socket.data.user as SocketUser | undefined;
-    if (user?.role === Role.ADMIN || user?.role === Role.CHEF) {
+    if (
+      user?.role === Role.ADMIN ||
+      user?.role === Role.CHEF ||
+      user?.role === Role.CASHIER
+    ) {
       socket.join("ops");
     }
     if (user?.role === Role.RIDER) {
@@ -48,10 +52,25 @@ export function initRealtime(httpServer: HttpServer) {
     }
     if (user) socket.join(`user:${user.id}`);
 
-    socket.on("watch-order", (orderId: string) => {
-      if (typeof orderId === "string" && orderId.length < 80) {
-        socket.join(`order:${orderId}`);
-      }
+    socket.on("watch-order", async (payload: string | { orderId?: string; token?: string }) => {
+      const orderId = typeof payload === "string" ? payload : payload?.orderId;
+      const token = typeof payload === "object" ? payload?.token : undefined;
+      if (!orderId || orderId.length > 80) return;
+
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, customerId: true, riderId: true, guestAccessToken: true },
+      });
+      if (!order) return;
+
+      const u = socket.data.user as SocketUser | undefined;
+      const allowed =
+        (u?.role === Role.ADMIN || u?.role === Role.CHEF || u?.role === Role.CASHIER) ||
+        (u && order.customerId === u.id) ||
+        (u && order.riderId === u.id) ||
+        (token && order.guestAccessToken && token === order.guestAccessToken);
+
+      if (allowed) socket.join(`order:${orderId}`);
     });
   });
 

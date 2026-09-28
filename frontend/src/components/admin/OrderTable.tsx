@@ -4,15 +4,16 @@ import { Bike, Download, Phone } from "lucide-react";
 import { downloadInvoice } from "@/lib/api";
 import { formatWhen, pkr } from "@/lib/format";
 import { Rider } from "@/lib/admin-types";
-import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
+import { forwardStatusOptions, Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { AdminSelect } from "./AdminSelect";
 
-const STATUS_OPTIONS = Object.entries(STATUS_LABEL).map(([k, v]) => ({
-  value: k,
-  label: v,
-  status: k as OrderStatus,
-}));
+function statusOptionsFor(order: Order) {
+  const allowed = new Set(forwardStatusOptions(order.status));
+  return Object.entries(STATUS_LABEL)
+    .filter(([k]) => allowed.has(k as OrderStatus))
+    .map(([k, v]) => ({ value: k, label: v, status: k as OrderStatus }));
+}
 
 function itemSummary(order: Order) {
   return order.items.map((i) => `${i.quantity}× ${i.nameAtOrder}`).join(", ");
@@ -107,7 +108,7 @@ export function OrderTable({
                       value={order.status}
                       aria-label={`Status for ${order.orderNumber}`}
                       minWidth="min-w-[150px]"
-                      options={STATUS_OPTIONS}
+                      options={statusOptionsFor(order)}
                       onChange={(v) => onStatus(order.id, v as OrderStatus)}
                     />
                   </td>

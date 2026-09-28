@@ -18,18 +18,20 @@ function getSocket() {
   return socket;
 }
 
-export function useLiveOrders(onChange: () => void, orderId?: string) {
+export function useLiveOrders(onChange: () => void, orderId?: string, guestToken?: string | null) {
   useEffect(() => {
     const s = getSocket();
     const handler = () => onChange();
     s.on("order:created", handler);
     s.on("order:updated", handler);
-    if (orderId) s.emit("watch-order", orderId);
+    if (orderId) {
+      s.emit("watch-order", guestToken ? { orderId, token: guestToken } : orderId);
+    }
     return () => {
       s.off("order:created", handler);
       s.off("order:updated", handler);
     };
-  }, [onChange, orderId]);
+  }, [onChange, orderId, guestToken]);
 }
 
 export function reconnectLiveSocket() {

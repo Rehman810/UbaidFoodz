@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipboardList, LayoutGrid, RefreshCw, Search, Sparkles, Table2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { fetchAdminOrders } from "@/lib/admin-orders";
 import { pkr } from "@/lib/format";
 import {
   formatDateSpanLabel,
@@ -70,7 +71,7 @@ export default function AdminOrders() {
 
   const load = useCallback(async () => {
     const [orders, stats] = await Promise.all([
-      api<Order[]>("/orders"),
+      fetchAdminOrders({ limit: 500 }),
       api<AdminStats>("/admin/stats"),
     ]);
     return { orders, riders: stats.riders };

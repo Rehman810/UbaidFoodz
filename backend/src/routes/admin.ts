@@ -1,6 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { FulfillmentType, OrderStatus, Role } from "@prisma/client";
+import { FulfillmentType, OrderSource, OrderStatus, Role } from "@prisma/client";
 import { normalizeBlockEmail, normalizeBlockPhone } from "../lib/blocklist";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
@@ -181,6 +181,8 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     riders,
     allOrderItems,
     recentOrders,
+    posTodayOrders,
+    posTodayRevenueAgg,
   ] = await Promise.all([
     prisma.order.count({
       where: { createdAt: { gte: start }, status: { not: OrderStatus.CANCELLED } },
@@ -214,12 +216,28 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
       select: { id: true, name: true, phone: true },
     }),
     prisma.orderItem.findMany({
+      where: { order: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } } },
       select: { nameAtOrder: true, quantity: true, priceAtOrder: true, menuItem: { select: { category: true } } },
     }),
     prisma.order.findMany({
       take: 8,
       orderBy: { createdAt: "desc" },
       include: orderInclude,
+    }),
+    prisma.order.count({
+      where: {
+        createdAt: { gte: start },
+        status: { not: OrderStatus.CANCELLED },
+        orderSource: OrderSource.POS,
+      },
+    }),
+    prisma.order.aggregate({
+      _sum: { total: true },
+      where: {
+        createdAt: { gte: start },
+        status: { not: OrderStatus.CANCELLED },
+        orderSource: OrderSource.POS,
+      },
     }),
   ]);
 
@@ -313,6 +331,8 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     categoryBreakdown,
     statusBreakdown,
     recentOrders,
+    posTodayOrders,
+    posTodayRevenue: Number(posTodayRevenueAgg._sum.total || 0),
   });
 });
 

@@ -15,13 +15,14 @@ import { eta, formatWhen, pkr } from "@/lib/format";
 import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
-import { Order, orderStatusLabel } from "@/lib/types";
+import { Deal, MenuItem, Order, orderStatusLabel } from "@/lib/types";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
   const addConfigured = useCart((s) => s.addConfigured);
+  const addDeal = useCart((s) => s.addDeal);
   const { user, loading: authLoading } = useAuth();
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [tokenResolved, setTokenResolved] = useState(false);
@@ -44,7 +45,7 @@ export default function OrderDetailPage() {
   );
 
   const { data: order, loading, error: pollError, refresh } = usePoll(fetchOrder, 15000, canLoad);
-  useLiveOrders(refresh, id);
+  useLiveOrders(refresh, id, guestToken);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
 
@@ -70,24 +71,40 @@ export default function OrderDetailPage() {
 
   async function repeatOrder() {
     if (!order) return;
-    const menu = await api<{ id: string; name: string; imageUrl: string; price: number }[]>(
-      "/menu"
-    ).catch(() => []);
+    const [menu, deals] = await Promise.all([
+      api<MenuItem[]>("/menu").catch(() => []),
+      api<Deal[]>("/deals?active=true").catch(() => []),
+    ]);
+
+    const addedDeals = new Set<string>();
     for (const line of order.items) {
+      if (line.nameAtOrder.includes(" · ")) {
+        const dealTitle = line.nameAtOrder.split(" · ")[0];
+        const deal = deals.find((d) => d.title === dealTitle);
+        if (!deal || addedDeals.has(deal.id)) continue;
+        const anchor = deal.items[0];
+        const matching = order.items.find(
+          (l) => l.menuItemId === anchor?.menuItemId && l.nameAtOrder.startsWith(`${dealTitle} ·`)
+        );
+        const dealQty = matching && anchor
+          ? Math.max(1, Math.round(matching.quantity / anchor.quantity))
+          : 1;
+        addDeal(deal);
+        if (dealQty > 1) {
+          for (let i = 1; i < dealQty; i++) addDeal(deal);
+        }
+        addedDeals.add(deal.id);
+        continue;
+      }
+
       const item = menu.find((m) => m.id === line.menuItemId);
-      if (!item) continue;
+      if (!item || !item.isAvailable) continue;
       addConfigured({
-        item: {
-          id: item.id,
-          name: line.nameAtOrder,
-          description: "",
-          price: item.price,
-          category: "",
-          imageUrl: item.imageUrl,
-          isAvailable: true,
-        },
+        item,
         price: Number(line.priceAtOrder),
-        optionsLabel: line.nameAtOrder,
+        quantity: line.quantity,
+        optionsLabel: line.optionsLabel || undefined,
+        instructions: line.instructions || undefined,
       });
     }
     router.push("/checkout");

@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { Map, RefreshCw, Timer } from "lucide-react";
 import { api } from "@/lib/api";
+import { fetchAdminOrders } from "@/lib/admin-orders";
 import { pkr } from "@/lib/format";
 import { AdminStats } from "@/lib/admin-types";
 import { Order, STATUS_LABEL } from "@/lib/types";
@@ -21,7 +22,7 @@ const KANBAN_STATUSES = [
 
 export default function TrackingPage() {
   const load = useCallback(async () => {
-    const orders = await api<Order[]>("/orders");
+    const orders = await fetchAdminOrders({ limit: 500 });
     let riders: AdminStats["riders"] = [];
     try {
       const stats = await api<AdminStats>("/admin/stats");

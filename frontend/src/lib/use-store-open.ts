@@ -17,7 +17,7 @@ export function useStoreOpen() {
   if (!store) {
     return {
       loading: true,
-      isOpen: true,
+      isOpen: false,
       closedMessage: "",
       hoursLabel: "",
       statusLabel: "",

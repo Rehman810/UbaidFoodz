@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Bike, Flame, Lock, Mail, ShieldCheck, UserCog } from "lucide-react";
+import { ArrowLeft, Bike, Flame, Lock, Mail, Receipt, ShieldCheck, UserCog } from "lucide-react";
 import { homeFor, resolveLoginRedirect, useAuth } from "@/lib/auth";
 
 const DEMOS = [
@@ -28,14 +28,24 @@ const DEMOS = [
     icon: Bike,
     hint: "Live deliveries & route updates",
   },
+  {
+    role: "Cashier",
+    email: "cashier@ubaidfastfoodz.com",
+    password: "demo123",
+    icon: Receipt,
+    hint: "POS counter & receipts",
+  },
 ];
+
+const IS_PROD = process.env.NODE_ENV === "production";
 
 export default function LoginForm() {
   const { login, verifyTwoFactor } = useAuth();
   const router = useRouter();
   const next = useSearchParams().get("next");
-  const [email, setEmail] = useState(DEMOS[0].email);
-  const [password, setPassword] = useState("demo123");
+  const resetDone = useSearchParams().get("reset") === "1";
+  const [email, setEmail] = useState(IS_PROD ? "" : DEMOS[0].email);
+  const [password, setPassword] = useState(IS_PROD ? "" : "demo123");
   const [otp, setOtp] = useState("");
   const [challenge, setChallenge] = useState("");
   const [error, setError] = useState("");
@@ -147,13 +157,19 @@ export default function LoginForm() {
               <div className="mb-6">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-700">
                   <ShieldCheck size={14} />
-                  Secure staff login
+                  Secure sign in
                 </div>
                 <h1 className="font-display text-3xl text-stone-900 sm:text-4xl">Welcome back</h1>
                 <p className="mt-2 text-sm text-stone-500">
-                  Admin and rider dashboards — not for customer checkout.
+                  Customers, staff, and riders — one login for your Ubaid account.
                 </p>
               </div>
+
+              {resetDone && (
+                <p className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  Password updated. Sign in with your new password.
+                </p>
+              )}
 
               {error && (
                 <p className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -225,8 +241,21 @@ export default function LoginForm() {
                   {busy ? "Signing in…" : challenge ? "Verify code" : "Sign in"}
                 </button>
               </form>
+
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <Link href="/forgot-password" className="font-semibold text-brand-700 hover:underline">
+                  Forgot password?
+                </Link>
+                <Link
+                  href={`/register${next ? `?next=${encodeURIComponent(next)}` : ""}`}
+                  className="font-semibold text-stone-600 hover:text-brand-700 hover:underline"
+                >
+                  Create customer account
+                </Link>
+              </div>
             </div>
 
+            {!IS_PROD && (
             <div className="mt-6">
               <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">
                 Quick demo access
@@ -259,6 +288,7 @@ export default function LoginForm() {
                 })}
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>

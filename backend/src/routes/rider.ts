@@ -17,7 +17,9 @@ riderRouter.get("/orders", requireAuth, requireRole(Role.RIDER), async (req, res
   const orders = await prisma.order.findMany({
     where: {
       riderId: req.user!.id,
-      status: { in: [OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED] },
+      status: {
+        in: [OrderStatus.PREPARING, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED],
+      },
     },
     include,
     orderBy: { createdAt: "desc" },
@@ -30,6 +32,12 @@ riderRouter.patch("/orders/:id/status", requireAuth, requireRole(Role.RIDER), as
   const order = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!order || order.riderId !== req.user!.id) {
     return res.status(404).json({ error: "Order not assigned to you." });
+  }
+  if (action === "PICKED_UP" && order.status !== OrderStatus.PREPARING) {
+    return res.status(400).json({ error: "Order is not ready for pickup." });
+  }
+  if (action === "DELIVERED" && order.status !== OrderStatus.OUT_FOR_DELIVERY) {
+    return res.status(400).json({ error: "Mark the order picked up before delivering." });
   }
   let status: OrderStatus = order.status;
   if (action === "PICKED_UP") status = OrderStatus.OUT_FOR_DELIVERY;

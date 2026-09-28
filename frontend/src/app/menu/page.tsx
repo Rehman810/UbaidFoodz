@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { StoreShell } from "@/components/StoreShell";
 import { MenuCard } from "@/components/MenuCard";
+import { MenuFilters } from "@/components/MenuFilters";
 import { api } from "@/lib/api";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, MenuItem } from "@/lib/types";
 
@@ -10,6 +11,7 @@ export default function MenuPage() {
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [categories, setCategories] = useState<string[]>([...DEFAULT_CATEGORIES]);
   const [cat, setCat] = useState<string>("All");
+  const [search, setSearch] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -24,43 +26,97 @@ export default function MenuPage() {
       .catch((e) => setError(e.message));
   }, []);
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of items ?? []) {
+      counts[item.category] = (counts[item.category] || 0) + 1;
+    }
+    return counts;
+  }, [items]);
+
   const filtered = useMemo(() => {
     if (!items) return [];
     const sorted = [...items].sort(
       (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
-    if (cat === "All") return sorted;
-    return sorted.filter((i) => i.category === cat);
-  }, [items, cat]);
+    let list = cat === "All" ? sorted : sorted.filter((i) => i.category === cat);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (i) =>
+          i.name.toLowerCase().includes(q) ||
+          i.description.toLowerCase().includes(q) ||
+          i.category.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [items, cat, search]);
+
+  const subtitle = search.trim()
+    ? `${filtered.length} result${filtered.length === 1 ? "" : "s"} for “${search.trim()}”`
+    : cat === "All"
+      ? `${filtered.length} dishes across all categories`
+      : `${filtered.length} in ${cat}`;
 
   return (
     <StoreShell>
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-700">Full menu</p>
-        <h1 className="font-display mt-1 text-4xl">What are you craving?</h1>
-        <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
-          {["All", ...categories].map((c) => (
-            <button
-              key={c}
-              onClick={() => setCat(c)}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
-                cat === c ? "bg-brand-600 text-white" : "bg-white text-stone-600 shadow-card"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+      <div className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand-600">Full menu</p>
+            <h1 className="font-display mt-2 text-4xl text-stone-900 sm:text-5xl">What are you craving?</h1>
+          </div>
+          {items && (
+            <p className="text-sm font-medium text-stone-500 sm:text-right">{subtitle}</p>
+          )}
         </div>
 
-        {error && <p className="mt-8 text-sm text-red-600">{error}</p>}
+        <MenuFilters
+          categories={categories}
+          category={cat}
+          onCategoryChange={setCat}
+          search={search}
+          onSearchChange={setSearch}
+          counts={categoryCounts}
+          totalCount={items?.length ?? 0}
+        />
+
+        {error && (
+          <p className="mt-8 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
         {!items && !error && (
           <div className="mt-8 grid grid-cols-1 gap-3 lg:grid-cols-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="skeleton h-[7.5rem]" />
+              <div key={i} className="skeleton h-[7.5rem] rounded-2xl" />
             ))}
           </div>
         )}
-        {items && (
+
+        {items && filtered.length === 0 && (
+          <div className="mt-10 rounded-3xl border border-dashed border-orange-200 bg-white px-6 py-12 text-center shadow-sm">
+            <p className="font-display text-xl text-stone-800">Nothing found</p>
+            <p className="mt-2 text-sm text-stone-500">
+              Try a different keyword or switch category. Popular picks: biryani, zinger, broast.
+            </p>
+            {(search || cat !== "All") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setCat("All");
+                }}
+                className="btn-ghost mt-5"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
+
+        {items && filtered.length > 0 && (
           <div className="mt-8 grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
             {filtered.map((item) => (
               <MenuCard key={item.id} item={item} />

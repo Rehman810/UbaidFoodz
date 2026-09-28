@@ -92,6 +92,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!items.length) {
       setCartChecked(true);
+      router.replace("/menu");
       return;
     }
     pruneStaleCartLines(items, remove)
@@ -168,10 +169,8 @@ export default function CheckoutPage() {
       clear();
       if (order.guestAccessToken) {
         saveGuestOrderToken(order.id, order.guestAccessToken);
-        router.push(`/orders/${order.id}?token=${encodeURIComponent(order.guestAccessToken)}`);
-      } else {
-        router.push(`/orders/${order.id}`);
       }
+      router.push(`/orders/${order.id}`);
     } catch (err) {
       const raw = err instanceof Error ? err.message : "Could not place order";
       setError(friendlyOrderError(raw));

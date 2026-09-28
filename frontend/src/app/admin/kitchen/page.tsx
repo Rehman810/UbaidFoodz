@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellOff, ChefHat, RefreshCw, Timer, Volume2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { fetchAdminOrders } from "@/lib/admin-orders";
 import { Order, OrderStatus } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
@@ -46,7 +47,7 @@ export default function KitchenPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seenRef = useRef<Set<string> | null>(null);
 
-  const load = useCallback(() => api<Order[]>("/orders"), []);
+  const load = useCallback(() => fetchAdminOrders({ limit: 500 }), []);
   const { data, loading, error, refresh } = usePoll(load, 5000);
   useLiveOrders(refresh);
 
