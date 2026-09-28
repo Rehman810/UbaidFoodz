@@ -14,10 +14,12 @@ if ! head -1 "$KEY" | grep -q 'BEGIN.*PRIVATE KEY'; then
   exit 1
 fi
 
+B64=$(base64 -w 0 "$KEY")
 echo "Copy the SINGLE line below into GitHub → Secrets → ORACLE_SSH_PRIVATE_KEY_B64"
+echo "Length must be exactly ${#B64} characters (check after pasting in GitHub)."
 echo "Then delete any old ORACLE_SSH_PRIVATE_KEY from Variables/Secrets."
 echo "---"
-base64 -w 0 "$KEY"
+echo "$B64"
 echo ""
 echo "---"
 echo "Done. Do not commit or share this output."

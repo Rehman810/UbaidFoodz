@@ -129,20 +129,29 @@ jobs:
       - name: Prepare SSH key file
         run: |
           KEY_FILE="$RUNNER_TEMP/oracle_deploy_key"
-          # Trim whitespace; secret must be one-line base64 only
           B64="$(echo -n "$ORACLE_SSH_PRIVATE_KEY_B64" | tr -d '\n\r ')"
+          B64_LEN=${#B64}
+          echo "Base64 secret length: $B64_LEN chars (deploy key ~560, oracle .key ~2240)"
+          if [ "$B64_LEN" -lt 400 ]; then
+            echo "::error::Secret too short ($B64_LEN chars) — you pasted an incomplete key."
+            echo "On your PC run: cat ~/gha-oracle-deploy-b64.txt"
+            echo "Copy the ENTIRE line into GitHub Secrets → ORACLE_SSH_PRIVATE_KEY_B64"
+            exit 1
+          fi
           if ! echo "$B64" | base64 -d > "$KEY_FILE" 2>/dev/null; then
             echo "::error::ORACLE_SSH_PRIVATE_KEY_B64 is not valid base64."
-            echo "Regenerate: bash scripts/print-github-ssh-b64.sh \"/path/to/ssh-key.key\""
             exit 1
           fi
           chmod 600 "$KEY_FILE"
+          KEY_BYTES=$(wc -c < "$KEY_FILE")
+          echo "Decoded key size: $KEY_BYTES bytes"
           if ! grep -q 'BEGIN.*PRIVATE KEY' "$KEY_FILE"; then
-            echo "::error::Decoded key is invalid. Paste the FULL base64 line from print-github-ssh-b64.sh"
+            echo "::error::Decoded file is not a private key. Wrong base64 pasted."
+            echo "Use: cat ~/gha-oracle-deploy-b64.txt  (new deploy-only key, already on server)"
             exit 1
           fi
           if ! ssh-keygen -y -f "$KEY_FILE" >/dev/null 2>&1; then
-            echo "::error::Decoded key cannot be parsed. Regenerate ORACLE_SSH_PRIVATE_KEY_B64."
+            echo "::error::Key file corrupt. Re-copy the full line from ~/gha-oracle-deploy-b64.txt"
             exit 1
           fi
           echo "SSH key OK"
