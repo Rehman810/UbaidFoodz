@@ -1,3 +1,5 @@
+import { canTransition } from "./order-machine";
+
 export type Role = "CUSTOMER" | "ADMIN" | "RIDER" | "CHEF" | "CASHIER";
 
 export type User = {
@@ -196,11 +198,14 @@ export type DeliveryArea = {
 };
 
 export type OrderStatus =
-  | "AWAITING_CONFIRMATION"
-  | "PENDING"
+  | "PENDING_CONFIRMATION"
+  | "CONFIRMED"
   | "PREPARING"
+  | "READY"
   | "OUT_FOR_DELIVERY"
   | "DELIVERED"
+  | "COLLECTED"
+  | "SERVED"
   | "CANCELLED";
 
 export type Order = {
@@ -248,40 +253,39 @@ export const CATEGORIES = [
 ] as const;
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
-  AWAITING_CONFIRMATION: "Awaiting call",
-  PENDING: "Confirmed",
+  PENDING_CONFIRMATION: "Awaiting confirmation",
+  CONFIRMED: "Confirmed",
   PREPARING: "Preparing",
+  READY: "Ready",
   OUT_FOR_DELIVERY: "Out for delivery",
   DELIVERED: "Delivered",
+  COLLECTED: "Collected",
+  SERVED: "Served",
   CANCELLED: "Cancelled",
 };
 
 export function orderStatusLabel(status: OrderStatus, fulfillment?: FulfillmentType | null) {
-  if (fulfillment === "PICKUP" || fulfillment === "DINE_IN") {
-    if (status === "OUT_FOR_DELIVERY") {
-      return fulfillment === "DINE_IN" ? "Ready to serve" : "Ready for pickup";
-    }
-    if (status === "DELIVERED") {
-      return fulfillment === "DINE_IN" ? "Served" : "Collected";
-    }
-  }
+  if (status === "READY" && fulfillment === "DINE_IN") return "Ready to serve";
+  if (status === "READY" && fulfillment === "PICKUP") return "Ready for pickup";
   return STATUS_LABEL[status];
 }
 
 export const STATUS_FLOW: OrderStatus[] = [
-  "AWAITING_CONFIRMATION",
-  "PENDING",
+  "PENDING_CONFIRMATION",
+  "CONFIRMED",
   "PREPARING",
+  "READY",
   "OUT_FOR_DELIVERY",
   "DELIVERED",
 ];
 
-/** Kanban / pipeline: orders may only advance, never move back. */
-export function canMoveForward(from: OrderStatus, to: OrderStatus): boolean {
-  const fromIdx = STATUS_FLOW.indexOf(from);
-  const toIdx = STATUS_FLOW.indexOf(to);
-  if (fromIdx < 0 || toIdx < 0) return false;
-  return toIdx > fromIdx;
+/** Kanban / pipeline: one legal step forward for this fulfillment type. */
+export function canMoveForward(
+  from: OrderStatus,
+  to: OrderStatus,
+  fulfillment?: FulfillmentType | null
+): boolean {
+  return from !== to && canTransition(from, to, fulfillment || "DELIVERY");
 }
 
 export function isBackwardMove(from: OrderStatus, to: OrderStatus): boolean {

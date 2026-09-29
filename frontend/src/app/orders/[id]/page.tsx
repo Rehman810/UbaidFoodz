@@ -52,7 +52,7 @@ export default function OrderDetailPage() {
   const accessDenied = needsTrack || pollError?.toLowerCase().includes("access");
   const canCancel =
     order &&
-    (order.status === "AWAITING_CONFIRMATION" || order.status === "PENDING");
+    (order.status === "PENDING_CONFIRMATION" || order.status === "CONFIRMED");
 
   async function cancelOrder() {
     if (!order || !canCancel) return;
@@ -135,7 +135,7 @@ export default function OrderDetailPage() {
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
-                  {order.status === "AWAITING_CONFIRMATION" ? "Order received" : "Order confirmed"}
+                  {order.status === "PENDING_CONFIRMATION" ? "Order received" : "Order confirmed"}
                 </p>
                 <h1 className="font-display text-4xl">{order.orderNumber}</h1>
                 <div className="pt-1">
@@ -145,13 +145,13 @@ export default function OrderDetailPage() {
               </div>
               <CheckCircle2
                 className={`shrink-0 ${
-                  order.status === "AWAITING_CONFIRMATION" ? "text-orange-500" : "text-emerald-500"
+                  order.status === "PENDING_CONFIRMATION" ? "text-orange-500" : "text-emerald-500"
                 }`}
                 size={32}
               />
             </div>
 
-            {order.status === "AWAITING_CONFIRMATION" ? (
+            {order.status === "PENDING_CONFIRMATION" ? (
               <p className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3.5 text-sm leading-relaxed text-orange-950">
                 We&apos;ll call you on <strong>{order.customerPhone}</strong> shortly to verify this order before the kitchen starts.
               </p>

@@ -44,11 +44,14 @@ enum PaymentMethod {
 }
 
 enum OrderStatus {
-  AWAITING_CONFIRMATION
-  PENDING
+  PENDING_CONFIRMATION
+  CONFIRMED
   PREPARING
+  READY
   OUT_FOR_DELIVERY
   DELIVERED
+  COLLECTED
+  SERVED
   CANCELLED
 }
 
@@ -264,7 +267,7 @@ model Order {
   guestAccessToken String?         @unique
   riderId          String?
   rider            User?           @relation("RiderOrders", fields: [riderId], references: [id])
-  status           OrderStatus     @default(PENDING)
+  status           OrderStatus     @default(PENDING_CONFIRMATION)
   orderSource      OrderSource     @default(ONLINE)
   paymentMethod    PaymentMethod?
   paymentStatus    String          @default("PAID")
@@ -288,6 +291,21 @@ model Order {
   updatedAt        DateTime        @updatedAt
   items            OrderItem[]
   invoice          Invoice?
+  events           OrderEvent[]
+}
+
+model OrderEvent {
+  id         String       @id @default(uuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorId    String?
+  actorRole  String?
+  reason     String?
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt])
 }
 
 model OrderItem {

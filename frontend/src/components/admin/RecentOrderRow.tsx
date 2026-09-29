@@ -29,7 +29,7 @@ export function RecentOrderRow({
     order.fulfillmentType !== "PICKUP" &&
     order.status !== "DELIVERED" &&
     order.status !== "CANCELLED" &&
-    order.status !== "AWAITING_CONFIRMATION";
+    order.status !== "PENDING_CONFIRMATION";
   const theme = STATUS_THEME[order.status];
 
   return (

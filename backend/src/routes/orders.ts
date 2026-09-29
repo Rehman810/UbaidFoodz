@@ -100,8 +100,8 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   const email = normalizeEmail(customerEmail);
   const trimmedName = String(customerName || "").trim();
   const initialStatus = storeSettings.autoConfirmOrders
-    ? OrderStatus.PENDING
-    : OrderStatus.AWAITING_CONFIRMATION;
+    ? OrderStatus.CONFIRMED
+    : OrderStatus.PENDING_CONFIRMATION;
   const mode: FulfillmentType =
     fulfillmentType === FulfillmentType.PICKUP ? FulfillmentType.PICKUP : FulfillmentType.DELIVERY;
   const trimmedAddress =
@@ -408,16 +408,28 @@ ordersRouter.patch("/:id/cancel", optionalAuth, async (req, res) => {
   if (!canAccessOrder(existing, req.user, token)) {
     return res.status(403).json({ error: "You do not have access to this order." });
   }
-  if (
-    existing.status !== OrderStatus.AWAITING_CONFIRMATION &&
-    existing.status !== OrderStatus.PENDING
-  ) {
+  if (!canTransitionStatus(existing.status, OrderStatus.CANCELLED, existing.fulfillmentType)) {
     return res.status(400).json({ error: "This order can no longer be cancelled." });
+  }
+  const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+  if (!reason) {
+    return res.status(400).json({ error: "A reason is required to cancel an order." });
   }
 
   const order = await prisma.order.update({
     where: { id: existing.id },
-    data: { status: OrderStatus.CANCELLED },
+    data: {
+      status: OrderStatus.CANCELLED,
+      events: {
+        create: {
+          fromStatus: existing.status,
+          toStatus: OrderStatus.CANCELLED,
+          actorId: req.user?.id,
+          actorRole: req.user?.role,
+          reason,
+        },
+      },
+    },
     include,
   });
   void sendOrderCancelledEmail(order);
@@ -428,12 +440,22 @@ ordersRouter.patch("/:id/cancel", optionalAuth, async (req, res) => {
 ordersRouter.patch("/:id/confirm", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include });
   if (!existing) return res.status(404).json({ error: "Order not found." });
-  if (existing.status !== OrderStatus.AWAITING_CONFIRMATION) {
+  if (existing.status !== OrderStatus.PENDING_CONFIRMATION) {
     return res.status(400).json({ error: "Only unconfirmed orders can be confirmed." });
   }
   const order = await prisma.order.update({
     where: { id: req.params.id },
-    data: { status: OrderStatus.PENDING },
+    data: {
+      status: OrderStatus.CONFIRMED,
+      events: {
+        create: {
+          fromStatus: existing.status,
+          toStatus: OrderStatus.CONFIRMED,
+          actorId: req.user!.id,
+          actorRole: req.user!.role,
+        },
+      },
+    },
     include,
   });
   void sendOrderConfirmedEmail(order);
@@ -441,21 +463,25 @@ ordersRouter.patch("/:id/confirm", requireAuth, requireRole(Role.ADMIN), async (
   res.json(order);
 });
 
-ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN, Role.CHEF), async (req, res) => {
+ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {
   const status = req.body.status as OrderStatus;
+  const reason = typeof req.body.reason === "string" ? req.body.reason.trim() : "";
   if (!Object.values(OrderStatus).includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
+  }
+  if (status === OrderStatus.CANCELLED && !reason) {
+    return res.status(400).json({ error: "A reason is required to cancel an order." });
   }
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
 
   if (req.user!.role === Role.CHEF) {
-    const next = chefNextStatus(existing.status);
+    const next = chefNextStatus(existing.status, existing.fulfillmentType);
     if (!next || status !== next) {
       return res.status(403).json({ error: "Chefs can only advance orders one kitchen step at a time." });
     }
-  } else if (req.user!.role === Role.ADMIN) {
-    if (!canTransitionStatus(existing.status, status)) {
+  } else if (req.user!.role === Role.ADMIN || req.user!.role === Role.CASHIER) {
+    if (!canTransitionStatus(existing.status, status, existing.fulfillmentType)) {
       return res.status(400).json({
         error: `Cannot change status from ${existing.status} to ${status}.`,
       });
@@ -490,13 +516,22 @@ ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN, Role.CHEF
     data: {
       status,
       ...(riderId && !existing.riderId ? { riderId } : {}),
+      events: {
+        create: {
+          fromStatus: existing.status,
+          toStatus: status,
+          actorId: req.user!.id,
+          actorRole: req.user!.role,
+          reason: reason || null,
+        },
+      },
     },
     include,
   });
 
   if (
-    existing.status === OrderStatus.AWAITING_CONFIRMATION &&
-    status === OrderStatus.PENDING
+    existing.status === OrderStatus.PENDING_CONFIRMATION &&
+    status === OrderStatus.CONFIRMED
   ) {
     void sendOrderConfirmedEmail(order);
   }
@@ -531,7 +566,7 @@ ordersRouter.patch("/:id/assign", requireAuth, requireRole(Role.ADMIN), async (r
   if (!rider) return res.status(400).json({ error: "Rider not found" });
   const existing = await prisma.order.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Order not found." });
-  if (existing.status === OrderStatus.AWAITING_CONFIRMATION) {
+  if (existing.status === OrderStatus.PENDING_CONFIRMATION) {
     return res.status(400).json({ error: "Confirm the order before assigning a rider." });
   }
   const order = await prisma.order.update({

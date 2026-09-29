@@ -85,7 +85,7 @@ export function KitchenTicket({
             onClick={onAction}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-stone-900 py-2 text-xs font-medium text-white transition hover:bg-brand-600 disabled:opacity-60"
           >
-            {order.status === "PENDING" ? <ChefHat size={13} /> : <Check size={13} />}
+            {order.status === "CONFIRMED" ? <ChefHat size={13} /> : <Check size={13} />}
             {busy ? "Updating…" : actionLabel}
             <ArrowRight size={13} />
           </button>

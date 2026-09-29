@@ -135,7 +135,7 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIE
       customerPhone: phone,
       paymentMethod: payMethod,
       paymentStatus: payStatus,
-      status: OrderStatus.PENDING,
+      status: OrderStatus.CONFIRMED,
       items: { create: built.lines },
     },
     include,

@@ -10,13 +10,13 @@ import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { KitchenTicket } from "@/components/admin/KitchenTicket";
 
-type Lane = "PENDING" | "PREPARING" | "OUT_FOR_DELIVERY";
+type Lane = "CONFIRMED" | "PREPARING" | "READY";
 type TypeFilter = "ALL" | "DELIVERY" | "PICKUP" | "DINE_IN";
 
 const LANES: { status: Lane; title: string; hint: string }[] = [
-  { status: "PENDING", title: "New", hint: "Start cooking" },
+  { status: "CONFIRMED", title: "New", hint: "Start cooking" },
   { status: "PREPARING", title: "Cooking", hint: "Mark ready" },
-  { status: "OUT_FOR_DELIVERY", title: "Ready", hint: "Counter & riders" },
+  { status: "READY", title: "Ready", hint: "Waiting for rider or counter" },
 ];
 
 function playChime() {
@@ -53,14 +53,14 @@ export default function KitchenPage() {
 
   const kitchenOrders = useMemo(() => {
     const list = (data || []).filter(
-      (o) => o.status === "PENDING" || o.status === "PREPARING" || o.status === "OUT_FOR_DELIVERY"
+      (o) => o.status === "CONFIRMED" || o.status === "PREPARING" || o.status === "READY"
     );
     if (typeFilter === "ALL") return list;
     return list.filter((o) => (o.fulfillmentType || "DELIVERY") === typeFilter);
   }, [data, typeFilter]);
 
   useEffect(() => {
-    const newIds = kitchenOrders.filter((o) => o.status === "PENDING").map((o) => o.id);
+    const newIds = kitchenOrders.filter((o) => o.status === "CONFIRMED").map((o) => o.id);
     if (!seenRef.current) {
       seenRef.current = new Set(newIds);
       return;
@@ -91,34 +91,28 @@ export default function KitchenPage() {
   }
 
   function actionFor(order: Order) {
-    if (order.status === "PENDING") {
+    if (order.status === "CONFIRMED") {
       return { label: "Start cooking", run: () => bump(order, "PREPARING") };
     }
     if (order.status === "PREPARING") {
-      if (order.fulfillmentType === "PICKUP") {
-        return { label: "Ready for pickup", run: () => bump(order, "OUT_FOR_DELIVERY") };
-      }
-      if (order.fulfillmentType === "DINE_IN") {
-        return { label: "Ready — serve table", run: () => bump(order, "OUT_FOR_DELIVERY") };
-      }
-      return { label: "Ready — send out", run: () => bump(order, "OUT_FOR_DELIVERY") };
+      return { label: "Mark ready", run: () => bump(order, "READY") };
     }
-    if (
-      order.status === "OUT_FOR_DELIVERY" &&
-      (order.fulfillmentType === "PICKUP" || order.fulfillmentType === "DINE_IN")
-    ) {
-      return {
-        label: order.fulfillmentType === "DINE_IN" ? "Served" : "Collected",
-        run: () => bump(order, "DELIVERED"),
-      };
+    if (order.status === "READY") {
+      if (order.fulfillmentType === "DINE_IN") {
+        return { label: "Served", run: () => bump(order, "SERVED") };
+      }
+      if (order.fulfillmentType === "PICKUP") {
+        return { label: "Collected", run: () => bump(order, "COLLECTED") };
+      }
+      return { label: "Hand to rider", run: () => bump(order, "OUT_FOR_DELIVERY") };
     }
     return null;
   }
 
   const counts = {
-    PENDING: kitchenOrders.filter((o) => o.status === "PENDING").length,
+    CONFIRMED: kitchenOrders.filter((o) => o.status === "CONFIRMED").length,
     PREPARING: kitchenOrders.filter((o) => o.status === "PREPARING").length,
-    READY: kitchenOrders.filter((o) => o.status === "OUT_FOR_DELIVERY").length,
+    READY: kitchenOrders.filter((o) => o.status === "READY").length,
   };
 
   return (
@@ -137,7 +131,7 @@ export default function KitchenPage() {
 
           <div className="grid grid-cols-3 gap-2 lg:gap-3">
             {[
-              { label: "New", value: counts.PENDING, accent: "text-amber-700 bg-amber-50 ring-amber-100" },
+              { label: "New", value: counts.CONFIRMED, accent: "text-amber-700 bg-amber-50 ring-amber-100" },
               { label: "Cooking", value: counts.PREPARING, accent: "text-blue-700 bg-blue-50 ring-blue-100" },
               { label: "Ready", value: counts.READY, accent: "text-violet-700 bg-violet-50 ring-violet-100" },
             ].map((s) => (

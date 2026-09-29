@@ -682,7 +682,7 @@ async function main() {
   const seeds: SeedOrder[] = [
     {
       number: "UF-1042",
-      status: OrderStatus.PENDING,
+      status: OrderStatus.CONFIRMED,
       createdAt: daysAgo(0, 14),
       address: `12 Main Street, ${CITY}`,
       notes: "Please add extra raita.",

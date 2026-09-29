@@ -199,8 +199,8 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     prisma.order.count({
       where: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
     }),
-    prisma.order.count({ where: { status: OrderStatus.AWAITING_CONFIRMATION } }),
-    prisma.order.count({ where: { status: OrderStatus.PENDING } }),
+    prisma.order.count({ where: { status: OrderStatus.PENDING_CONFIRMATION } }),
+    prisma.order.count({ where: { status: OrderStatus.CONFIRMED } }),
     prisma.order.count({ where: { status: OrderStatus.PREPARING } }),
     prisma.order.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY } }),
     prisma.order.count({ where: { createdAt: { gte: start }, status: OrderStatus.DELIVERED } }),

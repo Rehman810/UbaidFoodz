@@ -1,38 +1,34 @@
-import { OrderStatus } from "@prisma/client";
+import { FulfillmentType, OrderStatus } from "@prisma/client";
+import { canTransition, flowFor, isTerminalStatus, nextStatus, type Fulfillment, type Status } from "./order-machine";
 
-const FLOW: OrderStatus[] = [
-  OrderStatus.AWAITING_CONFIRMATION,
-  OrderStatus.PENDING,
-  OrderStatus.PREPARING,
-  OrderStatus.OUT_FOR_DELIVERY,
-  OrderStatus.DELIVERED,
-];
-
-export function canTransitionStatus(from: OrderStatus, to: OrderStatus): boolean {
-  if (from === to) return true;
-  if (to === OrderStatus.CANCELLED) {
-    return from === OrderStatus.AWAITING_CONFIRMATION || from === OrderStatus.PENDING;
-  }
-  const fromIdx = FLOW.indexOf(from);
-  const toIdx = FLOW.indexOf(to);
-  if (fromIdx < 0 || toIdx < 0) return false;
-  return toIdx === fromIdx + 1;
+function asStatus(status: OrderStatus): Status {
+  return status as Status;
 }
 
-export function chefNextStatus(current: OrderStatus): OrderStatus | null {
-  if (current === OrderStatus.PENDING) return OrderStatus.PREPARING;
-  if (current === OrderStatus.PREPARING) return OrderStatus.OUT_FOR_DELIVERY;
-  if (current === OrderStatus.OUT_FOR_DELIVERY) return OrderStatus.DELIVERED;
-  return null;
+function asFulfillment(type?: FulfillmentType | null): Fulfillment {
+  if (type === FulfillmentType.PICKUP) return "PICKUP";
+  if (type === FulfillmentType.DINE_IN) return "DINE_IN";
+  return "DELIVERY";
 }
 
-export function forwardStatusOptions(current: OrderStatus): OrderStatus[] {
-  const idx = FLOW.indexOf(current);
-  if (idx < 0) return [];
-  const forward = FLOW.slice(idx);
-  const opts = [...forward];
-  if (current === OrderStatus.AWAITING_CONFIRMATION || current === OrderStatus.PENDING) {
-    opts.push(OrderStatus.CANCELLED);
-  }
-  return opts;
+export function canTransitionStatus(
+  from: OrderStatus,
+  to: OrderStatus,
+  fulfillment?: FulfillmentType | null
+) {
+  return canTransition(asStatus(from), asStatus(to), asFulfillment(fulfillment));
+}
+
+export function chefNextStatus(current: OrderStatus, fulfillment?: FulfillmentType | null): OrderStatus | null {
+  const next = nextStatus(asStatus(current), asFulfillment(fulfillment));
+  return (next as OrderStatus | null) ?? null;
+}
+
+export function forwardStatusOptions(current: OrderStatus, fulfillment?: FulfillmentType | null): OrderStatus[] {
+  if (isTerminalStatus(asStatus(current))) return [current];
+  const flow = flowFor(asFulfillment(fulfillment));
+  const idx = flow.indexOf(asStatus(current));
+  const forward = (idx < 0 ? [] : flow.slice(idx)) as OrderStatus[];
+  if (!forward.includes(OrderStatus.CANCELLED)) forward.push(OrderStatus.CANCELLED);
+  return forward;
 }

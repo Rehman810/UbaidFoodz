@@ -4,7 +4,7 @@ export const STATUS_THEME: Record<
   OrderStatus,
   { border: string; stripe: string; bg: string; text: string; dot: string; ring: string }
 > = {
-  AWAITING_CONFIRMATION: {
+  PENDING_CONFIRMATION: {
     border: "border-orange-200",
     stripe: "bg-orange-500",
     bg: "bg-orange-50",
@@ -12,13 +12,21 @@ export const STATUS_THEME: Record<
     dot: "bg-orange-500",
     ring: "ring-orange-200/60",
   },
-  PENDING: {
+  CONFIRMED: {
     border: "border-amber-200",
     stripe: "bg-amber-500",
     bg: "bg-amber-50",
     text: "text-amber-800",
     dot: "bg-amber-500",
     ring: "ring-amber-200/60",
+  },
+  READY: {
+    border: "border-teal-200",
+    stripe: "bg-teal-500",
+    bg: "bg-teal-50",
+    text: "text-teal-800",
+    dot: "bg-teal-500",
+    ring: "ring-teal-200/60",
   },
   PREPARING: {
     border: "border-blue-200",
@@ -35,6 +43,22 @@ export const STATUS_THEME: Record<
     text: "text-violet-800",
     dot: "bg-violet-500",
     ring: "ring-violet-200/60",
+  },
+  COLLECTED: {
+    border: "border-emerald-200",
+    stripe: "bg-emerald-500",
+    bg: "bg-emerald-50",
+    text: "text-emerald-800",
+    dot: "bg-emerald-500",
+    ring: "ring-emerald-200/60",
+  },
+  SERVED: {
+    border: "border-emerald-200",
+    stripe: "bg-emerald-600",
+    bg: "bg-emerald-50",
+    text: "text-emerald-900",
+    dot: "bg-emerald-600",
+    ring: "ring-emerald-200/60",
   },
   DELIVERED: {
     border: "border-emerald-200",

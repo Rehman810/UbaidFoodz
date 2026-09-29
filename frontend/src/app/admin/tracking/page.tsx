@@ -13,9 +13,10 @@ import { KanbanBoard, kanbanActiveCount } from "@/components/admin/KanbanBoard";
 import { STATUS_THEME } from "@/lib/admin-status";
 
 const KANBAN_STATUSES = [
-  "AWAITING_CONFIRMATION",
-  "PENDING",
+  "PENDING_CONFIRMATION",
+  "CONFIRMED",
   "PREPARING",
+  "READY",
   "OUT_FOR_DELIVERY",
   "DELIVERED",
 ] as const;

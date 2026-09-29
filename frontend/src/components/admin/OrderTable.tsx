@@ -57,7 +57,7 @@ export function OrderTable({
                 order.fulfillmentType !== "PICKUP" &&
                 order.status !== "DELIVERED" &&
                 order.status !== "CANCELLED" &&
-                order.status !== "AWAITING_CONFIRMATION";
+                order.status !== "PENDING_CONFIRMATION";
               const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
 
               return (
@@ -114,7 +114,7 @@ export function OrderTable({
                   </td>
                   <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-col gap-2">
-                      {order.status === "AWAITING_CONFIRMATION" && onConfirm && (
+                      {order.status === "PENDING_CONFIRMATION" && onConfirm && (
                         <button
                           type="button"
                           onClick={() => onConfirm(order.id)}

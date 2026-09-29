@@ -34,7 +34,7 @@ export function OrderPanel({
     order.fulfillmentType !== "PICKUP" &&
     order.status !== "DELIVERED" &&
     order.status !== "CANCELLED" &&
-    order.status !== "AWAITING_CONFIRMATION";
+    order.status !== "PENDING_CONFIRMATION";
   const theme = STATUS_THEME[order.status];
   const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
   const statusOptions = (forwardOnly ? STATUS_FLOW : (Object.keys(STATUS_LABEL) as OrderStatus[])).map((k) => ({
@@ -143,7 +143,7 @@ export function OrderPanel({
           </div>
         )}
 
-        {order.status === "AWAITING_CONFIRMATION" && onConfirm && (
+        {order.status === "PENDING_CONFIRMATION" && onConfirm && (
           <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
             <p className="text-sm font-semibold text-orange-950">Call customer to verify this order</p>
             <p className="mt-1 text-xs text-orange-800">

@@ -26,9 +26,10 @@ const VIEW_KEY = "uff-orders-view";
 
 const FILTERS: (OrderStatus | "ALL")[] = [
   "ALL",
-  "AWAITING_CONFIRMATION",
-  "PENDING",
+  "PENDING_CONFIRMATION",
+  "CONFIRMED",
   "PREPARING",
+  "READY",
   "OUT_FOR_DELIVERY",
   "DELIVERED",
   "CANCELLED",
@@ -36,13 +37,16 @@ const FILTERS: (OrderStatus | "ALL")[] = [
 
 const FILTER_THEME: Record<OrderStatus | "ALL", { dot: string; active: string; idle: string }> = {
   ALL: { dot: "bg-brand-500", active: "bg-stone-900 text-white shadow-md", idle: "bg-white text-stone-700 ring-stone-200" },
-  AWAITING_CONFIRMATION: {
-    dot: STATUS_THEME.AWAITING_CONFIRMATION.dot,
+  PENDING_CONFIRMATION: {
+    dot: STATUS_THEME.PENDING_CONFIRMATION.dot,
     active: "bg-orange-500 text-white shadow-md shadow-orange-200",
     idle: "bg-white text-orange-800 ring-orange-200",
   },
-  PENDING: { dot: STATUS_THEME.PENDING.dot, active: "bg-amber-500 text-white shadow-md shadow-amber-200", idle: "bg-white text-amber-800 ring-amber-200" },
+  CONFIRMED: { dot: STATUS_THEME.CONFIRMED.dot, active: "bg-amber-500 text-white shadow-md shadow-amber-200", idle: "bg-white text-amber-800 ring-amber-200" },
   PREPARING: { dot: STATUS_THEME.PREPARING.dot, active: "bg-blue-500 text-white shadow-md shadow-blue-200", idle: "bg-white text-blue-800 ring-blue-200" },
+  READY: { dot: STATUS_THEME.READY.dot, active: "bg-teal-500 text-white shadow-md shadow-teal-200", idle: "bg-white text-teal-800 ring-teal-200" },
+  COLLECTED: { dot: STATUS_THEME.COLLECTED.dot, active: "bg-emerald-500 text-white shadow-md shadow-emerald-200", idle: "bg-white text-emerald-800 ring-emerald-200" },
+  SERVED: { dot: STATUS_THEME.SERVED.dot, active: "bg-emerald-600 text-white shadow-md shadow-emerald-200", idle: "bg-white text-emerald-900 ring-emerald-200" },
   OUT_FOR_DELIVERY: { dot: STATUS_THEME.OUT_FOR_DELIVERY.dot, active: "bg-violet-500 text-white shadow-md shadow-violet-200", idle: "bg-white text-violet-800 ring-violet-200" },
   DELIVERED: { dot: STATUS_THEME.DELIVERED.dot, active: "bg-emerald-500 text-white shadow-md shadow-emerald-200", idle: "bg-white text-emerald-800 ring-emerald-200" },
   CANCELLED: { dot: STATUS_THEME.CANCELLED.dot, active: "bg-stone-500 text-white shadow-md", idle: "bg-white text-stone-600 ring-stone-200" },
@@ -129,8 +133,9 @@ export default function AdminOrders() {
   }, [dateFiltered]);
 
   const activeCount =
-    (counts.AWAITING_CONFIRMATION || 0) +
-    (counts.PENDING || 0) +
+    (counts.PENDING_CONFIRMATION || 0) +
+    (counts.CONFIRMED || 0) +
+    (counts.READY || 0) +
     (counts.PREPARING || 0) +
     (counts.OUT_FOR_DELIVERY || 0);
   const filteredRevenue = filtered.reduce((sum, o) => sum + Number(o.total), 0);
