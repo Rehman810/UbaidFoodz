@@ -4,20 +4,40 @@ import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Bike, ChevronLeft, ChevronRight, Clock, Star } from "lucide-react";
+import { isLocalPublicAsset, resolveMediaUrl } from "@/lib/media-url";
 import { storeStatusLabel } from "@/lib/store-hours";
 import { PromoBanner, PublicStore } from "@/lib/types";
 import { HeroSearchInput } from "./HeroSearchInput";
 
-const FALLBACK_SLIDES = [
-  { id: "zinger", title: "Zinger special", imageUrl: "/carousel/carousel-zinger.png" },
-  { id: "biryani", title: "Biryani night", imageUrl: "/carousel/carousel-biryani.png" },
-  { id: "broast", title: "BBQ broast", imageUrl: "/carousel/carousel-broast.png" },
+const FALLBACK_SLIDES: PromoBanner[] = [
+  { id: "zinger", title: "Zinger special", imageUrl: "/carousel/carousel-zinger.png", linkUrl: "/menu", sortOrder: 1, isActive: true },
+  { id: "biryani", title: "Biryani night", imageUrl: "/carousel/carousel-biryani.png", linkUrl: "/menu", sortOrder: 2, isActive: true },
+  { id: "broast", title: "BBQ broast", imageUrl: "/carousel/carousel-broast.png", linkUrl: "/menu", sortOrder: 3, isActive: true },
 ];
 
-function slideImage(banner: PromoBanner | undefined, fallbackUrl: string) {
-  const url = banner?.imageUrl ?? "";
-  if (!url || url.includes("unsplash.com")) return fallbackUrl;
-  return url;
+function buildSlides(store: PublicStore | null): PromoBanner[] {
+  const active = (store?.banners ?? [])
+    .filter((b) => b.isActive && b.imageUrl.trim())
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  if (active.length === 0) return FALLBACK_SLIDES;
+
+  return active.map((banner) => ({
+    ...banner,
+    imageUrl: resolveMediaUrl(banner.imageUrl),
+    linkUrl: banner.linkUrl || "/menu",
+  }));
+}
+
+function HeroSlideImage({ src, alt, priority }: { src: string; alt: string; priority?: boolean }) {
+  if (isLocalPublicAsset(src)) {
+    return <Image src={src} alt={alt} fill className="object-cover" sizes="100vw" priority={priority} />;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={resolveMediaUrl(src)} alt={alt} className="absolute inset-0 h-full w-full object-cover" loading={priority ? "eager" : "lazy"} />
+  );
 }
 
 function SlideControls({
@@ -71,26 +91,16 @@ function SlideControls({
 }
 
 export function HeroCarousel({ store }: { store: PublicStore | null }) {
-  const slides = useMemo(() => {
-    const banners = store?.banners?.filter((b) => b.isActive) ?? [];
-    return FALLBACK_SLIDES.map((fallback, i) => {
-      const banner = banners[i];
-      return {
-        id: banner?.id ?? fallback.id,
-        title: banner?.title ?? fallback.title,
-        imageUrl: slideImage(banner, fallback.imageUrl),
-        linkUrl: banner?.linkUrl || "/menu",
-        sortOrder: banner?.sortOrder ?? i + 1,
-        isActive: true,
-      } satisfies PromoBanner;
-    });
-  }, [store?.banners]);
-
+  const slides = useMemo(() => buildSlides(store), [store?.banners]);
   const [idx, setIdx] = useState(0);
   const count = slides.length;
   const hoursStatus = store ? storeStatusLabel(store.settings) : "";
   const slide = slides[idx];
   const deliveryMin = store?.settings.deliveryEstimateMin ?? 45;
+
+  useEffect(() => {
+    setIdx(0);
+  }, [slides.length, slides[0]?.id]);
 
   useEffect(() => {
     if (count <= 1) return;
@@ -114,14 +124,7 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
           {slides.map((s, i) => {
             const inner = (
               <>
-                <Image
-                  src={s.imageUrl}
-                  alt={s.title || "Promo"}
-                  fill
-                  className="object-cover"
-                  sizes="100vw"
-                  priority={i === 0}
-                />
+                <HeroSlideImage src={s.imageUrl} alt={s.title || "Promo"} priority={i === 0} />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-stone-950/35 via-transparent to-transparent" />
               </>
             );
@@ -196,14 +199,7 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
             }`}
             aria-hidden={i !== idx}
           >
-            <Image
-              src={s.imageUrl}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="100vw"
-              priority={i === 0}
-            />
+            <HeroSlideImage src={s.imageUrl} alt={s.title || "Promo"} priority={i === 0} />
           </div>
         ))}
 

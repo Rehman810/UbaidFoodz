@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingBag, Flame, Menu, MapPin, X } from "lucide-react";
+import { ShoppingBag, Menu, MapPin, X } from "lucide-react";
+import { StoreLogo } from "@/components/StoreLogo";
 import { dashboardLabel, homeFor, isStaffRole, useAuth } from "@/lib/auth";
 import { storeDisplayName } from "@/lib/branding";
 import { useStore } from "@/lib/store";
@@ -38,9 +39,13 @@ export function Navbar() {
       <header className="sticky top-0 z-40 border-b border-orange-100 bg-[#fffaf5]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:h-[72px] sm:px-6">
           <Link href="/" className="flex min-w-0 items-center gap-2.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-600 text-white sm:h-10 sm:w-10">
-              <Flame size={17} strokeWidth={2.2} />
-            </span>
+            <StoreLogo
+              logoUrl={store?.settings.logoUrl}
+              size="sm"
+              rounded="full"
+              fallbackClassName="bg-brand-600 text-white sm:rounded-full"
+              className="sm:rounded-full"
+            />
             <span className="truncate text-sm font-extrabold tracking-tight text-ink sm:text-base">
               {brandName}
             </span>

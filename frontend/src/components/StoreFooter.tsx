@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, Flame, MapPin, Phone } from "lucide-react";
 import { PoweredBy } from "@/components/PoweredBy";
+import { StoreLogo } from "@/components/StoreLogo";
 import { storeDisplayName, storeTagline } from "@/lib/branding";
 import { useStore } from "@/lib/store";
 
@@ -53,9 +54,12 @@ export function StoreFooter() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-28 pt-4 sm:px-6 sm:pb-32 md:grid-cols-12">
         <div className="md:col-span-5">
           <p className="flex items-center gap-2.5 font-display text-2xl text-white">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-600 shadow-md shadow-brand-900/40">
-              <Flame size={20} />
-            </span>
+            <StoreLogo
+              logoUrl={settings?.logoUrl}
+              size="lg"
+              rounded="2xl"
+              fallbackClassName="bg-brand-600 text-white shadow-md shadow-brand-900/40"
+            />
             {name}
           </p>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-stone-400">

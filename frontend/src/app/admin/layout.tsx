@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Role } from "@/lib/types";
 import { PoweredBy } from "@/components/PoweredBy";
+import { StoreLogo } from "@/components/StoreLogo";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { PRODUCT_NAME, storeDisplayName } from "@/lib/branding";
@@ -206,9 +207,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         <div className="flex h-full flex-col border-b border-orange-100/80 bg-white shadow-sm lg:border-b-0 lg:border-r">
           <div className={`flex items-center gap-3 py-4 ${collapsed ? "lg:justify-center lg:px-2" : "px-4"}`}>
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-orange-600 text-white shadow-md shadow-brand-500/20">
-              <Flame size={18} />
-            </span>
+            <StoreLogo
+              logoUrl={store?.settings.logoUrl}
+              size="md"
+              fallbackClassName="bg-gradient-to-br from-brand-500 to-orange-600 text-white shadow-md shadow-brand-500/20"
+            />
             <div className={collapsed ? "lg:hidden" : ""}>
               <p className="font-display text-lg leading-tight text-stone-900">{storeName || PRODUCT_NAME}</p>
               <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">{PRODUCT_NAME}</p>

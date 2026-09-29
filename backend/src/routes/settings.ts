@@ -169,13 +169,13 @@ settingsRouter.post("/banners", requireAuth, requireRole(Role.ADMIN), async (req
     isActive?: boolean;
   };
   if (!imageUrl) return res.status(400).json({ error: "Banner image is required." });
-  const max = await prisma.promoBanner.aggregate({ _max: { sortOrder: true } });
+  const min = await prisma.promoBanner.aggregate({ _min: { sortOrder: true } });
   const banner = await prisma.promoBanner.create({
     data: {
       title: title || "",
       imageUrl,
       linkUrl: linkUrl || "",
-      sortOrder: sortOrder ?? (max._max.sortOrder ?? 0) + 1,
+      sortOrder: sortOrder ?? (min._min.sortOrder ?? 1) - 1,
       isActive: isActive ?? true,
     },
   });

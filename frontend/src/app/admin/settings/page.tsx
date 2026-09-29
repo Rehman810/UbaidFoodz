@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
+  ArrowUpToLine,
   Clock,
   Facebook,
   ImageIcon,
@@ -21,7 +22,9 @@ import {
 import { OpeningHoursEditor } from "@/components/admin/OpeningHoursEditor";
 import { TwoFactorSettings } from "@/components/admin/TwoFactorSettings";
 import { SettingsField, SettingsSection } from "@/components/admin/SettingsSection";
-import { api, apiUpload } from "@/lib/api";
+import { api, apiUpload, ApiError } from "@/lib/api";
+import { resolveMediaUrl } from "@/lib/media-url";
+import { currencyForCode, currencyOptions, symbolForCode, timezoneOptions } from "@/lib/locale-options";
 import { isStoreOpen, generatedClosedMessage } from "@/lib/store-hours";
 import { validateSettingsInput } from "@/lib/settings-validate";
 import { PromoBanner, StoreSettings } from "@/lib/types";
@@ -42,7 +45,10 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [bannerForm, setBannerForm] = useState({ title: "", imageUrl: "", linkUrl: "" });
+  const [bannerError, setBannerError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState("");
 
   async function load() {
     const data = await api<SettingsPayload>("/settings");
@@ -64,6 +70,7 @@ export default function AdminSettingsPage() {
       await api("/settings", { method: "PATCH", body: JSON.stringify(settings) });
       setBaseline(JSON.stringify(settings));
       setMsg("Settings saved successfully.");
+      window.dispatchEvent(new Event("store-refresh"));
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -73,22 +80,48 @@ export default function AdminSettingsPage() {
 
   async function onBannerUpload(file: File) {
     setUploading(true);
+    setBannerError("");
     try {
-      const { url } = await apiUpload("/upload", file);
+      const { url } = await apiUpload("/upload/image", file);
       setBannerForm((f) => ({ ...f, imageUrl: url }));
+    } catch (err) {
+      setBannerError(err instanceof ApiError ? err.message : "Could not upload image");
     } finally {
       setUploading(false);
     }
   }
 
+  async function onLogoUpload(file: File) {
+    setLogoUploading(true);
+    setLogoError("");
+    try {
+      const { url } = await apiUpload("/upload/image", file);
+      setSettings((current) => (current ? { ...current, logoUrl: url } : current));
+    } catch (err) {
+      setLogoError(err instanceof ApiError ? err.message : "Could not upload logo");
+    } finally {
+      setLogoUploading(false);
+    }
+  }
+
+  function refreshStorefront() {
+    window.dispatchEvent(new Event("store-refresh"));
+  }
+
   async function addBanner() {
     if (!bannerForm.imageUrl) return;
-    await api("/settings/banners", {
-      method: "POST",
-      body: JSON.stringify(bannerForm),
-    });
-    setBannerForm({ title: "", imageUrl: "", linkUrl: "" });
-    await load();
+    setBannerError("");
+    try {
+      await api("/settings/banners", {
+        method: "POST",
+        body: JSON.stringify(bannerForm),
+      });
+      setBannerForm({ title: "", imageUrl: "", linkUrl: "" });
+      await load();
+      refreshStorefront();
+    } catch (err) {
+      setBannerError(err instanceof ApiError ? err.message : "Could not add banner");
+    }
   }
 
   async function toggleBanner(b: PromoBanner) {
@@ -96,13 +129,25 @@ export default function AdminSettingsPage() {
       method: "PATCH",
       body: JSON.stringify({ isActive: !b.isActive }),
     });
-    load();
+    await load();
+    refreshStorefront();
   }
 
   async function removeBanner(id: string) {
     if (!confirm("Delete this banner?")) return;
     await api(`/settings/banners/${id}`, { method: "DELETE" });
-    load();
+    await load();
+    refreshStorefront();
+  }
+
+  async function pinBannerFirst(b: PromoBanner) {
+    const minOrder = banners.reduce((min, item) => Math.min(min, item.sortOrder), b.sortOrder);
+    await api(`/settings/banners/${b.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ sortOrder: minOrder - 1 }),
+    });
+    await load();
+    refreshStorefront();
   }
 
   const fieldErrors = useMemo(
@@ -152,6 +197,21 @@ export default function AdminSettingsPage() {
 
   const storeOpen = isStoreOpen(settings);
   const closedHint = generatedClosedMessage(settings);
+  const timezoneChoices = timezoneOptions(settings.timezone);
+  const currencyChoices = currencyOptions(settings.currencyCode);
+  const activeCurrency = currencyForCode(settings.currencyCode) ?? currencyChoices[0];
+
+  function setCurrency(code: string) {
+    setSettings((current) => {
+      if (!current) return current;
+      const match = currencyForCode(code) ?? currencyOptions(current.currencyCode).find((item) => item.code === code);
+      return {
+        ...current,
+        currencyCode: code,
+        currencySymbol: match?.symbol ?? symbolForCode(code),
+      };
+    });
+  }
 
   return (
     <div className="space-y-6 pb-24">
@@ -238,36 +298,75 @@ export default function AdminSettingsPage() {
               />
             </SettingsField>
             <SettingsField label="Timezone">
-              <input
-                className="input"
+              <select
+                className="input admin-select"
                 value={settings.timezone ?? "Asia/Karachi"}
                 onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-                placeholder="Asia/Karachi"
-              />
+              >
+                {timezoneChoices.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
             </SettingsField>
-            <SettingsField label="Currency code">
-              <input
-                className="input"
+            <SettingsField
+              label="Currency"
+              hint={`Symbol ${settings.currencySymbol ?? activeCurrency?.symbol ?? "Rs"} is used on menu prices and receipts.`}
+            >
+              <select
+                className="input admin-select"
                 value={settings.currencyCode ?? "PKR"}
-                onChange={(e) => setSettings({ ...settings, currencyCode: e.target.value.toUpperCase() })}
-                placeholder="PKR"
-              />
+                onChange={(e) => setCurrency(e.target.value)}
+              >
+                {currencyChoices.map((currency) => (
+                  <option key={currency.code} value={currency.code}>
+                    {currency.code} ({currency.symbol}) — {currency.name}
+                  </option>
+                ))}
+              </select>
             </SettingsField>
-            <SettingsField label="Currency symbol">
-              <input
-                className="input"
-                value={settings.currencySymbol ?? "Rs"}
-                onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
-                placeholder="Rs"
-              />
+            <SettingsField label="Currency symbol" hint="Updates automatically when currency changes.">
+              <select
+                className="input admin-select bg-stone-50 text-stone-700"
+                value={settings.currencySymbol ?? activeCurrency?.symbol ?? "Rs"}
+                disabled
+              >
+                <option value={settings.currencySymbol ?? activeCurrency?.symbol ?? "Rs"}>
+                  {settings.currencySymbol ?? activeCurrency?.symbol ?? "Rs"}
+                </option>
+              </select>
             </SettingsField>
-            <SettingsField label="Logo URL">
-              <input
-                className="input"
-                value={settings.logoUrl ?? ""}
-                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                placeholder="https://…"
-              />
+            <SettingsField label="Logo" className="sm:col-span-2" hint="Shown in the navbar, admin sidebar, and footer. Paste a URL or upload, then save settings.">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  className="input flex-1"
+                  value={settings.logoUrl ?? ""}
+                  onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+                  placeholder="Paste image URL or upload"
+                />
+                <label className="btn-ghost shrink-0 cursor-pointer justify-center">
+                  {logoUploading ? "Uploading…" : "Upload logo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && onLogoUpload(e.target.files[0])}
+                  />
+                </label>
+              </div>
+              {logoError && <p className="mt-2 text-xs text-red-600">{logoError}</p>}
+              {settings.logoUrl && (
+                <div className="relative mt-3 h-14 w-40 overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+                  <Image
+                    src={resolveMediaUrl(settings.logoUrl)}
+                    alt="Logo preview"
+                    fill
+                    className="object-contain p-2"
+                    sizes="160px"
+                  />
+                </div>
+              )}
             </SettingsField>
             <SettingsField label="Footer text">
               <input
@@ -279,43 +378,11 @@ export default function AdminSettingsPage() {
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          icon={Mail}
-          title="Staff email notifications"
-          description="Control which roles receive order alert and assignment emails. Admin always receives new-order alerts."
-        >
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { key: "emailNotifyChef" as const, label: "Chef", hint: "New order alerts" },
-              { key: "emailNotifyCashier" as const, label: "Cashier", hint: "New order alerts" },
-              { key: "emailNotifyRider" as const, label: "Rider", hint: "Delivery assignment emails" },
-            ].map(({ key, label, hint }) => (
-              <label
-                key={key}
-                className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 transition ${
-                  settings[key] ? "border-brand-300 bg-brand-50" : "border-stone-200 bg-stone-50"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-stone-300 text-brand-600"
-                    checked={settings[key] ?? true}
-                    onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
-                  />
-                  <span className="text-sm font-semibold text-stone-900">{label}</span>
-                </span>
-                <span className="text-xs text-stone-500">{hint}</span>
-              </label>
-            ))}
-          </div>
-        </SettingsSection>
-
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
           <SettingsSection
             icon={Phone}
-            title="Contact"
-            description="Shown on the storefront, footer, and order receipts."
+            title="Contact & notifications"
+            description="Store contact details and optional staff email alerts."
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <SettingsField label="Phone">
@@ -371,15 +438,50 @@ export default function AdminSettingsPage() {
                 />
               </SettingsField>
             </div>
+
+            <div className="border-t border-stone-100 pt-5">
+              <div className="mb-3 flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
+                  <Mail size={16} />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">Staff email notifications</p>
+                  <p className="text-xs text-stone-500">Admin always receives new-order alerts.</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {[
+                  { key: "emailNotifyChef" as const, label: "Chef", hint: "New order alerts" },
+                  { key: "emailNotifyCashier" as const, label: "Cashier", hint: "New order alerts" },
+                  { key: "emailNotifyRider" as const, label: "Rider", hint: "Delivery assignment emails" },
+                ].map(({ key, label, hint }) => (
+                  <label
+                    key={key}
+                    className={`flex cursor-pointer items-center justify-between gap-4 rounded-2xl border px-4 py-3 transition ${
+                      settings[key] ?? true
+                        ? "border-brand-200 bg-brand-50/60"
+                        : "border-stone-200 bg-stone-50"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-stone-900">{label}</p>
+                      <p className="text-xs text-stone-500">{hint}</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0 rounded border-stone-300 text-brand-600 focus:ring-brand-500"
+                      checked={settings[key] ?? true}
+                      onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
           </SettingsSection>
 
-          <SettingsSection
-            icon={Truck}
-            title="Orders & delivery"
-            description="Minimums, free delivery threshold, and time estimates."
-          >
+          <SettingsSection icon={Truck} title="Orders & delivery" description="Minimums, free delivery threshold, and time estimates.">
             <div className="grid gap-4 sm:grid-cols-2">
-              <SettingsField label="Minimum order (Rs)">
+              <SettingsField label={`Minimum order (${settings.currencySymbol ?? "Rs"})`}>
                 <input
                   className="input"
                   type="number"
@@ -387,7 +489,7 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, minimumOrder: e.target.value })}
                 />
               </SettingsField>
-              <SettingsField label="Free delivery above (Rs)">
+              <SettingsField label={`Free delivery above (${settings.currencySymbol ?? "Rs"})`}>
                 <input
                   className="input"
                   type="number"
@@ -583,22 +685,22 @@ export default function AdminSettingsPage() {
           title="Hours & availability"
           description={`When customers can order. Times use ${settings.timezone || "the restaurant timezone"}.`}
         >
-          <OpeningHoursEditor
-            settings={settings}
-            onChange={(patch) => setSettings({ ...settings, ...patch })}
-          />
+          <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
+            <OpeningHoursEditor
+              settings={settings}
+              onChange={(patch) => setSettings({ ...settings, ...patch })}
+            />
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <SettingsField label="Closed message" hint="Leave blank to use the schedule. Hours on the site always follow the schedule.">
-              <textarea
-                className="input min-h-24 resize-none"
-                value={settings.closedMessage}
-                placeholder={closedHint}
-                onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })}
-              />
-            </SettingsField>
+            <div className="space-y-4">
+              <SettingsField label="Closed message" hint="Leave blank to use the schedule. Hours on the site always follow the schedule.">
+                <textarea
+                  className="input min-h-24 resize-none"
+                  value={settings.closedMessage}
+                  placeholder={closedHint}
+                  onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })}
+                />
+              </SettingsField>
 
-            <div className="flex flex-col justify-center">
               <label
                 className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
                   settings.forceClosed
@@ -651,7 +753,7 @@ export default function AdminSettingsPage() {
       <SettingsSection
         icon={ImageIcon}
         title="Promo banners"
-        description="Hero carousel images on the homepage. Up to 3 slots are used."
+        description="All live banners rotate on the homepage carousel. New banners appear first. Hide or delete old defaults you no longer need."
       >
         {banners.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 px-4 py-8 text-center">
@@ -668,7 +770,7 @@ export default function AdminSettingsPage() {
               >
                 <div className="relative aspect-[16/7] bg-stone-100">
                   {b.imageUrl ? (
-                    <Image src={b.imageUrl} alt={b.title || "Banner"} fill className="object-cover" sizes="400px" />
+                    <Image src={resolveMediaUrl(b.imageUrl)} alt={b.title || "Banner"} fill className="object-cover" sizes="400px" />
                   ) : (
                     <div className="grid h-full place-items-center text-stone-300">
                       <ImageIcon size={24} />
@@ -682,11 +784,20 @@ export default function AdminSettingsPage() {
                     {b.isActive ? "Live" : "Hidden"}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 p-3">
+                <div className="flex items-center gap-1.5 p-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-stone-900">{b.title || "Untitled banner"}</p>
                     <p className="truncate text-xs text-stone-500">{b.linkUrl || "No link"}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => pinBannerFirst(b)}
+                    className="grid h-8 w-8 place-items-center rounded-full text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+                    aria-label="Show this banner first"
+                    title="Show first"
+                  >
+                    <ArrowUpToLine size={15} />
+                  </button>
                   <button
                     type="button"
                     onClick={() => toggleBanner(b)}
@@ -747,9 +858,10 @@ export default function AdminSettingsPage() {
               </label>
             </div>
           </SettingsField>
+          {bannerError && <p className="mt-2 text-sm text-red-600">{bannerError}</p>}
           {bannerForm.imageUrl && (
             <div className="relative mt-3 aspect-[16/7] max-h-40 overflow-hidden rounded-xl border border-stone-200">
-              <Image src={bannerForm.imageUrl} alt="Preview" fill className="object-cover" sizes="600px" />
+              <Image src={resolveMediaUrl(bannerForm.imageUrl)} alt="Preview" fill className="object-cover" sizes="600px" />
             </div>
           )}
           <button
