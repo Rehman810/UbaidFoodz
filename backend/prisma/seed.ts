@@ -61,7 +61,7 @@ const MENU = [
   },
   // Burgers & Sandwiches
   {
-    name: "Ubaid Zinger Burger",
+    name: "Zinger Burger",
     description: "Crunchy spicy fillet, cheese, lettuce and secret sauce in a toasted bun.",
     price: 790,
     category: "Burgers & Sandwiches",
@@ -134,7 +134,7 @@ const MENU = [
   // Biryani & Rice
   {
     name: "Karachi Chicken Biryani",
-    description: "Dum-cooked basmati, tender chicken, potatoes and Ubaid garam masala.",
+    description: "Dum-cooked basmati, tender chicken, potatoes and house garam masala.",
     price: 690,
     category: "Biryani & Rice",
     imageUrl: img("photo-1589302168068-964664d93dc0"),
@@ -177,7 +177,7 @@ const MENU = [
   },
   {
     name: "Chicken Tikka Platter",
-    description: "Charcoal-grilled tikka, onions, naan and raita — a Ubaid classic.",
+    description: "Charcoal-grilled tikka, onions, naan and raita — a house classic.",
     price: 1290,
     category: "BBQ & Broast",
     imageUrl: img("photo-1603360946369-dc9bb6258143"),
@@ -349,7 +349,7 @@ async function main() {
   await seedDeliveryAreas();
 
   const already = await prisma.user.findUnique({
-    where: { email: "admin@ubaidfastfoodz.com" },
+    where: { email: "admin@demo.restaurant" },
   });
   if (already && process.env.FORCE_SEED !== "1") {
     console.log("Demo data already present. Set FORCE_SEED=1 to reset.");
@@ -432,11 +432,11 @@ async function main() {
     });
   }
 
-  const [customer, admin, rider, rider2, chef] = await Promise.all([
+  const [customer, admin, rider, chef, cashier] = await Promise.all([
     prisma.user.create({
       data: {
         name: "Ayesha Khan",
-        email: "customer@ubaidfastfoodz.com",
+        email: "customer@demo.restaurant",
         passwordHash: hash,
         role: Role.CUSTOMER,
         phone: "0300-1112233",
@@ -444,8 +444,8 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        name: "Ubaid Admin",
-        email: "admin@ubaidfastfoodz.com",
+        name: "Demo Admin",
+        email: "admin@demo.restaurant",
         passwordHash: hash,
         role: Role.ADMIN,
         phone: "0321-5556677",
@@ -454,7 +454,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Hassan Rider",
-        email: "rider@ubaidfastfoodz.com",
+        email: "rider@demo.restaurant",
         passwordHash: hash,
         role: Role.RIDER,
         phone: "0333-9988776",
@@ -462,17 +462,8 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        name: "Bilal Bike",
-        email: "rider2@ubaidfastfoodz.com",
-        passwordHash: hash,
-        role: Role.RIDER,
-        phone: "0345-2211009",
-      },
-    }),
-    prisma.user.create({
-      data: {
         name: "Chef Ali",
-        email: "chef@ubaidfastfoodz.com",
+        email: "chef@demo.restaurant",
         passwordHash: hash,
         role: Role.CHEF,
         phone: "0322-4455667",
@@ -481,7 +472,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Counter Cashier",
-        email: "cashier@ubaidfastfoodz.com",
+        email: "cashier@demo.restaurant",
         passwordHash: hash,
         role: Role.CASHIER,
         phone: "0311-2233445",
@@ -491,6 +482,7 @@ async function main() {
 
   void admin;
   void chef;
+  void cashier;
 
   const items: { id: string; name: string; imageUrl: string; price: number }[] = [];
   for (const m of MENU) {
@@ -552,12 +544,14 @@ async function main() {
     where: { id: "default" },
     create: { id: "default" },
     update: {
+      storeName: "Demo Restaurant",
+      storeTagline: "Order in minutes",
       freeDeliveryAbove: 2500,
       latitude: 24.8138,
       longitude: 67.03,
       minimumOrder: 500,
-      instagramUrl: "https://instagram.com/ubaidfastfoodz",
-      facebookUrl: "https://facebook.com/ubaidfastfoodz",
+      instagramUrl: "",
+      facebookUrl: "",
     },
   });
 
@@ -667,7 +661,7 @@ async function main() {
     {
       number: "UF-1035",
       status: OrderStatus.DELIVERED,
-      riderId: rider2.id,
+      riderId: rider.id,
       createdAt: daysAgo(1, 20),
       address: "Villa 8, Bahria Town Precinct 11, Karachi",
       bag: pick("Smash", "Nachos", "Kulfi"),
@@ -694,7 +688,7 @@ async function main() {
     {
       number: "UF-1022",
       status: OrderStatus.DELIVERED,
-      riderId: rider2.id,
+      riderId: rider.id,
       createdAt: daysAgo(4, 21),
       address: "Flat 3, Gulshan-e-Iqbal Block 13-D, Karachi",
       bag: pick("Biryani", "Pakora", "Lassi"),
@@ -758,12 +752,12 @@ async function main() {
     }
   }
 
-  console.log("Seeded Ubaid Fast Foodz demo data.");
-  console.log("  customer@ubaidfastfoodz.com / demo123");
-  console.log("  admin@ubaidfastfoodz.com    / demo123");
-  console.log("  rider@ubaidfastfoodz.com    / demo123");
-  console.log("  chef@ubaidfastfoodz.com     / demo123");
-  console.log("  cashier@ubaidfastfoodz.com  / demo123");
+  console.log("Seeded demo restaurant data.");
+  console.log("  customer@demo.restaurant / demo123");
+  console.log("  admin@demo.restaurant    / demo123");
+  console.log("  rider@demo.restaurant    / demo123");
+  console.log("  chef@demo.restaurant     / demo123");
+  console.log("  cashier@demo.restaurant  / demo123");
 }
 
 main()

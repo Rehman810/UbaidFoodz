@@ -21,6 +21,7 @@ import { sendNewOrderStaffWhatsApp, sendOrderReceivedWhatsApp } from "../lib/wha
 import { generateInvoicePdf } from "../lib/invoice";
 import { clientIp, parseCoord } from "../lib/client-ip";
 import { deliveryNeedsRider, pickLeastBusyRider } from "../lib/rider-assign";
+import { staffOrderAlertEmails, storeNameFrom } from "../lib/branding";
 import { getStoreSettings } from "../lib/settings-data";
 import { buildOrderLines, nextOrderNumber } from "../lib/order-lines";
 import {
@@ -56,7 +57,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     return res.status(400).json({ error: storeSettings.closedMessage });
   }
 
-  const pickupAddress = `Ubaid Fast Foodz — ${storeSettings.address}`;
+  const pickupAddress = `${storeNameFrom(storeSettings)} — ${storeSettings.address}`;
 
   const {
     items,
@@ -312,12 +313,8 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   void sendOrderPlacedEmail(order, storeSettings.autoConfirmOrders);
   void sendOrderReceivedWhatsApp(order, storeSettings.autoConfirmOrders);
   void sendNewOrderStaffWhatsApp(order, storeSettings.whatsapp);
-  const staff = await prisma.user.findMany({
-    where: { role: { in: [Role.ADMIN, Role.CHEF] }, isActive: true },
-    select: { email: true },
-  });
-  const extra = [process.env.NOTIFY_EMAIL, process.env.ADMIN_EMAIL].filter(Boolean) as string[];
-  void sendNewOrderStaffEmail(order, [...new Set([...staff.map((s) => s.email), ...extra])]);
+  const alertEmails = await staffOrderAlertEmails(storeSettings);
+  void sendNewOrderStaffEmail(order, alertEmails);
   emitOrderChange("order:created", order);
 
   const safeOrder = stripGuestToken(order);

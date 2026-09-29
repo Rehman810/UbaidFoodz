@@ -10,6 +10,7 @@ import { prisma } from "../lib/prisma";
 import { findOrderBlock } from "../lib/blocklist";
 import { buildOrderLines, nextOrderNumber } from "../lib/order-lines";
 import { emitOrderChange } from "../lib/realtime";
+import { storeNameFrom } from "../lib/branding";
 import { getStoreSettings } from "../lib/settings-data";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { posLimiter } from "../middleware/security";
@@ -29,7 +30,7 @@ function normalizePhone(phone: string) {
 
 posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (req, res) => {
   const storeSettings = await getStoreSettings();
-  const storeAddress = `Ubaid Fast Foodz — ${storeSettings.address}`;
+  const storeAddress = `${storeNameFrom(storeSettings)} — ${storeSettings.address}`;
 
   const {
     items,
@@ -165,7 +166,7 @@ posRouter.get(
     res.json({
       order,
       store: {
-        name: "Ubaid Fast Foodz",
+        name: storeNameFrom(settings),
         phone: settings.phone,
         address: settings.address,
         whatsapp: settings.whatsapp,

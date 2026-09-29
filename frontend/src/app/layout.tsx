@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { DEFAULT_STORE_NAME, DEFAULT_STORE_TAGLINE } from "@/lib/branding";
 
 export const metadata: Metadata = {
-  title: "Ubaid Fast Foodz — Order in minutes",
-  description: "Karachi heat. Street flavor. Delivered fast. Zinger, biryani, broast and more — cash on delivery across Karachi.",
-  keywords: ["fast food", "Karachi", "delivery", "biryani", "zinger", "Ubaid Fast Foodz"],
+  title: `${DEFAULT_STORE_NAME} — ${DEFAULT_STORE_TAGLINE}`,
+  description: "Order online for delivery or takeaway. Browse the menu, track orders, and pay cash on delivery.",
+  keywords: ["restaurant", "food delivery", "online ordering", "takeaway", "menu"],
   openGraph: {
-    title: "Ubaid Fast Foodz",
-    description: "Karachi heat. Street flavor. Delivered fast.",
+    title: DEFAULT_STORE_NAME,
+    description: DEFAULT_STORE_TAGLINE,
     type: "website",
   },
   manifest: "/manifest.json",

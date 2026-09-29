@@ -24,6 +24,8 @@ import { Role } from "@/lib/types";
 import { PoweredByDevsora } from "@/components/PoweredByDevsora";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { PRODUCT_NAME, storeDisplayName } from "@/lib/branding";
+import { useStore } from "@/lib/store";
 import { PublicStore } from "@/lib/types";
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
@@ -107,6 +109,8 @@ const MOBILE_FOR_ROLE: Record<Role, typeof MOBILE_NAV> = {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
+  const store = useStore();
+  const storeName = storeDisplayName(store?.settings);
   const router = useRouter();
   const path = usePathname();
   const [kitchenOpen, setKitchenOpen] = useState<boolean | null>(null);
@@ -180,8 +184,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Flame size={18} />
             </span>
             <div className={collapsed ? "lg:hidden" : ""}>
-              <p className="font-display text-lg leading-tight text-stone-900">Kitchen OS</p>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">Ubaid Fast Foodz</p>
+              <p className="font-display text-lg leading-tight text-stone-900">{PRODUCT_NAME}</p>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">{storeName}</p>
             </div>
           </div>
 

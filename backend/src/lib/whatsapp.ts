@@ -1,5 +1,7 @@
 import dns from "dns";
 import type { Order, OrderItem } from "@prisma/client";
+import { storeNameFrom } from "./branding";
+import { getStoreSettings } from "./settings-data";
 
 // Prefer IPv4 — Meta Graph API often times out over broken IPv6 routes.
 dns.setDefaultResultOrder("ipv4first");
@@ -134,6 +136,8 @@ function templateBodyParams(values: string[]): TemplateComponent[] {
 }
 
 export async function sendOrderReceivedWhatsApp(order: OrderWithItems, autoConfirmed: boolean) {
+  const settings = await getStoreSettings();
+  const storeName = storeNameFrom(settings);
   const template = process.env.WHATSAPP_TEMPLATE_ORDER?.trim();
   const lang = process.env.WHATSAPP_TEMPLATE_LANG || "en";
   const fulfillment = order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery";
@@ -163,7 +167,7 @@ export async function sendOrderReceivedWhatsApp(order: OrderWithItems, autoConfi
       : `We received order *${order.orderNumber}*.`,
     `Total: ${formatPkr(Number(order.total))} · ${fulfillment}`,
     statusLine,
-    "— Ubaid Fast Foodz",
+    `— ${storeName}`,
   ].join("\n");
 
   return sendWhatsApp(order.customerPhone, { type: "text", body });

@@ -1,5 +1,19 @@
+import crypto from "crypto";
 import nodemailer from "nodemailer";
 import type { Order, OrderItem } from "@prisma/client";
+import { getEmailBranding, PRODUCT_NAME } from "./branding";
+import {
+  newOrderStaffEmail,
+  orderCancelledEmail,
+  orderConfirmedEmail,
+  orderDeliveredEmail,
+  orderOnTheWayEmail,
+  orderPlacedEmail,
+  orderPreparingEmail,
+  passwordResetEmail,
+  riderAssignedEmail,
+  staffWelcomeEmail,
+} from "./email-templates";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -33,73 +47,85 @@ function transporter() {
   });
 }
 
-function fromAddress() {
-  return (
-    process.env.SMTP_FROM ||
-    process.env.SMTP_FROM_EMAIL ||
-    smtpUser() ||
-    "orders@ubaidfastfoodz.com"
-  );
+async function fromAddress(storeName?: string) {
+  const user = smtpUser();
+  const name = storeName?.trim() || "Your Restaurant";
+  const configured = (process.env.SMTP_FROM || process.env.SMTP_FROM_EMAIL || "").trim();
+
+  if (!configured) {
+    return user ? `${name} <${user}>` : `${name} <orders@restaurant.local>`;
+  }
+
+  const match = configured.match(/<([^>]+)>/);
+  const configuredEmail = (match?.[1] || configured).trim().toLowerCase();
+
+  if (user && configuredEmail !== user.toLowerCase()) {
+    return `${name} <${user}>`;
+  }
+
+  return configured.includes("<") ? configured.replace(/^[^<]+/, `${name} `) : `${name} <${configured}>`;
 }
 
-function esc(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function replyToAddress() {
+  const replyTo = (process.env.SMTP_REPLY_TO || smtpUser() || "").trim();
+  return replyTo.includes("@") ? replyTo : undefined;
 }
 
-function formatPkr(amount: number | string) {
-  return `Rs ${Number(amount).toLocaleString("en-PK")}`;
+function messageDomain(from: string) {
+  const match = from.match(/<([^>]+)>/);
+  const email = (match?.[1] || from).trim();
+  return email.split("@")[1] || "restaurant.local";
 }
 
-function itemsHtml(items: OrderItem[]) {
-  return items
-    .map(
-      (i) =>
-        `<tr><td style="padding:6px 0">${i.quantity}× ${esc(i.nameAtOrder)}</td><td style="padding:6px 0;text-align:right">${formatPkr(Number(i.priceAtOrder) * i.quantity)}</td></tr>`
-    )
-    .join("");
-}
+type SendOptions = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  storeName?: string;
+  transactional?: boolean;
+};
 
-function wrap(title: string, body: string) {
-  return `
-    <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#1c1917">
-      <div style="background:#ea580c;color:white;padding:20px 24px;border-radius:16px 16px 0 0">
-        <h1 style="margin:0;font-size:20px">Ubaid Fast Foodz</h1>
-      </div>
-      <div style="border:1px solid #fed7aa;border-top:0;padding:24px;border-radius:0 0 16px 16px;background:#fffaf5">
-        <h2 style="margin:0 0 12px;font-size:18px">${title}</h2>
-        ${body}
-        <p style="margin-top:24px;font-size:12px;color:#78716c">Thank you for ordering from Ubaid Fast Foodz · Karachi</p>
-      </div>
-    </div>
-  `;
-}
-
-export async function sendEmail(to: string, subject: string, html: string) {
-  const email = to.trim().toLowerCase();
+async function sendMail(opts: SendOptions) {
+  const email = opts.to.trim().toLowerCase();
   if (!email || !email.includes("@")) return false;
 
   if (!isConfigured()) {
-    console.log(`[email] (SMTP not configured) To: ${email} | ${subject}`);
+    console.log(`[email] (SMTP not configured) To: ${email} | ${opts.subject}`);
     return false;
+  }
+
+  const from = await fromAddress(opts.storeName);
+  const domain = messageDomain(from);
+  const headers: Record<string, string> = {
+    "X-Mailer": PRODUCT_NAME.replace(/\s+/g, "-"),
+    "X-Priority": "3",
+    Precedence: "auto",
+    "X-Auto-Response-Suppress": "All",
+  };
+
+  if (!opts.transactional) {
+    headers["List-Unsubscribe"] = `<mailto:${replyToAddress() || `noreply@${domain}`}?subject=unsubscribe>`;
   }
 
   try {
     await transporter().sendMail({
-      from: fromAddress(),
+      from,
       to: email,
-      subject,
-      html,
+      replyTo: replyToAddress(),
+      subject: opts.subject,
+      html: opts.html,
+      text: opts.text,
+      headers,
+      messageId: `<${crypto.randomUUID()}@${domain}>`,
+      encoding: "utf-8",
     });
     return true;
   } catch (err) {
     const code = err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code) : "";
     if (code === "EAUTH") {
       console.error(
-        "[email] Gmail rejected the login. Use the Gmail address in SMTP_USER and a 16-character App Password in SMTP_PASS (Google Account → Security → 2-Step Verification → App passwords). Do not use your normal Gmail password."
+        "[email] Gmail rejected the login. Use the Gmail address in SMTP_USER and a 16-character App Password in SMTP_PASS."
       );
     } else {
       console.error("[email] send failed:", err);
@@ -108,104 +134,121 @@ export async function sendEmail(to: string, subject: string, html: string) {
   }
 }
 
+export async function sendEmail(to: string, subject: string, html: string, text?: string) {
+  const brand = await getEmailBranding();
+  return sendMail({
+    to,
+    subject,
+    html,
+    text: text || "Please view this email in an HTML-capable client.",
+    storeName: brand.storeName,
+    transactional: true,
+  });
+}
+
 export async function sendOrderPlacedEmail(order: OrderWithItems, autoConfirmed: boolean) {
   if (!order.customerEmail) return;
-  const title = autoConfirmed ? "Order confirmed" : "We received your order";
-  const intro = autoConfirmed
-    ? `Hi ${esc(order.customerName)}, your order <strong>${esc(order.orderNumber)}</strong> is confirmed and the kitchen is getting started.`
-    : `Hi ${esc(order.customerName)}, we received order <strong>${esc(order.orderNumber)}</strong>. Our team will call you shortly on <strong>${esc(order.customerPhone)}</strong> to verify details before we start cooking.`;
-
-  const html = wrap(
-    title,
-    `
-      <p style="line-height:1.6">${intro}</p>
-      <table style="width:100%;margin-top:16px;font-size:14px">${itemsHtml(order.items)}</table>
-      <p style="margin-top:16px;font-size:15px"><strong>Total: ${formatPkr(Number(order.total))}</strong></p>
-      <p style="font-size:13px;color:#57534e">${order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery"} · ${esc(order.deliveryAddress)}</p>
-    `
-  );
-
-  await sendEmail(
-    order.customerEmail,
-    autoConfirmed
-      ? `Order ${order.orderNumber} confirmed — Ubaid Fast Foodz`
+  const brand = await getEmailBranding();
+  const { html, text } = orderPlacedEmail({ storeName: brand.storeName }, order, autoConfirmed);
+  await sendMail({
+    to: order.customerEmail,
+    subject: autoConfirmed
+      ? `Order ${order.orderNumber} confirmed — ${brand.storeName}`
       : `Order ${order.orderNumber} received — we'll call to confirm`,
-    html
-  );
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendOrderConfirmedEmail(order: OrderWithItems) {
   if (!order.customerEmail) return;
-  const html = wrap(
-    "Order confirmed",
-    `
-      <p style="line-height:1.6">Hi ${esc(order.customerName)}, your order <strong>${esc(order.orderNumber)}</strong> is now confirmed after our verification call. The kitchen is preparing your food.</p>
-      <p style="margin-top:16px;font-size:15px"><strong>Total: ${formatPkr(Number(order.total))}</strong></p>
-      <p style="font-size:13px;color:#57534e">${order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery"} · ${esc(order.deliveryAddress)}</p>
-    `
-  );
-  await sendEmail(order.customerEmail, `Order ${order.orderNumber} confirmed — Ubaid Fast Foodz`, html);
+  const brand = await getEmailBranding();
+  const { html, text } = orderConfirmedEmail({ storeName: brand.storeName }, order);
+  await sendMail({
+    to: order.customerEmail,
+    subject: `Order ${order.orderNumber} confirmed — ${brand.storeName}`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendOrderDeliveredEmail(order: OrderWithItems) {
   if (!order.customerEmail) return;
-  const html = wrap(
-    "Order delivered",
-    `
-      <p style="line-height:1.6">Hi ${esc(order.customerName)}, your order <strong>${esc(order.orderNumber)}</strong> has been delivered. We hope you enjoy your meal!</p>
-      <p style="margin-top:16px;font-size:15px"><strong>Total paid: ${formatPkr(Number(order.total))}</strong></p>
-      <p style="font-size:13px;color:#57534e">Thank you for choosing Ubaid Fast Foodz. Order again anytime.</p>
-    `
-  );
-  await sendEmail(order.customerEmail, `Order ${order.orderNumber} delivered — Ubaid Fast Foodz`, html);
+  const brand = await getEmailBranding();
+  const { html, text } = orderDeliveredEmail({ storeName: brand.storeName }, order);
+  await sendMail({
+    to: order.customerEmail,
+    subject: `Order ${order.orderNumber} delivered — thank you!`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendOrderPreparingEmail(order: OrderWithItems) {
   if (!order.customerEmail) return;
-  const html = wrap(
-    "Kitchen is cooking",
-    `<p style="line-height:1.6">Hi ${esc(order.customerName)}, the kitchen has started preparing order <strong>${esc(order.orderNumber)}</strong>.</p>`
-  );
-  await sendEmail(order.customerEmail, `Order ${order.orderNumber} is being prepared`, html);
+  const brand = await getEmailBranding();
+  const { html, text } = orderPreparingEmail({ storeName: brand.storeName }, order);
+  await sendMail({
+    to: order.customerEmail,
+    subject: `Order ${order.orderNumber} is being prepared`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendOrderOnTheWayEmail(order: OrderWithItems) {
   if (!order.customerEmail) return;
   const takeaway = order.fulfillmentType === "PICKUP";
-  const html = wrap(
-    takeaway ? "Ready for pickup" : "Out for delivery",
-    takeaway
-      ? `<p style="line-height:1.6">Hi ${esc(order.customerName)}, order <strong>${esc(order.orderNumber)}</strong> is ready. Please collect it from the restaurant.</p><p style="font-size:13px;color:#57534e">${esc(order.deliveryAddress)}</p>`
-      : `<p style="line-height:1.6">Hi ${esc(order.customerName)}, order <strong>${esc(order.orderNumber)}</strong> is on the way.</p><p style="font-size:13px;color:#57534e">${esc(order.deliveryAddress)}</p>`
-  );
-  await sendEmail(
-    order.customerEmail,
-    takeaway ? `Order ${order.orderNumber} is ready for pickup` : `Order ${order.orderNumber} is on the way`,
-    html
-  );
+  const brand = await getEmailBranding();
+  const { html, text } = orderOnTheWayEmail({ storeName: brand.storeName }, order);
+  await sendMail({
+    to: order.customerEmail,
+    subject: takeaway
+      ? `Order ${order.orderNumber} is ready for pickup`
+      : `Order ${order.orderNumber} is on the way`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendOrderCancelledEmail(order: OrderWithItems) {
   if (!order.customerEmail) return;
-  const html = wrap(
-    "Order cancelled",
-    `<p style="line-height:1.6">Hi ${esc(order.customerName)}, order <strong>${esc(order.orderNumber)}</strong> has been cancelled. If you did not request this, call the restaurant.</p>`
-  );
-  await sendEmail(order.customerEmail, `Order ${order.orderNumber} cancelled`, html);
+  const brand = await getEmailBranding();
+  const { html, text } = orderCancelledEmail({ storeName: brand.storeName }, order);
+  await sendMail({
+    to: order.customerEmail,
+    subject: `Order ${order.orderNumber} cancelled`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendNewOrderStaffEmail(order: OrderWithItems, adminEmails: string[]) {
-  const html = wrap(
-    "New order",
-    `
-      <p style="line-height:1.6"><strong>${esc(order.orderNumber)}</strong> · ${esc(order.customerName)} · ${esc(order.customerPhone)}</p>
-      <p style="font-size:13px;color:#57534e">${order.fulfillmentType === "PICKUP" ? "Takeaway" : "Delivery"} · ${esc(order.deliveryAddress)}</p>
-      <table style="width:100%;margin-top:16px;font-size:14px">${itemsHtml(order.items)}</table>
-      <p style="margin-top:16px;font-size:15px"><strong>Total: ${formatPkr(Number(order.total))}</strong></p>
-    `
-  );
+  const brand = await getEmailBranding();
+  const { html, text } = newOrderStaffEmail({ storeName: brand.storeName }, order);
   await Promise.all(
-    adminEmails.map((email) => sendEmail(email, `New order ${order.orderNumber} — Kitchen OS`, html))
+    adminEmails.map((email) =>
+      sendMail({
+        to: email,
+        subject: `New order ${order.orderNumber} — ${PRODUCT_NAME}`,
+        html,
+        text,
+        storeName: brand.storeName,
+        transactional: true,
+      })
+    )
   );
 }
 
@@ -215,23 +258,30 @@ export async function sendRiderAssignedEmail(
   order: OrderWithItems
 ) {
   if (!riderEmail) return;
-  const html = wrap(
-    "New delivery assigned",
-    `<p style="line-height:1.6">Hi ${esc(riderName)}, you have been assigned <strong>${esc(order.orderNumber)}</strong>.</p><p style="font-size:13px;color:#57534e">${esc(order.customerName)} · ${esc(order.customerPhone)}<br/>${esc(order.deliveryAddress)}</p>`
-  );
-  await sendEmail(riderEmail, `Delivery ${order.orderNumber} assigned to you`, html);
+  const brand = await getEmailBranding();
+  if (!brand.emailNotifyRider) return;
+  const { html, text } = riderAssignedEmail({ storeName: brand.storeName }, riderName, order);
+  await sendMail({
+    to: riderEmail,
+    subject: `Delivery ${order.orderNumber} assigned to you`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendPasswordResetEmail(email: string, name: string, resetUrl: string) {
-  const html = wrap(
-    "Reset your password",
-    `
-      <p style="line-height:1.6">Hi ${esc(name)}, we received a request to reset your Ubaid Fast Foodz password.</p>
-      <p style="margin:24px 0"><a href="${esc(resetUrl)}" style="display:inline-block;background:#ea580c;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">Reset password</a></p>
-      <p style="font-size:13px;color:#57534e">This link expires in 1 hour. If you did not request this, ignore this email.</p>
-    `
-  );
-  await sendEmail(email, "Reset your Ubaid Fast Foodz password", html);
+  const brand = await getEmailBranding();
+  const { html, text } = passwordResetEmail({ storeName: brand.storeName }, name, resetUrl);
+  await sendMail({
+    to: email,
+    subject: `Reset your ${brand.storeName} password`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }
 
 export async function sendStaffWelcomeEmail(
@@ -240,15 +290,20 @@ export async function sendStaffWelcomeEmail(
   role: string,
   temporaryPassword?: string
 ) {
-  const html = wrap(
-    "Your staff account",
-    `
-      <p style="line-height:1.6">Hi ${esc(name)}, an account was created for you on Kitchen OS.</p>
-      <p>Role: <strong>${esc(role)}</strong><br/>Email: <strong>${esc(email)}</strong>${
-        temporaryPassword ? `<br/>Temporary password: <strong>${esc(temporaryPassword)}</strong>` : ""
-      }</p>
-      <p style="font-size:13px;color:#57534e">Sign in at the staff login page and change your password if you were given a temporary one.</p>
-    `
+  const brand = await getEmailBranding();
+  const { html, text } = staffWelcomeEmail(
+    { storeName: brand.storeName },
+    name,
+    email,
+    role,
+    temporaryPassword
   );
-  await sendEmail(email, "Your Ubaid Fast Foodz staff account", html);
+  await sendMail({
+    to: email,
+    subject: `Your ${brand.storeName} staff account`,
+    html,
+    text,
+    storeName: brand.storeName,
+    transactional: true,
+  });
 }

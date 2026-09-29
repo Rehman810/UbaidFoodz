@@ -7,7 +7,9 @@ import {
   Facebook,
   ImageIcon,
   Instagram,
+  Mail,
   Phone,
+  Store,
   Plus,
   Save,
   Settings,
@@ -167,6 +169,63 @@ export default function AdminSettingsPage() {
       <TwoFactorSettings />
 
       <form onSubmit={onSave} className="space-y-6">
+        <SettingsSection
+          icon={Store}
+          title="Branding"
+          description="Your restaurant name appears on the website, emails, and receipts."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SettingsField label="Restaurant name">
+              <input
+                className="input"
+                value={settings.storeName ?? ""}
+                onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
+                placeholder="Your Restaurant"
+              />
+            </SettingsField>
+            <SettingsField label="Tagline">
+              <input
+                className="input"
+                value={settings.storeTagline ?? ""}
+                onChange={(e) => setSettings({ ...settings, storeTagline: e.target.value })}
+                placeholder="Order in minutes"
+              />
+            </SettingsField>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection
+          icon={Mail}
+          title="Staff email notifications"
+          description="Control which roles receive order alert and assignment emails. Admin always receives new-order alerts."
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { key: "emailNotifyChef" as const, label: "Chef", hint: "New order alerts" },
+              { key: "emailNotifyCashier" as const, label: "Cashier", hint: "New order alerts" },
+              { key: "emailNotifyRider" as const, label: "Rider", hint: "Delivery assignment emails" },
+            ].map(({ key, label, hint }) => (
+              <label
+                key={key}
+                className={`flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 transition ${
+                  settings[key] ? "border-brand-300 bg-brand-50" : "border-stone-200 bg-stone-50"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-stone-300 text-brand-600"
+                    checked={settings[key] ?? true}
+                    onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
+                  />
+                  <span className="text-sm font-semibold text-stone-900">{label}</span>
+                </span>
+                <span className="text-xs text-stone-500">{hint}</span>
+              </label>
+            ))}
+          </div>
+        </SettingsSection>
+
         <div className="grid gap-6 lg:grid-cols-2">
           <SettingsSection
             icon={Phone}

@@ -100,6 +100,18 @@ export function homeFor(role?: Role) {
   return "/menu";
 }
 
+export function isStaffRole(role?: Role) {
+  return role === "ADMIN" || role === "CHEF" || role === "CASHIER" || role === "RIDER";
+}
+
+export function dashboardLabel(role: Role) {
+  if (role === "ADMIN") return "Admin dashboard";
+  if (role === "CHEF") return "Kitchen board";
+  if (role === "CASHIER") return "POS counter";
+  if (role === "RIDER") return "Rider app";
+  return "Dashboard";
+}
+
 export function resolveLoginRedirect(role: Role, next: string | null) {
   const home = homeFor(role);
   if (!next) return home;

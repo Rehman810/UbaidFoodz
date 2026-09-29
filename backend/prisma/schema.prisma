@@ -134,6 +134,8 @@ model MenuItemAddon {
 
 model StoreSettings {
   id                  String   @id @default("default")
+  storeName           String   @default("Your Restaurant")
+  storeTagline        String   @default("Order in minutes")
   phone               String   @default("0321-5556677")
   whatsapp            String   @default("923215556677")
   address             String   @default("Boat Basin, Clifton Block 5, Karachi")
@@ -151,6 +153,9 @@ model StoreSettings {
   forceClosed         Boolean  @default(false)
   autoConfirmOrders   Boolean  @default(false)
   autoAssignRiders    Boolean  @default(true)
+  emailNotifyChef     Boolean  @default(true)
+  emailNotifyCashier  Boolean  @default(true)
+  emailNotifyRider    Boolean  @default(true)
   facebookUrl         String   @default("")
   instagramUrl        String   @default("")
   tiktokUrl           String   @default("")

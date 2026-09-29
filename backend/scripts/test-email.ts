@@ -1,6 +1,9 @@
 import path from "path";
+import crypto from "crypto";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+import { DEFAULT_STORE_NAME } from "../src/lib/branding";
+import { passwordResetEmail } from "../src/lib/email-templates";
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
@@ -13,10 +16,24 @@ if (!user || !pass) {
   process.exit(1);
 }
 
-console.log(`Testing Gmail SMTP as ${user} (password length: ${pass.length})…`);
+const from =
+  process.env.SMTP_FROM?.includes(user) ? process.env.SMTP_FROM : `${DEFAULT_STORE_NAME} <${user}>`;
+const replyTo = (process.env.SMTP_REPLY_TO || user).trim();
+const domain = user.split("@")[1] || "restaurant.local";
+
+const sample = passwordResetEmail(
+  { storeName: DEFAULT_STORE_NAME },
+  "Test User",
+  "https://example.com/reset-password?token=test"
+);
+
+console.log(`Testing SMTP as ${user} → ${to}…`);
 
 const transport = nodemailer.createTransport({
-  service: "gmail",
+  service: (process.env.SMTP_SERVICE || "gmail").trim().toLowerCase() === "gmail" ? "gmail" : undefined,
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: process.env.SMTP_SECURE === "true",
   auth: { user, pass },
 });
 
@@ -25,12 +42,24 @@ transport
   .then(async () => {
     console.log("SMTP login OK.");
     await transport.sendMail({
-      from: process.env.SMTP_FROM || user,
+      from,
       to,
-      subject: "Ubaid Fast Foodz — SMTP test",
-      text: "If you received this, order emails will work.",
+      replyTo,
+      subject: `${DEFAULT_STORE_NAME} — email template test`,
+      html: sample.html,
+      text: sample.text,
+      headers: {
+        "X-Mailer": "Restaurant-OS",
+        "X-Priority": "3",
+        Precedence: "auto",
+      },
+      messageId: `<${crypto.randomUUID()}@${domain}>`,
     });
     console.log(`Test email sent to ${to}`);
+    console.log("\nSpam tips:");
+    console.log("  • SMTP_FROM must use the same address as SMTP_USER (Gmail)");
+    console.log("  • Use a Gmail App Password, not your normal password");
+    console.log("  • For production, use your own domain + SPF/DKIM/DMARC");
   })
   .catch((err: { code?: string; response?: string }) => {
     console.error("\nSMTP failed:", err.code || err);

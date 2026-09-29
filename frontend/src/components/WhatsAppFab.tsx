@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageCircle, Phone } from "lucide-react";
+import { storeDisplayName } from "@/lib/branding";
 import { useStore } from "@/lib/store";
 
 export function ContactFab() {
@@ -9,7 +10,7 @@ export function ContactFab() {
 
   const { phone, whatsapp } = store.settings;
   const wa = whatsapp.replace(/\D/g, "");
-  const waMsg = encodeURIComponent("Hi! I'd like to order from Ubaid Fast Foodz.");
+  const waMsg = encodeURIComponent(`Hi! I'd like to order from ${storeDisplayName(store.settings)}.`);
 
   return (
     <div className="fixed bottom-4 right-4 z-40 sm:bottom-6 sm:right-6">

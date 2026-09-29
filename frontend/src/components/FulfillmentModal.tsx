@@ -14,10 +14,13 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
-import { PICKUP_LOCATION, useFulfillment } from "@/lib/fulfillment";
+import { pickupLocation } from "@/lib/branding";
+import { useFulfillment } from "@/lib/fulfillment";
+import { useStore } from "@/lib/store";
 import { DeliveryArea } from "@/lib/types";
 
 export function FulfillmentModal() {
+  const store = useStore();
   const {
     hasChosen,
     mode,
@@ -178,7 +181,7 @@ export function FulfillmentModal() {
                 <p className="text-base font-bold text-stone-900">Takeaway</p>
                 <p className="mt-0.5 text-xs text-stone-600">No delivery fee · ready in ~20 min</p>
                 <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-stone-500">
-                  <Clock size={11} /> Clifton Block 5
+                  <Clock size={11} /> {store?.settings?.address?.split(",")[0] || "Pickup location"}
                 </p>
               </div>
               <ArrowRight
@@ -188,7 +191,7 @@ export function FulfillmentModal() {
             </button>
 
             <p className="pt-0.5 text-center text-[10px] leading-snug text-stone-400">
-              Takeaway: {PICKUP_LOCATION}
+              Takeaway: {pickupLocation(store?.settings)}
             </p>
           </div>
         ) : (

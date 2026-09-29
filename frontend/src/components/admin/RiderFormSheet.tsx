@@ -121,7 +121,7 @@ export function RiderFormSheet({
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 required
-                placeholder="rider@ubaidfastfoodz.com"
+                placeholder="rider@demo.restaurant"
               />
             </div>
             <div>

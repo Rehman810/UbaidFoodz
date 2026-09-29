@@ -2,6 +2,8 @@ import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
 import { prisma } from "./prisma";
+import { getStoreSettings } from "./settings-data";
+import { storeNameFrom } from "./branding";
 
 const INVOICE_DIR = path.join(__dirname, "../../invoices");
 
@@ -19,6 +21,9 @@ export async function generateInvoicePdf(orderId: string) {
   });
   if (!order) throw new Error("Order not found");
 
+  const settings = await getStoreSettings();
+  const storeName = storeNameFrom(settings).toUpperCase();
+
   fs.mkdirSync(INVOICE_DIR, { recursive: true });
   const invoiceNumber = `INV-${order.orderNumber.replace("UF-", "")}`;
   const pdfPath = path.join(INVOICE_DIR, `${invoiceNumber}.pdf`);
@@ -29,7 +34,7 @@ export async function generateInvoicePdf(orderId: string) {
     doc.pipe(stream);
 
     doc.rect(0, 0, 595, 90).fill("#C2410C");
-    doc.fillColor("#ffffff").fontSize(22).font("Helvetica-Bold").text("UBAID FAST FOODZ", 48, 28);
+    doc.fillColor("#ffffff").fontSize(22).font("Helvetica-Bold").text(storeName, 48, 28);
     doc.fontSize(11).font("Helvetica").text("Invoice", 48, 56);
 
     doc.fillColor("#1c1917").fontSize(10);
@@ -81,7 +86,7 @@ export async function generateInvoicePdf(orderId: string) {
     y += 48;
     doc.font("Helvetica").fontSize(9).fillColor("#78716c");
     doc.text("Payment: Cash on Delivery", 48, y);
-    doc.text("Thank you for ordering from Ubaid Fast Foodz.", 48, y + 14);
+    doc.text(`Thank you for ordering from ${storeNameFrom(settings)}.`, 48, y + 14);
     doc.text("This is a demo invoice generated for client presentation.", 48, y + 28);
 
     doc.end();

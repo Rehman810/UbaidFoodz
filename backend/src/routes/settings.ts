@@ -70,6 +70,10 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
   const settings = await prisma.storeSettings.update({
     where: { id: "default" },
     data: {
+      ...(body.storeName !== undefined ? { storeName: String(body.storeName).trim() || "Your Restaurant" } : {}),
+      ...(body.storeTagline !== undefined
+        ? { storeTagline: String(body.storeTagline).trim() || "Order in minutes" }
+        : {}),
       ...(body.phone !== undefined ? { phone: String(body.phone) } : {}),
       ...(body.whatsapp !== undefined ? { whatsapp: String(body.whatsapp) } : {}),
       ...(body.address !== undefined ? { address: String(body.address) } : {}),
@@ -96,6 +100,15 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
         : {}),
       ...(body.autoAssignRiders !== undefined
         ? { autoAssignRiders: Boolean(body.autoAssignRiders) }
+        : {}),
+      ...(body.emailNotifyChef !== undefined
+        ? { emailNotifyChef: Boolean(body.emailNotifyChef) }
+        : {}),
+      ...(body.emailNotifyCashier !== undefined
+        ? { emailNotifyCashier: Boolean(body.emailNotifyCashier) }
+        : {}),
+      ...(body.emailNotifyRider !== undefined
+        ? { emailNotifyRider: Boolean(body.emailNotifyRider) }
         : {}),
       ...(body.facebookUrl !== undefined ? { facebookUrl: String(body.facebookUrl) } : {}),
       ...(body.instagramUrl !== undefined ? { instagramUrl: String(body.instagramUrl) } : {}),

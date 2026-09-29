@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { AdminStats } from "@/lib/admin-types";
@@ -45,6 +46,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const fetchStats = useCallback(() => api<AdminStats>("/admin/stats"), []);
   const { data: stats, loading, refresh } = usePoll(fetchStats, 12000);
   useLiveOrders(refresh);
@@ -83,7 +85,7 @@ export default function AdminDashboard() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-brand-300">Kitchen command</p>
             <h1 className="font-display mt-2 text-3xl text-white sm:text-4xl">
-              Good evening, Ubaid 👋
+              Good evening{user?.name ? `, ${user.name.split(" ")[0]}` : ""} 👋
             </h1>
             <p className="mt-2 max-w-md text-sm text-stone-400">
               {active} bags moving through the kitchen · {stats.deliveredToday} delivered today · refreshes every 12s

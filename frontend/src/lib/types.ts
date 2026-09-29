@@ -50,6 +50,8 @@ export type MenuItem = {
 
 export type StoreSettings = {
   id: string;
+  storeName: string;
+  storeTagline: string;
   phone: string;
   whatsapp: string;
   address: string;
@@ -67,6 +69,9 @@ export type StoreSettings = {
   forceClosed: boolean;
   autoConfirmOrders: boolean;
   autoAssignRiders: boolean;
+  emailNotifyChef: boolean;
+  emailNotifyCashier: boolean;
+  emailNotifyRider: boolean;
   facebookUrl: string;
   instagramUrl: string;
   tiktokUrl: string;

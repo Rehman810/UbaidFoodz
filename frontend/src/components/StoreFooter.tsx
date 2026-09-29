@@ -4,17 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, Flame, MapPin, Phone } from "lucide-react";
 import { PoweredByDevsora } from "@/components/PoweredByDevsora";
+import { storeDisplayName, storeTagline } from "@/lib/branding";
 import { useStore } from "@/lib/store";
 
 export function StoreFooter() {
   const store = useStore();
   const settings = store?.settings;
   const phone = settings?.phone ?? "0321-5556677";
-  const address = settings?.address ?? "Boat Basin, Clifton Block 5, Karachi";
+  const address = settings?.address ?? "Restaurant address";
+  const name = storeDisplayName(settings);
 
   return (
     <footer className="relative bg-stone-950 text-stone-400">
-      {/* Overlapping CTA card */}
       <div className="mx-auto max-w-6xl px-4 pt-2 sm:px-6">
         <div className="relative -translate-y-10 overflow-hidden rounded-[2rem] shadow-float sm:-translate-y-14">
           <div className="absolute inset-0">
@@ -35,13 +36,13 @@ export function StoreFooter() {
               <h2 className="font-display mt-3 text-3xl leading-tight sm:text-4xl">
                 Craving something <span className="text-brand-400">right now?</span>
               </h2>
-              <p className="mt-3 text-sm text-stone-300">Cash on delivery · No card needed · Karachi-wide</p>
+              <p className="mt-3 text-sm text-stone-300">Cash on delivery · Fast delivery · Order online</p>
             </div>
             <Link
               href="/menu"
               className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-brand-600 px-7 text-sm font-bold text-white shadow-lg transition hover:bg-brand-500"
             >
-              Order from Ubaid <ArrowRight size={16} />
+              Order now <ArrowRight size={16} />
             </Link>
           </div>
         </div>
@@ -53,10 +54,10 @@ export function StoreFooter() {
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-brand-600 shadow-md shadow-brand-900/40">
               <Flame size={20} />
             </span>
-            Ubaid Fast Foodz
+            {name}
           </p>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-stone-400">
-            Karachi&apos;s go-to for zinger, biryani and broast — fired fresh from our kitchen, delivered hot to your door.
+            {storeTagline(settings)} — fresh food from our kitchen, delivered to your door.
           </p>
           {(settings?.instagramUrl || settings?.facebookUrl) && (
             <div className="mt-6 flex flex-wrap gap-2">
@@ -116,7 +117,7 @@ export function StoreFooter() {
             </li>
             <li className="flex gap-3">
               <Clock size={16} className="mt-0.5 shrink-0 text-brand-500" />
-              <span>{store?.hoursLabel ?? "7:00 PM – 2:30 AM"} daily</span>
+              <span>{store?.hoursLabel ?? "See opening hours"} daily</span>
             </li>
           </ul>
         </div>
@@ -125,7 +126,7 @@ export function StoreFooter() {
       <div className="border-t border-white/10 px-4 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row sm:gap-6">
           <p className="text-center text-xs text-stone-500 sm:text-left">
-            © {new Date().getFullYear()} Ubaid Fast Foodz · Made with heat in Karachi
+            © {new Date().getFullYear()} {name}
           </p>
           <PoweredByDevsora variant="badge" />
         </div>

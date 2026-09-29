@@ -7,7 +7,9 @@ import { generateSecret, generateURI, verifyTotp } from "../lib/totp";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole, signToken } from "../middleware/auth";
+import { storeNameFrom } from "../lib/branding";
 import { sendPasswordResetEmail } from "../lib/email";
+import { getStoreSettings } from "../lib/settings-data";
 import { authLimiter } from "../middleware/security";
 
 const JWT_SECRET = process.env.JWT_SECRET || "ubaid-fast-foodz-demo-secret";
@@ -197,7 +199,8 @@ authRouter.post("/2fa/setup", requireAuth, requireRole(Role.ADMIN), async (req, 
   }
   const secret = generateSecret();
   await prisma.user.update({ where: { id: user.id }, data: { totpSecret: secret, totpEnabled: false } });
-  const otpauth = generateURI({ issuer: "Ubaid Fast Foodz", label: user.email, secret });
+  const settings = await getStoreSettings();
+  const otpauth = generateURI({ issuer: storeNameFrom(settings), label: user.email, secret });
   const qrDataUrl = await QRCode.toDataURL(otpauth, { width: 220, margin: 1 });
   res.json({ secret, otpauth, qrDataUrl });
 });

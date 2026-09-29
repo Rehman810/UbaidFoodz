@@ -4,7 +4,9 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Flame, Lock, ShieldCheck } from "lucide-react";
+import { StoreName } from "@/components/StoreName";
 import { api } from "@/lib/api";
+import { DEFAULT_STORE_NAME } from "@/lib/branding";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
@@ -58,7 +60,7 @@ export default function ResetPasswordForm() {
               <Flame size={22} />
             </span>
             <div>
-              <p className="font-display text-2xl leading-none">Ubaid Fast Foodz</p>
+              <p className="font-display text-2xl leading-none">{DEFAULT_STORE_NAME}</p>
               <p className="mt-1 text-sm text-orange-100/80">Secure sign-in</p>
             </div>
           </div>
@@ -75,7 +77,7 @@ export default function ResetPasswordForm() {
             </p>
           </div>
 
-          <p className="text-xs text-stone-400">© Ubaid Fast Foodz · Karachi</p>
+          <p className="text-xs text-stone-400">© {DEFAULT_STORE_NAME}</p>
         </div>
       </div>
 
@@ -92,7 +94,7 @@ export default function ResetPasswordForm() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
               <Flame size={18} />
             </span>
-            <span className="font-display text-lg">Ubaid</span>
+            <StoreName className="font-display text-lg" fallback={DEFAULT_STORE_NAME} />
           </div>
         </div>
 

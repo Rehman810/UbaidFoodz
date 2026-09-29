@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Minus, Plus, Share2, Trash2, X } from "lucide-react";
+import { storeDisplayName } from "@/lib/branding";
 import { useCart } from "@/lib/cart";
+import { useStore } from "@/lib/store";
 import { useItemModal } from "@/lib/item-modal";
 import { useStoreOpen } from "@/lib/use-store-open";
 import { pkr } from "@/lib/format";
@@ -11,6 +13,7 @@ import { menuItemHasDiscount, menuItemPrice, optionPrice } from "@/lib/menu-pric
 import { MenuItemOptionGroup } from "@/lib/types";
 
 export function ItemDetailModal() {
+  const store = useStore();
   const item = useItemModal((s) => s.item);
   const close = useItemModal((s) => s.close);
   const addConfigured = useCart((s) => s.addConfigured);
@@ -101,7 +104,7 @@ export function ItemDetailModal() {
     if (!item) return;
     const url = `${window.location.origin}/?item=${encodeURIComponent(item.id)}`;
     const shareData = {
-      title: `${item.name} · Ubaid Fast Foodz`,
+      title: `${item.name} · ${storeDisplayName(store?.settings)}`,
       text: item.description || item.name,
       url,
     };

@@ -13,6 +13,7 @@ import { loadCheckoutProfile, saveCheckoutProfile } from "@/lib/checkout-profile
 import { saveGuestOrderToken } from "@/lib/guest-order";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
+import { pickupLocation } from "@/lib/branding";
 import { useStore } from "@/lib/store";
 import { useStoreOpen } from "@/lib/use-store-open";
 import { getCheckoutLocation } from "@/lib/geolocation";
@@ -48,7 +49,7 @@ export default function CheckoutPage() {
 
   const isDelivery = mode === "DELIVERY";
   const settings = store?.settings;
-  const pickupAddress = settings?.address ?? "Ubaid Fast Foodz — Boat Basin, Clifton Block 5, Karachi";
+  const pickupAddress = pickupLocation(settings);
   const minimumOrder = Number(settings?.minimumOrder ?? 0);
   const freeAbove = settings?.freeDeliveryAbove != null ? Number(settings.freeDeliveryAbove) : null;
   const qualifiesFreeDelivery = freeAbove != null && subtotal >= freeAbove;

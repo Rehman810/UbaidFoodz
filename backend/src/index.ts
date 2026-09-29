@@ -83,5 +83,5 @@ server.on("error", (err: NodeJS.ErrnoException) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Ubaid Fast Foodz API on http://localhost:${PORT}`);
+  console.log(`Restaurant OS API on http://localhost:${PORT}`);
 });

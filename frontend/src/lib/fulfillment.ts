@@ -56,4 +56,3 @@ export const useFulfillment = create<FulfillmentState>()(
   )
 );
 
-export const PICKUP_LOCATION = "Ubaid Fast Foodz — Boat Basin, Clifton Block 5, Karachi";

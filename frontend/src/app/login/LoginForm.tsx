@@ -1,36 +1,38 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Bike, Flame, Lock, Mail, Receipt, ShieldCheck, UserCog } from "lucide-react";
+import { StoreName } from "@/components/StoreName";
 import { homeFor, resolveLoginRedirect, useAuth } from "@/lib/auth";
+import { DEFAULT_STORE_NAME, PRODUCT_NAME } from "@/lib/branding";
 
 const DEMOS = [
   {
     role: "Admin",
-    email: "admin@ubaidfastfoodz.com",
+    email: "admin@demo.restaurant",
     password: "demo123",
     icon: UserCog,
     hint: "Orders, menu & store settings",
   },
   {
     role: "Chef",
-    email: "chef@ubaidfastfoodz.com",
+    email: "chef@demo.restaurant",
     password: "demo123",
     icon: Flame,
     hint: "Kitchen tickets & bump board",
   },
   {
     role: "Rider",
-    email: "rider@ubaidfastfoodz.com",
+    email: "rider@demo.restaurant",
     password: "demo123",
     icon: Bike,
     hint: "Live deliveries & route updates",
   },
   {
     role: "Cashier",
-    email: "cashier@ubaidfastfoodz.com",
+    email: "cashier@demo.restaurant",
     password: "demo123",
     icon: Receipt,
     hint: "POS counter & receipts",
@@ -40,7 +42,7 @@ const DEMOS = [
 const IS_PROD = process.env.NODE_ENV === "production";
 
 export default function LoginForm() {
-  const { login, verifyTwoFactor } = useAuth();
+  const { user, loading, login, verifyTwoFactor } = useAuth();
   const router = useRouter();
   const next = useSearchParams().get("next");
   const resetDone = useSearchParams().get("reset") === "1";
@@ -50,6 +52,11 @@ export default function LoginForm() {
   const [challenge, setChallenge] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (loading || !user) return;
+    router.replace(resolveLoginRedirect(user.role, next));
+  }, [loading, user, next, router]);
 
   async function signIn(asEmail: string, asPassword: string, ignoreNext = false) {
     setBusy(true);
@@ -102,8 +109,8 @@ export default function LoginForm() {
               <Flame size={22} />
             </span>
             <div>
-              <p className="font-display text-2xl leading-none">Ubaid Fast Foodz</p>
-              <p className="mt-1 text-sm text-orange-100/80">Kitchen operations portal</p>
+              <p className="font-display text-2xl leading-none">{DEFAULT_STORE_NAME}</p>
+              <p className="mt-1 text-sm text-orange-100/80">{PRODUCT_NAME}</p>
             </div>
           </div>
 
@@ -129,7 +136,7 @@ export default function LoginForm() {
             </div>
           </div>
 
-          <p className="text-xs text-stone-400">© Ubaid Fast Foodz · Karachi</p>
+          <p className="text-xs text-stone-400">© {DEFAULT_STORE_NAME}</p>
         </div>
       </div>
 
@@ -147,7 +154,7 @@ export default function LoginForm() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
               <Flame size={18} />
             </span>
-            <span className="font-display text-lg">Ubaid</span>
+            <StoreName className="font-display text-lg" fallback={DEFAULT_STORE_NAME} />
           </div>
         </div>
 
@@ -161,7 +168,7 @@ export default function LoginForm() {
                 </div>
                 <h1 className="font-display text-3xl text-stone-900 sm:text-4xl">Welcome back</h1>
                 <p className="mt-2 text-sm text-stone-500">
-                  Customers, staff, and riders — one login for your Ubaid account.
+                  Customers, staff, and riders — one login for your account.
                 </p>
               </div>
 
@@ -209,7 +216,7 @@ export default function LoginForm() {
                           onChange={(e) => setEmail(e.target.value)}
                           type="email"
                           autoComplete="email"
-                          placeholder="you@ubaidfastfoodz.com"
+                          placeholder="you@demo.restaurant"
                           required
                         />
                       </div>

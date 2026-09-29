@@ -4,14 +4,14 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { homeFor, useAuth } from "@/lib/auth";
 
-/** Keeps riders off the customer storefront — admins can preview it from the dashboard. */
+/** Staff land on their workspace; admins may browse the storefront. */
 export function RoleRedirect() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (loading || !user) return;
-    if (user.role === "RIDER" || user.role === "CHEF") {
+    if (user.role === "RIDER" || user.role === "CHEF" || user.role === "CASHIER") {
       router.replace(homeFor(user.role));
     }
   }, [user, loading, router]);

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { DEFAULT_STORE_NAME, storeDisplayName } from "@/lib/branding";
 import { buildPosOrderPayload, posCartTotal, usePosCart } from "@/lib/pos-cart";
 import { buildQuickAddConfig, itemHasConfigurableOptions, menuItemPrice } from "@/lib/menu-price";
 import { printReceipt } from "@/lib/print-receipt";
@@ -98,7 +99,7 @@ export default function PosPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
-  const [store, setStore] = useState({ name: "Ubaid Fast Foodz", phone: "", address: "" });
+  const [store, setStore] = useState({ name: DEFAULT_STORE_NAME, phone: "", address: "" });
   const [freeDeliveryAbove, setFreeDeliveryAbove] = useState<number | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [clock, setClock] = useState("");
@@ -109,7 +110,7 @@ export default function PosPage() {
       api<MenuItem[]>("/menu"),
       api<Deal[]>("/deals"),
       api<DeliveryArea[]>("/delivery-areas"),
-      api<{ settings: { phone: string; address: string; freeDeliveryAbove?: string | number | null } }>(
+      api<{ settings: { storeName?: string; phone: string; address: string; freeDeliveryAbove?: string | number | null } }>(
         "/settings/public"
       ).catch(() => null),
     ]);
@@ -118,7 +119,11 @@ export default function PosPage() {
     setAreas(a.filter((x) => x.isDelivering));
     if (a[0]) setAreaId(a[0].id);
     if (s?.settings) {
-      setStore({ name: "Ubaid Fast Foodz", phone: s.settings.phone, address: s.settings.address });
+      setStore({
+        name: storeDisplayName(s.settings),
+        phone: s.settings.phone,
+        address: s.settings.address,
+      });
       setFreeDeliveryAbove(
         s.settings.freeDeliveryAbove != null ? Number(s.settings.freeDeliveryAbove) : null
       );
@@ -393,7 +398,7 @@ export default function PosPage() {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-stone-900">Point of Sale</p>
-            <p className="hidden text-[11px] text-stone-500 sm:block">Ubaid Fast Foodz · Counter</p>
+            <p className="hidden text-[11px] text-stone-500 sm:block">{store.name} · Counter</p>
           </div>
         </div>
 

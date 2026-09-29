@@ -1,7 +1,7 @@
 {
-  "name": "Ubaid Fast Foodz",
-  "short_name": "Ubaid",
-  "description": "Karachi heat. Street flavor. Delivered fast.",
+  "name": "Restaurant OS",
+  "short_name": "Restaurant",
+  "description": "Order food online — delivery and takeaway",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fffaf5",
@@ -9,13 +9,9 @@
   "icons": [
     {
       "src": "/carousel/carousel-zinger.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/carousel/carousel-broast.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

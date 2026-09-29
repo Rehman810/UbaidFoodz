@@ -1,6 +1,3 @@
--- AlterEnum
-ALTER TYPE "Role" ADD VALUE 'CASHIER';
-
 -- CreateEnum
 CREATE TYPE "OrderSource" AS ENUM ('ONLINE', 'POS');
 CREATE TYPE "PaymentMethod" AS ENUM ('CASH', 'CARD');

@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ShoppingBag, Flame, Menu, MapPin, X } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { dashboardLabel, homeFor, isStaffRole, useAuth } from "@/lib/auth";
+import { storeDisplayName } from "@/lib/branding";
+import { useStore } from "@/lib/store";
 import { cartCount, useCart } from "@/lib/cart";
 import { useFulfillment } from "@/lib/fulfillment";
 
@@ -12,6 +14,8 @@ export function Navbar() {
   const path = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const store = useStore();
+  const brandName = storeDisplayName(store?.settings);
   const items = useCart((s) => s.items);
   const bounce = useCart((s) => s.bounce);
   const count = cartCount(items);
@@ -19,6 +23,7 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   const isCustomer = !user || user.role === "CUSTOMER";
+  const staffHome = user && isStaffRole(user.role) ? homeFor(user.role) : null;
 
   const links = isCustomer
     ? [
@@ -37,7 +42,7 @@ export function Navbar() {
               <Flame size={17} strokeWidth={2.2} />
             </span>
             <span className="truncate text-sm font-extrabold tracking-tight text-ink sm:text-base">
-              Ubaid Fast Foodz
+              {brandName}
             </span>
           </Link>
 
@@ -92,7 +97,31 @@ export function Navbar() {
                 )}
               </button>
             )}
-            {user ? (
+            {staffHome && user ? (
+              <>
+                <Link
+                  href="/menu"
+                  className="hidden h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-semibold leading-none text-ink hover:bg-brand-50 sm:inline-flex"
+                >
+                  View menu
+                </Link>
+                <Link
+                  href={staffHome}
+                  className="hidden h-10 items-center rounded-full bg-brand-600 px-4 text-sm font-semibold leading-none text-white hover:bg-brand-700 sm:inline-flex"
+                >
+                  {dashboardLabel(user.role)}
+                </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    router.push("/");
+                  }}
+                  className="hidden h-10 items-center rounded-full border border-stone-200 bg-white px-4 text-sm font-semibold leading-none text-ink sm:inline-flex"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : user ? (
               <button
                 onClick={() => {
                   logout();
@@ -141,24 +170,54 @@ export function Navbar() {
               </button>
             </div>
             <nav className="flex flex-col gap-1 p-3">
-              {links.map((l) => {
-                const active = l.match(path);
-                return (
+              {staffHome && user ? (
+                <>
                   <Link
-                    key={l.href}
-                    href={l.href}
+                    href={staffHome}
                     onClick={() => setOpen(false)}
-                    className={`rounded-2xl px-4 py-3.5 text-base font-semibold ${
-                      active ? "bg-brand-600 text-white" : "text-stone-700 hover:bg-brand-50"
-                    }`}
+                    className="rounded-2xl bg-brand-600 px-4 py-3.5 text-base font-semibold text-white"
                   >
-                    {l.label}
+                    {dashboardLabel(user.role)}
                   </Link>
-                );
-              })}
+                  <Link
+                    href="/menu"
+                    onClick={() => setOpen(false)}
+                    className="rounded-2xl px-4 py-3.5 text-base font-semibold text-stone-700 hover:bg-brand-50"
+                  >
+                    View menu
+                  </Link>
+                </>
+              ) : (
+                links.map((l) => {
+                  const active = l.match(path);
+                  return (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      onClick={() => setOpen(false)}
+                      className={`rounded-2xl px-4 py-3.5 text-base font-semibold ${
+                        active ? "bg-brand-600 text-white" : "text-stone-700 hover:bg-brand-50"
+                      }`}
+                    >
+                      {l.label}
+                    </Link>
+                  );
+                })
+              )}
             </nav>
             <div className="mt-auto border-t border-orange-100 p-4">
-              {user ? (
+              {staffHome && user ? (
+                <button
+                  onClick={() => {
+                    logout();
+                    setOpen(false);
+                    router.push("/");
+                  }}
+                  className="btn-ghost w-full"
+                >
+                  Sign out
+                </button>
+              ) : user ? (
                 <button
                   onClick={() => {
                     logout();

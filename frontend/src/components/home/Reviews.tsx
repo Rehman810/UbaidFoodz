@@ -10,7 +10,7 @@ const FALLBACK_REVIEWS = [
     name: "Ayesha Khan",
     area: "DHA Phase 6",
     text: "The zinger arrived still crunchy. Biryani portions are generous — we order every Friday night.",
-    dish: "Ubaid Zinger Burger",
+    dish: "Zinger Burger",
     initial: "AK",
     rating: 5,
   },

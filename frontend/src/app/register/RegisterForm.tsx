@@ -15,7 +15,9 @@ import {
   ShoppingBag,
   User,
 } from "lucide-react";
+import { StoreName } from "@/components/StoreName";
 import { resolveLoginRedirect, useAuth } from "@/lib/auth";
+import { DEFAULT_STORE_NAME, DEFAULT_STORE_TAGLINE } from "@/lib/branding";
 
 const PERKS = [
   { icon: Clock3, text: "Track live order status" },
@@ -70,8 +72,8 @@ export default function RegisterForm() {
               <Flame size={22} />
             </span>
             <div>
-              <p className="font-display text-2xl leading-none">Ubaid Fast Foodz</p>
-              <p className="mt-1 text-sm text-orange-100/80">Karachi&apos;s favourite fast food</p>
+              <p className="font-display text-2xl leading-none">{DEFAULT_STORE_NAME}</p>
+              <p className="mt-1 text-sm text-orange-100/80">{DEFAULT_STORE_TAGLINE}</p>
             </div>
           </div>
 
@@ -97,7 +99,7 @@ export default function RegisterForm() {
             </ul>
           </div>
 
-          <p className="text-xs text-stone-400">© Ubaid Fast Foodz · Karachi</p>
+          <p className="text-xs text-stone-400">© {DEFAULT_STORE_NAME}</p>
         </div>
       </div>
 
@@ -115,7 +117,7 @@ export default function RegisterForm() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
               <Flame size={18} />
             </span>
-            <span className="font-display text-lg">Ubaid</span>
+            <StoreName className="font-display text-lg" fallback={DEFAULT_STORE_NAME} />
           </div>
         </div>
 
