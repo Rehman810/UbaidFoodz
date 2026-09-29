@@ -366,7 +366,10 @@ export default function StaffPage() {
                   <button
                     type="button"
                     disabled={busyId === s.id || (isSelf && s.isActive)}
-                    onClick={() => patch(s.id, { isActive: !s.isActive })}
+                    onClick={() => {
+                      if (s.isActive && !window.confirm(`Deactivate ${s.name}? Their sessions will end.`)) return;
+                      patch(s.id, { isActive: !s.isActive });
+                    }}
                     className={`rounded-xl px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                       s.isActive
                         ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100 hover:bg-emerald-100"

@@ -132,6 +132,7 @@ staffRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res)
     return res.status(400).json({ error: "Password must be at least 6 characters." });
   }
 
+  const bumpSession = body.isActive === false || Boolean(body.password);
   const user = await prisma.user.update({
     where: { id: existing.id },
     data: {
@@ -140,6 +141,7 @@ staffRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res)
       ...(body.role !== undefined ? { role: body.role } : {}),
       ...(body.isActive !== undefined ? { isActive: Boolean(body.isActive) } : {}),
       ...(body.password ? { passwordHash: await bcrypt.hash(body.password, 12) } : {}),
+      ...(bumpSession ? { tokenVersion: { increment: 1 } } : {}),
     },
     select: {
       id: true,

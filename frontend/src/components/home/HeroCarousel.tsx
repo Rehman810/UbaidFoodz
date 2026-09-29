@@ -228,7 +228,7 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
 
             <p className="mt-4 max-w-md text-base leading-relaxed text-stone-300 sm:text-lg">
               Charcoal tikka, crispy zinger, dum biryani and midnight broast — order in under a minute.
-              Cash on delivery.
+              {store?.settings.acceptCash === false ? "" : " Cash on delivery."}
             </p>
 
             {slide?.title && (

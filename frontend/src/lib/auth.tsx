@@ -16,6 +16,7 @@ type AuthCtx = {
   verifyTwoFactor: (challengeToken: string, code: string) => Promise<User>;
   register: (data: { name: string; email: string; password: string; phone?: string }) => Promise<User>;
   logout: () => void;
+  logoutEverywhere: () => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -75,6 +76,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return res.user;
       },
       logout: () => {
+        void api("/auth/logout", { method: "POST" }).catch(() => null);
+        localStorage.removeItem("uff_token");
+        setUser(null);
+        reconnectLiveSocket();
+      },
+      logoutEverywhere: async () => {
+        try {
+          await api("/auth/logout-all", { method: "POST" });
+        } catch {
+          /* clear the local session even if the API is unreachable */
+        }
         localStorage.removeItem("uff_token");
         setUser(null);
         reconnectLiveSocket();

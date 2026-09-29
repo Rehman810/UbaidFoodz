@@ -69,13 +69,13 @@ function parseOriginList() {
     .filter(Boolean);
 }
 
-/** CORS: explicit CLIENT_URL origins + any *.vercel.app preview/production deploys. */
+/** CORS: explicit CLIENT_URL origins. In development, localhost is allowed when no list is set. */
 export function allowedOrigins():
   | boolean
   | string[]
   | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void) {
   const list = parseOriginList();
-  if (!list.length) return true;
+  const allowVercel = process.env.ALLOW_VERCEL_PREVIEWS === "1";
 
   return (origin, callback) => {
     if (!origin) {
@@ -89,7 +89,13 @@ export function allowedOrigins():
     }
     try {
       const host = new URL(normalized).hostname;
-      if (host.endsWith(".vercel.app") || host === "vercel.app") {
+      const devLocal =
+        process.env.NODE_ENV !== "production" && (host === "localhost" || host === "127.0.0.1");
+      if (devLocal) {
+        callback(null, true);
+        return;
+      }
+      if (allowVercel && (host.endsWith(".vercel.app") || host === "vercel.app")) {
         callback(null, true);
         return;
       }

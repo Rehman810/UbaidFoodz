@@ -80,15 +80,28 @@ export async function generateInvoicePdf(orderId: string) {
       doc.text(money(Number(order.deliveryCharge), settings), 480, y);
       y += 18;
     }
+    doc.font("Helvetica").fontSize(9).fillColor("#78716c");
+    if (Number(order.taxAmount) > 0) {
+      doc.text(settings.taxLabel || "Tax", 400, y);
+      doc.text(money(Number(order.taxAmount), settings), 480, y);
+      y += 18;
+    }
+    if (Number(order.serviceAmount) > 0) {
+      doc.text(settings.serviceChargeLabel || "Service", 400, y);
+      doc.text(money(Number(order.serviceAmount), settings), 480, y);
+      y += 18;
+    }
     doc.font("Helvetica-Bold").fontSize(13).fillColor("#C2410C");
     doc.text("Total", 400, y);
     doc.text(money(Number(order.total), settings), 480, y);
 
     y += 48;
     doc.font("Helvetica").fontSize(9).fillColor("#78716c");
-    doc.text("Payment: Cash on Delivery", 48, y);
-    doc.text(`Thank you for ordering from ${storeNameFrom(settings)}.`, 48, y + 14);
-    doc.text("This is a demo invoice generated for client presentation.", 48, y + 28);
+    const pay = order.paymentMethod === "CARD" ? "Card" : order.paymentMethod === "CASH" ? "Cash" : "Cash on delivery";
+    doc.text(`Payment: ${pay}`, 48, y);
+    if (settings.taxNumber) doc.text(`Tax no. ${settings.taxNumber}`, 48, y + 14);
+    const footer = settings.receiptFooter.trim() || settings.footerText.trim() || `Thank you for ordering from ${storeNameFrom(settings)}.`;
+    doc.text(footer, 48, y + (settings.taxNumber ? 28 : 14), { width: 500 });
 
     doc.end();
     stream.on("finish", () => resolve());

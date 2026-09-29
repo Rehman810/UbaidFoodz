@@ -28,7 +28,7 @@ export function HomeDelivery({ zones }: { zones: string[] }) {
           {[
             { icon: MapPin, label: zones.length ? `${zones.length} area${zones.length === 1 ? "" : "s"}` : "Areas at checkout" },
             { icon: Clock, label: `~${deliveryMin} min delivery` },
-            { icon: Truck, label: "Cash on delivery" },
+            { icon: Truck, label: store?.settings.acceptCash === false ? "Counter payment" : "Cash on delivery" },
           ].map(({ icon: Icon, label }) => (
             <span
               key={label}

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { Role } from "@prisma/client";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { uploadLimiter } from "../middleware/security";
-import { imageUpload } from "../lib/uploads";
+import { imageUpload, reencodeImage } from "../lib/uploads";
 
 export const uploadRouter = Router();
 
@@ -21,11 +21,17 @@ uploadRouter.post(
         return res.status(400).json({ error: "No image file provided." });
       }
 
-      const host = req.get("host");
-      const protocol = req.protocol;
-      const url = `${protocol}://${host}/uploads/${req.file.filename}`;
-
-      res.status(201).json({ url, filename: req.file.filename });
+      reencodeImage(req.file.path)
+        .then((filename) => {
+          const host = req.get("host");
+          const protocol = req.protocol;
+          const url = `${protocol}://${host}/uploads/${filename}`;
+          res.status(201).json({ url, filename });
+        })
+        .catch((encodeErr: unknown) => {
+          const message = encodeErr instanceof Error ? encodeErr.message : "Upload failed.";
+          res.status(400).json({ error: message });
+        });
     });
   }
 );

@@ -1,3 +1,5 @@
+import { coerceSchedule, defaultClosedMessage, hoursText, isKitchenOpen, nextOpening } from "./hours";
+
 export type DayPeriod = "AM" | "PM";
 
 export function formatTime12(h: number, m: number) {
@@ -54,41 +56,40 @@ export function isWithinHours(
   return nowMinutes >= open || nowMinutes < close;
 }
 
-export function isStoreOpen(
-  settings: {
-    forceClosed: boolean;
-    openHour: number;
-    openMinute: number;
-    closeHour: number;
-    closeMinute: number;
-    timezone?: string;
-  },
-  now = new Date()
-) {
-  if (settings.forceClosed) return false;
-  const nowMin = getZonedMinutes(now, settings.timezone || "Asia/Karachi");
-  return isWithinHours(
-    nowMin,
-    settings.openHour,
-    settings.openMinute,
-    settings.closeHour,
-    settings.closeMinute
+type HoursSettings = {
+  forceClosed: boolean;
+  openHour: number;
+  openMinute: number;
+  closeHour: number;
+  closeMinute: number;
+  timezone?: string;
+  weeklySchedule?: unknown;
+  closedMessage?: string;
+};
+
+function scheduleOf(settings: HoursSettings) {
+  return coerceSchedule(settings.weeklySchedule, settings);
+}
+
+export function isStoreOpen(settings: HoursSettings, now = new Date()) {
+  return isKitchenOpen(
+    { forceClosed: settings.forceClosed, timezone: settings.timezone, schedule: scheduleOf(settings) },
+    now
   );
 }
 
-export function storeStatusLabel(
-  settings: {
-    forceClosed: boolean;
-    openHour: number;
-    openMinute: number;
-    closeHour: number;
-    closeMinute: number;
-  },
-  now = new Date()
-) {
+export function scheduleHoursLabel(settings: HoursSettings) {
+  return hoursText(scheduleOf(settings));
+}
+
+export function generatedClosedMessage(settings: HoursSettings, now = new Date()) {
+  return defaultClosedMessage(scheduleOf(settings), settings.timezone || "Asia/Karachi", now);
+}
+
+export function storeStatusLabel(settings: HoursSettings, now = new Date()) {
   const open = isStoreOpen(settings, now);
-  if (open) {
-    return `Open until ${formatTime12(settings.closeHour, settings.closeMinute)}`;
-  }
-  return `Closed · Opens ${formatTime12(settings.openHour, settings.openMinute)}`;
+  const hours = scheduleHoursLabel(settings);
+  if (open) return `Open now · ${hours}`;
+  const next = nextOpening(scheduleOf(settings), settings.timezone || "Asia/Karachi", now);
+  return next ? `Closed · Opens ${next.label}` : "Closed";
 }

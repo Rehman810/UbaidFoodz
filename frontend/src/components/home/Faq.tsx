@@ -10,8 +10,8 @@ export function Faq() {
   const city = store?.settings.city?.trim();
   const eta = store?.settings.deliveryEstimateMin ?? 45;
   const areas = store?.areaCount ?? 0;
-  const cash = true;
-  const card = false;
+  const cash = store?.settings.acceptCash !== false;
+  const card = store?.settings.acceptCard !== false;
 
   const payments = [cash ? "cash on delivery" : null, card ? "card at the counter" : null].filter(Boolean).join(" and ");
 

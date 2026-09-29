@@ -13,6 +13,7 @@ export function TwoFactorSettings() {
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState("");
   const [enabled, setEnabled] = useState(Boolean(user?.totpEnabled));
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
 
   async function setup() {
     setMsg("");
@@ -28,11 +29,12 @@ export function TwoFactorSettings() {
   async function enable() {
     setMsg("");
     try {
-      await api("/auth/2fa/enable", { method: "POST", body: JSON.stringify({ code }) });
+      const data = await api<{ ok: boolean; recoveryCodes?: string[] }>("/auth/2fa/enable", { method: "POST", body: JSON.stringify({ code }) });
       setEnabled(true);
       setQr("");
       setCode("");
-      setMsg("Google Authenticator is on for this admin account.");
+      setRecoveryCodes(data.recoveryCodes || []);
+      setMsg("Google Authenticator is on. Save these recovery codes now — they will not be shown again.");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Invalid code.");
     }
@@ -53,6 +55,11 @@ export function TwoFactorSettings() {
   return (
     <SettingsSection icon={Shield} title="Google Authenticator" description="Protect admin sign-in with a 6-digit app code.">
       {msg && <p className="mb-3 text-sm text-stone-600">{msg}</p>}
+      {recoveryCodes.length > 0 && (
+        <ul className="mb-3 grid gap-1 rounded-xl bg-stone-50 p-3 font-mono text-sm">
+          {recoveryCodes.map((code) => <li key={code}>{code}</li>)}
+        </ul>
+      )}
       {enabled ? (
         <div className="space-y-3">
           <p className="text-sm text-emerald-800">Two-factor is enabled on this account.</p>

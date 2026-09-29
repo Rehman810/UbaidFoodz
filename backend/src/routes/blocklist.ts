@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { normalizeBlockEmail, normalizeBlockPhone } from "../lib/blocklist";
+import { cleanText } from "../lib/text";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 export const blocklistRouter = Router();
@@ -20,6 +21,10 @@ blocklistRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
 
   const emailKey = normalizeBlockEmail(email);
   const phoneKey = normalizeBlockPhone(phone);
+  const why = cleanText(reason, 200);
+  if (!why) {
+    return res.status(400).json({ error: "A reason is required to block a customer." });
+  }
   if (!emailKey && !phoneKey) {
     return res.status(400).json({ error: "Enter an email or phone number to block." });
   }
@@ -37,7 +42,7 @@ blocklistRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
     data: {
       email: emailKey,
       phone: phoneKey,
-      reason: String(reason || "").trim(),
+      reason: why,
       createdBy: req.user!.id,
     },
   });

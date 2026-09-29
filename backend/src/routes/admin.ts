@@ -434,7 +434,7 @@ type CustomerOrderRow = {
   customerEmail: string | null;
 };
 
-adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
+adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (_req, res) => {
   const [users, orders] = await Promise.all([
     prisma.user.findMany({
       where: { role: Role.CUSTOMER },

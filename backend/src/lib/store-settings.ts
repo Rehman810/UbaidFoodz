@@ -1,4 +1,5 @@
 import { StoreSettings } from "@prisma/client";
+import { coerceSchedule, defaultClosedMessage, hoursText, isKitchenOpen } from "./hours";
 
 export function getZonedMinutes(now = new Date(), timeZone = "Asia/Karachi") {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -26,16 +27,25 @@ export function isWithinHours(
   return nowMinutes >= open || nowMinutes < close;
 }
 
+export function scheduleFor(settings: Pick<StoreSettings, "weeklySchedule" | "openHour" | "openMinute" | "closeHour" | "closeMinute">) {
+  return coerceSchedule(settings.weeklySchedule, settings);
+}
+
 export function isStoreOpen(settings: StoreSettings, now = new Date()) {
-  if (settings.forceClosed) return false;
-  const nowMin = getZonedMinutes(now, settings.timezone || "Asia/Karachi");
-  return isWithinHours(
-    nowMin,
-    settings.openHour,
-    settings.openMinute,
-    settings.closeHour,
-    settings.closeMinute
+  return isKitchenOpen(
+    { forceClosed: settings.forceClosed, timezone: settings.timezone, schedule: scheduleFor(settings) },
+    now
   );
+}
+
+export function publicHoursLabel(settings: StoreSettings) {
+  return hoursText(scheduleFor(settings));
+}
+
+export function publicClosedMessage(settings: StoreSettings, now = new Date()) {
+  const custom = settings.closedMessage.trim();
+  if (custom) return custom;
+  return defaultClosedMessage(scheduleFor(settings), settings.timezone || "Asia/Karachi", now);
 }
 
 export function formatTime12(h: number, m: number) {
@@ -46,7 +56,7 @@ export function formatTime12(h: number, m: number) {
 }
 
 export function storeHoursLabel(settings: StoreSettings) {
-  return `${formatTime12(settings.openHour, settings.openMinute)} – ${formatTime12(settings.closeHour, settings.closeMinute)}`;
+  return publicHoursLabel(settings);
 }
 
 export function effectiveItemPrice(item: {

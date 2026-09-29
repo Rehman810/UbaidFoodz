@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { fetchGoogleReviews } from "../lib/google-reviews";
 import { getPublicStorePayload, getStoreSettings } from "../lib/settings-data";
+import { validateSettingsInput } from "../lib/settings-validate";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 export const settingsRouter = Router();
@@ -30,6 +31,10 @@ settingsRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) 
 
 settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
   const body = req.body as Record<string, unknown>;
+  const fieldErrors = validateSettingsInput(body);
+  if (Object.keys(fieldErrors).length) {
+    return res.status(400).json({ error: Object.values(fieldErrors)[0], fields: fieldErrors });
+  }
   const num = (v: unknown) => (v === undefined || v === "" ? undefined : Number(v));
 
   const hour = (v: unknown) => {
@@ -70,8 +75,9 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
     }
   }
 
+  const current = await getStoreSettings();
   const settings = await prisma.storeSettings.update({
-    where: { id: "default" },
+    where: { id: current.id },
     data: {
       ...(body.storeName !== undefined ? { storeName: String(body.storeName).trim() } : {}),
       ...(body.logoUrl !== undefined ? { logoUrl: String(body.logoUrl).trim() } : {}),
@@ -109,8 +115,29 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
       ...(body.openMinute !== undefined ? { openMinute: minute(body.openMinute) ?? 0 } : {}),
       ...(body.closeHour !== undefined ? { closeHour: hour(body.closeHour) ?? 23 } : {}),
       ...(body.closeMinute !== undefined ? { closeMinute: minute(body.closeMinute) ?? 59 } : {}),
+      ...(body.weeklySchedule !== undefined ? { weeklySchedule: body.weeklySchedule as object } : {}),
       ...(body.closedMessage !== undefined ? { closedMessage: String(body.closedMessage) } : {}),
       ...(body.forceClosed !== undefined ? { forceClosed: Boolean(body.forceClosed) } : {}),
+      ...(body.taxPercent !== undefined ? { taxPercent: num(body.taxPercent) ?? 0 } : {}),
+      ...(body.taxLabel !== undefined ? { taxLabel: String(body.taxLabel).trim() || "Tax" } : {}),
+      ...(body.taxIncluded !== undefined ? { taxIncluded: Boolean(body.taxIncluded) } : {}),
+      ...(body.serviceChargePercent !== undefined
+        ? { serviceChargePercent: num(body.serviceChargePercent) ?? 0 }
+        : {}),
+      ...(body.serviceChargeLabel !== undefined
+        ? { serviceChargeLabel: String(body.serviceChargeLabel).trim() || "Service charge" }
+        : {}),
+      ...(body.serviceIncluded !== undefined ? { serviceIncluded: Boolean(body.serviceIncluded) } : {}),
+      ...(body.acceptCash !== undefined ? { acceptCash: Boolean(body.acceptCash) } : {}),
+      ...(body.acceptCard !== undefined ? { acceptCard: Boolean(body.acceptCard) } : {}),
+      ...(body.taxNumber !== undefined ? { taxNumber: String(body.taxNumber).trim() } : {}),
+      ...(body.receiptFooter !== undefined ? { receiptFooter: String(body.receiptFooter) } : {}),
+      ...(body.confirmSlaMinutes !== undefined
+        ? { confirmSlaMinutes: Number(body.confirmSlaMinutes) || 15 }
+        : {}),
+      ...(body.deliverySlaMinutes !== undefined
+        ? { deliverySlaMinutes: Number(body.deliverySlaMinutes) || 45 }
+        : {}),
       ...(body.autoConfirmOrders !== undefined
         ? { autoConfirmOrders: Boolean(body.autoConfirmOrders) }
         : {}),

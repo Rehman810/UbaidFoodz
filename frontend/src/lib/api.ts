@@ -44,7 +44,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const timeout = setTimeout(() => controller.abort(), 12_000);
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...options, headers, signal: controller.signal });
+    res = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: "include", signal: controller.signal });
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new ApiError("Server took too long to respond. Is the API running?", 0);

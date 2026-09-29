@@ -18,6 +18,7 @@ import { useStore } from "@/lib/store";
 import { useStoreOpen } from "@/lib/use-store-open";
 import { getCheckoutLocation } from "@/lib/geolocation";
 import { Order } from "@/lib/types";
+import { quoteCharges } from "@/lib/charges";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -54,9 +55,12 @@ export default function CheckoutPage() {
   const freeAbove = settings?.freeDeliveryAbove != null ? Number(settings.freeDeliveryAbove) : null;
   const qualifiesFreeDelivery = freeAbove != null && subtotal >= freeAbove;
   const effectiveDelivery = isDelivery && !qualifiesFreeDelivery ? deliveryCharge : 0;
-  const grandTotal = subtotal + effectiveDelivery;
+  const quoted = quoteCharges(subtotal, effectiveDelivery, settings ?? {});
+  const grandTotal = quoted.total;
   const belowMinimum = minimumOrder > 0 && subtotal < minimumOrder;
   const storeClosed = !storeOpen;
+  const cashOn = settings?.acceptCash !== false;
+  const cardOn = settings?.acceptCard !== false;
 
   const mapsUrl = useMemo(() => {
     if (!settings?.latitude || !settings?.longitude) return null;
@@ -114,6 +118,10 @@ export default function CheckoutPage() {
     if (items.length === 0) return;
     if (storeClosed) {
       setError(closedMessage || "We are currently closed.");
+      return;
+    }
+    if (isDelivery && !cashOn) {
+      setError("Cash on delivery is not available right now.");
       return;
     }
     if (belowMinimum) {
@@ -321,7 +329,7 @@ export default function CheckoutPage() {
 
           <button
             className="btn-primary mt-2 h-14 w-full text-base"
-            disabled={busy || !cartChecked || items.length === 0 || storeClosed || belowMinimum}
+            disabled={busy || !cartChecked || items.length === 0 || storeClosed || belowMinimum || (isDelivery && !cashOn)}
           >
             {locating ? "Getting location…" : busy ? "Placing…" : `Place order · ${pkr(grandTotal)}`}
           </button>
@@ -379,6 +387,33 @@ export default function CheckoutPage() {
                 </span>
               </div>
             )}
+            {quoted.tax > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-500">
+                  {settings?.taxLabel || "Tax"}
+                  {settings?.taxIncluded ? " (included)" : ""}
+                </span>
+                <span>{pkr(quoted.tax)}</span>
+              </div>
+            )}
+            {quoted.service > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-500">
+                  {settings?.serviceChargeLabel || "Service charge"}
+                  {settings?.serviceIncluded ? " (included)" : ""}
+                </span>
+                <span>{pkr(quoted.service)}</span>
+              </div>
+            )}
+            <p className="text-xs text-stone-500">
+              {isDelivery
+                ? cashOn
+                  ? "Pay cash on delivery."
+                  : "Cash on delivery is turned off."
+                : cardOn
+                  ? "Pay cash or card when you collect."
+                  : "Pay when you collect."}
+            </p>
             <div className="flex justify-between font-semibold">
               <span>Total</span>
               <span className="text-brand-700">{pkr(grandTotal)}</span>

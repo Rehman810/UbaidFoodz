@@ -92,7 +92,15 @@ function navSectionsForRole(role: Role): NavSection[] {
     return [
       {
         title: "Operations",
-        items: [{ href: "/admin/pos", label: "POS", icon: Receipt }],
+        items: [
+          { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+          { href: "/admin/pos", label: "POS", icon: Receipt },
+          { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+        ],
+      },
+      {
+        title: "People",
+        items: [{ href: "/admin/customers", label: "Customers", icon: Users }],
       },
     ];
   }
@@ -102,19 +110,25 @@ function navSectionsForRole(role: Role): NavSection[] {
 const MOBILE_FOR_ROLE: Record<Role, typeof MOBILE_NAV> = {
   ADMIN: MOBILE_NAV,
   CHEF: [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }],
-  CASHIER: [{ href: "/admin/pos", label: "POS", icon: Receipt }],
+  CASHIER: [
+    { href: "/admin/pos", label: "POS", icon: Receipt },
+    { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+    { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+    { href: "/admin/customers", label: "Customers", icon: Users },
+  ],
   RIDER: MOBILE_NAV,
   CUSTOMER: MOBILE_NAV,
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, logoutEverywhere } = useAuth();
   const store = useStore();
   const storeName = storeDisplayName(store?.settings);
   const router = useRouter();
   const path = usePathname();
   const [kitchenOpen, setKitchenOpen] = useState<boolean | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -129,9 +143,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   useEffect(() => {
-    api<PublicStore>("/settings/public")
-      .then((data) => setKitchenOpen(data.isOpen))
-      .catch(() => setKitchenOpen(null));
+    function load() {
+      api<PublicStore>("/settings/public")
+        .then((data) => setKitchenOpen(data.isOpen))
+        .catch(() => setKitchenOpen(null));
+    }
+    load();
+    window.addEventListener("store-refresh", load);
+    return () => window.removeEventListener("store-refresh", load);
   }, [path]);
 
   const isStaffLogin = path === "/admin/login";
@@ -146,11 +165,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/admin/kitchen");
       return;
     }
-    if (user.role === "CASHIER" && !path.startsWith("/admin/pos")) {
-      router.replace("/admin/pos");
+    if (user.role === "CASHIER") {
+      const allowedPath = ["/admin/pos", "/admin/kitchen", "/admin/orders", "/admin/customers"].some(
+        (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+      );
+      if (!allowedPath) router.replace("/admin/pos");
       return;
     }
-    if (user.role !== "ADMIN" && user.role !== "CHEF" && user.role !== "CASHIER") {
+    if (user.role !== "ADMIN") {
       router.replace("/login?next=/admin");
     }
   }, [user, loading, router, path, isStaffLogin]);
@@ -233,24 +255,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             ))}
           </nav>
 
-          <div className={`hidden border-t border-orange-100/80 p-3 lg:block ${collapsed ? "px-2" : ""}`}>
-            {!collapsed && (
-              <div className="mb-2 px-1">
-                <p className="truncate text-sm font-semibold text-stone-900">{user.name}</p>
-                <p className="truncate text-xs text-stone-400">{user.email}</p>
-              </div>
-            )}
+          <div className={`relative hidden border-t border-orange-100/80 p-3 lg:block ${collapsed ? "px-2" : ""}`}>
             <button
               type="button"
-              onClick={() => { logout(); router.push("/"); }}
-              title="Sign out"
-              className={`flex w-full items-center rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 active:bg-rose-800 ${
-                collapsed ? "justify-center px-0" : "justify-center gap-2 px-3"
-              }`}
+              onClick={() => setMenuOpen((open) => !open)}
+              className={`flex w-full items-center rounded-xl px-2 py-2 text-left hover:bg-stone-50 ${collapsed ? "justify-center" : "gap-2"}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
             >
-              <LogOut size={16} />
-              <span className={collapsed ? "sr-only" : ""}>Sign out</span>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-800">
+                {user.name.slice(0, 1).toUpperCase()}
+              </span>
+              {!collapsed && (
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-stone-900">{user.name}</span>
+                  <span className="block truncate text-xs text-stone-400">{user.email}</span>
+                </span>
+              )}
             </button>
+            {menuOpen && (
+              <div role="menu" className="absolute bottom-16 left-3 z-40 w-52 rounded-xl border border-stone-200 bg-white p-1 shadow-lg">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                  onClick={() => { setMenuOpen(false); logout(); router.push("/"); }}
+                >
+                  <LogOut size={14} /> Sign out
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                  onClick={() => { setMenuOpen(false); void logoutEverywhere().then(() => router.push("/")); }}
+                >
+                  Sign out everywhere
+                </button>
+              </div>
+            )}
             <div className={collapsed ? "mt-2 text-center" : "mt-3 border-t border-orange-100/80 pt-3 px-1"}>
               <PoweredBy
                 variant={collapsed ? "minimal" : "inline"}
@@ -300,7 +342,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   kitchenOpen === false ? "bg-amber-500" : "bg-emerald-500"
                 }`}
               />
-              {kitchenOpen === false ? "Kitchen closed" : "Kitchen online"}
+              {kitchenOpen === false ? "Kitchen offline" : "Kitchen online"}
             </span>
             <Link
               href="/"
@@ -308,13 +350,36 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               View storefront →
             </Link>
-            <button
-              type="button"
-              onClick={() => { logout(); router.replace("/login"); }}
-              className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 lg:hidden"
-            >
-              <LogOut size={14} /> Sign out
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                className="grid h-9 w-9 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-800 lg:hidden"
+                aria-label="Account menu"
+              >
+                {user.name.slice(0, 1).toUpperCase()}
+              </button>
+              {menuOpen && (
+                <div role="menu" className="absolute right-0 z-40 mt-2 w-52 rounded-xl border border-stone-200 bg-white p-1 shadow-lg lg:hidden">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                    onClick={() => { setMenuOpen(false); logout(); router.push("/"); }}
+                  >
+                    <LogOut size={14} /> Sign out
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                    onClick={() => { setMenuOpen(false); void logoutEverywhere().then(() => router.push("/")); }}
+                  >
+                    Sign out everywhere
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
         <main
@@ -332,7 +397,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             isPos ? "hidden" : ""
           }`}
         >
-          <div className="grid grid-cols-5">
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${mobileNav.length}, minmax(0, 1fr))` }}>
             {mobileNav.map((n) => {
               const active = path === n.href || (n.href !== "/admin" && path.startsWith(n.href));
               const Icon = n.icon;

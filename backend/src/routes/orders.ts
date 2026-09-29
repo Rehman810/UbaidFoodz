@@ -30,7 +30,9 @@ import {
   chefNextStatus,
 } from "../lib/order-status";
 import { signOrderViewToken } from "../lib/order-access";
-import { effectiveItemPrice, isStoreOpen } from "../lib/store-settings";
+import { effectiveItemPrice, isStoreOpen, publicClosedMessage } from "../lib/store-settings";
+import { quoteCharges } from "../lib/charges";
+import { cleanText } from "../lib/text";
 
 export const ordersRouter = Router();
 
@@ -55,7 +57,7 @@ function normalizeEmail(email: unknown) {
 ordersRouter.post("/", optionalAuth, async (req, res) => {
   const storeSettings = await getStoreSettings();
   if (!isStoreOpen(storeSettings)) {
-    return res.status(400).json({ error: storeSettings.closedMessage });
+    return res.status(400).json({ error: publicClosedMessage(storeSettings) });
   }
 
   const pickupAddress = `${storeNameFrom(storeSettings)} — ${storeSettings.address}`;
@@ -98,14 +100,15 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   const cartDeals = deals ?? [];
   const phone = normalizePhone(String(customerPhone || ""));
   const email = normalizeEmail(customerEmail);
-  const trimmedName = String(customerName || "").trim();
+  const trimmedName = cleanText(customerName, 80);
   const initialStatus = storeSettings.autoConfirmOrders
     ? OrderStatus.CONFIRMED
     : OrderStatus.PENDING_CONFIRMATION;
   const mode: FulfillmentType =
     fulfillmentType === FulfillmentType.PICKUP ? FulfillmentType.PICKUP : FulfillmentType.DELIVERY;
   const trimmedAddress =
-    mode === FulfillmentType.PICKUP ? pickupAddress : String(deliveryAddress || "").trim();
+    mode === FulfillmentType.PICKUP ? pickupAddress : cleanText(deliveryAddress, 300);
+  const safeNotes = notes ? cleanText(notes, 400) : "";
 
   if (!cartItems.length && !cartDeals.length) {
     return res.status(400).json({ error: "Your bag is empty. Add items before placing an order." });
@@ -279,7 +282,11 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     deliveryCharge = 0;
   }
 
-  const grandTotal = subtotal + deliveryCharge;
+  if (mode === FulfillmentType.DELIVERY && !storeSettings.acceptCash) {
+    return res.status(400).json({ error: "Cash on delivery is not available right now." });
+  }
+
+  const quoted = quoteCharges(subtotal, deliveryCharge, storeSettings);
 
   const lat = parseCoord(customerLatitude, -90, 90);
   const lng = parseCoord(customerLongitude, -180, 180);
@@ -295,9 +302,11 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
       deliveryAreaId: areaId,
       subtotal,
       deliveryCharge,
-      total: grandTotal,
+      taxAmount: quoted.tax,
+      serviceAmount: quoted.service,
+      total: quoted.total,
       deliveryAddress: trimmedAddress,
-      notes: notes ? String(notes).trim() : null,
+      notes: safeNotes || null,
       customerName: trimmedName,
       customerPhone: phone,
       customerEmail: email,
@@ -334,7 +343,7 @@ ordersRouter.get("/mine", requireAuth, async (req, res) => {
   res.json(orders);
 });
 
-ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF), async (req, res) => {
+ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {
   const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
   const offset = Math.max(0, Number(req.query.offset) || 0);
   const status = req.query.status as OrderStatus | undefined;

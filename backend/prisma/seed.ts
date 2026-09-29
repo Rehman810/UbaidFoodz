@@ -610,6 +610,7 @@ async function main() {
       facebookUrl: "",
       showPoweredBy: false,
       showLiveStats: false,
+      closedMessage: "",
     },
   });
 

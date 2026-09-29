@@ -28,6 +28,22 @@ Compose uses user `restaurant` and database `restaurant_os`. An existing volume 
 
 The storefront does not ship fake reviews or a hardcoded rating. Published testimonials from Settings are shown. Live order-count stats appear only when `showLiveStats` is on and there are at least 10 non-cancelled orders.
 
+## Hours
+
+Opening hours are a weekly schedule. A missing schedule still uses the old open/close pair for every day. An overnight slot (close earlier than open) stays open past midnight, including when the next day is marked closed, until that slot's end. The start minute is open and the end minute is closed. The storefront hours line is always built from the schedule. A custom closed message replaces only the banner sentence.
+
+Tax and service charge default to 0. Exclusive charges are added to the order total. Inclusive charges are shown but not added again. Revenue continues to use `order.total`, which includes exclusive tax, service, and delivery.
+
+## Sign-in
+
+Failed password attempts on a real account lock it for 15 minutes after 8 failures. The error for a wrong password and a disabled account is the same. A locked account gets a separate "try again later" response. Sessions are JWTs for 7 days, also set as an `HttpOnly` `SameSite=Lax` cookie (`Secure` in production). `tokenVersion` on the user invalidates older tokens on "sign out everywhere", deactivation, and password change. Two-factor recovery codes are hashed and each code works once. The dashboard 2FA reminder can be dismissed for the browser session and returns on the next one.
+
+CORS allows `CLIENT_URL` origins. Development also allows localhost. Vercel preview hosts are allowed only when `ALLOW_VERCEL_PREVIEWS=1`.
+
+## Uploads
+
+Images must match JPEG, PNG, GIF, or WebP bytes and are re-encoded with `sharp` before they are stored.
+
 ## Staff sign-in
 
 Customers use `/login`. Staff use `/admin/login`. A signed-in non-customer who opens `/login` is sent to their role home.

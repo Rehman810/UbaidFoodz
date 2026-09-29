@@ -109,6 +109,19 @@ export type StoreSettings = {
   tiktokUrl: string;
   youtubeUrl: string;
   googlePlaceId?: string;
+  weeklySchedule?: unknown;
+  taxPercent?: string | number;
+  taxLabel?: string;
+  taxIncluded?: boolean;
+  serviceChargePercent?: string | number;
+  serviceChargeLabel?: string;
+  serviceIncluded?: boolean;
+  acceptCash?: boolean;
+  acceptCard?: boolean;
+  taxNumber?: string;
+  receiptFooter?: string;
+  confirmSlaMinutes?: number;
+  deliverySlaMinutes?: number;
 };
 
 export type GoogleReview = {
@@ -224,6 +237,8 @@ export type Order = {
   deliveryArea?: { id: string; name: string; deliveryCharge?: string | number } | null;
   subtotal?: string | number;
   deliveryCharge?: string | number;
+  taxAmount?: string | number;
+  serviceAmount?: string | number;
   total: string | number;
   deliveryAddress: string;
   notes?: string | null;

@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
 import { DEFAULT_RESTAURANT_ID, getRestaurantId } from "./restaurant-context";
-import { isStoreOpen, storeHoursLabel } from "./store-settings";
+import { isStoreOpen, publicClosedMessage, publicHoursLabel } from "./store-settings";
 
 const MIN_ORDERS_FOR_LIVE_STATS = 10;
 
@@ -50,7 +50,7 @@ export async function getPublicStorePayload() {
           }
         : { show: false, rating: null, orderCount: null, areaCount },
     isOpen: open,
-    hoursLabel: storeHoursLabel(settings),
-    closedMessage: settings.closedMessage,
+    hoursLabel: publicHoursLabel(settings),
+    closedMessage: publicClosedMessage(settings),
   };
 }

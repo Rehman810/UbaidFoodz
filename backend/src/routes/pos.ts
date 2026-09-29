@@ -11,6 +11,8 @@ import { findOrderBlock } from "../lib/blocklist";
 import { buildOrderLines, nextOrderNumber } from "../lib/order-lines";
 import { emitOrderChange } from "../lib/realtime";
 import { storeNameFrom } from "../lib/branding";
+import { quoteCharges } from "../lib/charges";
+import { cleanText } from "../lib/text";
 import { getStoreSettings } from "../lib/settings-data";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { posLimiter } from "../middleware/security";
@@ -106,10 +108,17 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIE
 
   const payMethod =
     paymentMethod === PaymentMethod.CARD ? PaymentMethod.CARD : PaymentMethod.CASH;
+  if (payMethod === PaymentMethod.CARD && !storeSettings.acceptCard) {
+    return res.status(400).json({ error: "Card at the counter is turned off." });
+  }
+  if (payMethod === PaymentMethod.CASH && !storeSettings.acceptCash) {
+    return res.status(400).json({ error: "Cash is turned off." });
+  }
   const payStatus = paymentStatus === "UNPAID" ? "UNPAID" : "PAID";
 
-  const name = String(customerName || "").trim() || "Walk-in";
+  const name = cleanText(customerName, 80) || "Walk-in";
   const phone = normalizePhone(String(customerPhone || ""));
+  const quoted = quoteCharges(built.subtotal, deliveryCharge, storeSettings);
 
   const blocked = await findOrderBlock(null, phone || "");
   if (blocked) {
@@ -127,9 +136,11 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIE
       deliveryAreaId: areaId,
       subtotal: built.subtotal,
       deliveryCharge,
-      total: built.subtotal + deliveryCharge,
+      taxAmount: quoted.tax,
+      serviceAmount: quoted.service,
+      total: quoted.total,
       deliveryAddress: address,
-      notes: notes ? String(notes).trim() : null,
+      notes: notes ? cleanText(notes, 400) || null : null,
       tableNumber: mode === FulfillmentType.DINE_IN ? tableNumber?.trim() || null : null,
       customerName: name,
       customerPhone: phone,
@@ -170,6 +181,8 @@ posRouter.get(
         phone: settings.phone,
         address: settings.address,
         whatsapp: settings.whatsapp,
+        footer: settings.receiptFooter,
+        taxNumber: settings.taxNumber,
       },
     });
   }

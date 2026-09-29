@@ -57,10 +57,15 @@ export default function OrderDetailPage() {
   async function cancelOrder() {
     if (!order || !canCancel) return;
     if (!window.confirm("Cancel this order? This cannot be undone.")) return;
+    const reason = window.prompt("Why are you cancelling this order?");
+    if (!reason?.trim()) return;
     setCancelling(true);
     setCancelError("");
     try {
-      await api(orderCancelPath(order.id, guestToken), { method: "PATCH" });
+      await api(orderCancelPath(order.id, guestToken), {
+        method: "PATCH",
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
       refresh();
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : "Could not cancel order.");

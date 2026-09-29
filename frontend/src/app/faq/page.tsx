@@ -7,7 +7,7 @@ const FAQS = [
   },
   {
     q: "What payment methods do you accept?",
-    a: "Cash on delivery (COD) is available across all delivery areas.",
+    a: "The restaurant lists the payment methods it accepts at checkout.",
   },
   {
     q: "How do I track my order?",

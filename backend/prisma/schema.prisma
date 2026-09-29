@@ -73,6 +73,11 @@ model User {
   isActive     Boolean  @default(true)
   totpSecret           String?
   totpEnabled          Boolean   @default(false)
+  recoveryCodes        String?
+  tokenVersion         Int       @default(0)
+  failedLoginCount     Int       @default(0)
+  lockedUntil          DateTime?
+  lastLoginAt          DateTime?
   passwordResetToken   String?
   passwordResetExpires DateTime?
   createdAt            DateTime  @default(now())
@@ -191,8 +196,21 @@ model StoreSettings {
   openMinute          Int      @default(0)
   closeHour           Int      @default(2)
   closeMinute         Int      @default(30)
-  closedMessage       String   @default("Sorry, we are closed right now. We open daily at 7:00 PM.")
+  weeklySchedule      Json?
+  closedMessage       String   @default("")
   forceClosed         Boolean  @default(false)
+  taxPercent          Decimal  @default(0) @db.Decimal(5, 2)
+  taxLabel            String   @default("Tax")
+  taxIncluded         Boolean  @default(false)
+  serviceChargePercent Decimal @default(0) @db.Decimal(5, 2)
+  serviceChargeLabel  String   @default("Service charge")
+  serviceIncluded     Boolean  @default(false)
+  acceptCash          Boolean  @default(true)
+  acceptCard          Boolean  @default(true)
+  taxNumber           String   @default("")
+  receiptFooter       String   @default("")
+  confirmSlaMinutes   Int      @default(15)
+  deliverySlaMinutes  Int      @default(45)
   autoConfirmOrders   Boolean  @default(false)
   autoAssignRiders    Boolean  @default(true)
   emailNotifyChef     Boolean  @default(true)
@@ -277,6 +295,8 @@ model Order {
   deliveryArea     DeliveryArea?   @relation(fields: [deliveryAreaId], references: [id])
   subtotal         Decimal         @db.Decimal(10, 2)
   deliveryCharge   Decimal         @default(0) @db.Decimal(10, 2)
+  taxAmount        Decimal         @default(0) @db.Decimal(10, 2)
+  serviceAmount    Decimal         @default(0) @db.Decimal(10, 2)
   total            Decimal         @db.Decimal(10, 2)
   deliveryAddress  String
   notes            String?

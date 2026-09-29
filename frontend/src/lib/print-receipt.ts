@@ -6,6 +6,8 @@ export type ReceiptStore = {
   phone: string;
   address: string;
   whatsapp?: string;
+  footer?: string;
+  taxNumber?: string;
 };
 
 export type PrintReceiptOptions = {
@@ -155,14 +157,17 @@ export function customerReceiptHtml(order: Order, store: ReceiptStore, cashier?:
   <hr class="rule" />
   <div class="totals">
     ${order.subtotal != null ? `<div><span>Subtotal</span><span>${formatPkr(order.subtotal)}</span></div>` : ""}
+    ${Number(order.taxAmount || 0) > 0 ? `<div><span>Tax</span><span>${formatPkr(order.taxAmount!)}</span></div>` : ""}
+    ${Number(order.serviceAmount || 0) > 0 ? `<div><span>Service</span><span>${formatPkr(order.serviceAmount!)}</span></div>` : ""}
     ${Number(order.deliveryCharge || 0) > 0 ? `<div><span>Delivery</span><span>${formatPkr(order.deliveryCharge!)}</span></div>` : ""}
     <div class="grand"><span>TOTAL</span><span>${formatPkr(order.total)}</span></div>
     <div><span>Payment</span><span>${paymentLabel(order.paymentMethod)} · ${order.paymentStatus === "UNPAID" ? "Unpaid" : "Paid"}</span></div>
   </div>
   <p class="thanks">Thank you — enjoy your meal!</p>
-  <p class="urdu">شکریہ — اپنا کھانا لطف اٹھائیں!</p>
   <div class="copy-label">Customer copy</div>
   <div class="footer">
+    ${store.taxNumber ? `Tax no. ${esc(store.taxNumber)}<br/>` : ""}
+    ${store.footer ? `${esc(store.footer)}<br/>` : ""}
     ${cashier ? `Served by ${esc(cashier)} · ` : ""}${esc(order.orderNumber)}
   </div>
   ${printScript()}

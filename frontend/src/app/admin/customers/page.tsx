@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { pkr, formatWhen } from "@/lib/format";
 import { AdminCustomer } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
@@ -106,6 +107,8 @@ function KpiCard({
 }
 
 export default function CustomersPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("spent");
   const [blocks, setBlocks] = useState<OrderBlock[]>([]);
@@ -117,15 +120,18 @@ export default function CustomersPage() {
   const loadBlocks = useCallback(() => api<OrderBlock[]>("/admin/blocks"), []);
 
   useEffect(() => {
+    if (!isAdmin) return;
     loadBlocks().then(setBlocks).catch(() => setBlocks([]));
-  }, [loadBlocks]);
+  }, [loadBlocks, isAdmin]);
 
   async function blockCustomer(c: AdminCustomer) {
+    const reason = window.prompt(`Block ${c.name} from ordering? Enter a reason.`);
+    if (!reason?.trim()) return;
     setActionMsg("");
     try {
       await api("/admin/blocks", {
         method: "POST",
-        body: JSON.stringify({ email: c.email, phone: c.phone, reason: "Blocked from customer records" }),
+        body: JSON.stringify({ email: c.email, phone: c.phone, reason: reason.trim() }),
       });
       setBlocks(await loadBlocks());
       setActionMsg(`${c.name} blocked from placing orders.`);
@@ -386,7 +392,7 @@ export default function CustomersPage() {
 
                   {/* Actions */}
                   <div className="flex flex-col gap-2 lg:w-[220px] lg:shrink-0">
-                    {!blocked ? (
+                    {isAdmin && !blocked && (
                       <button
                         type="button"
                         onClick={() => blockCustomer(c)}
@@ -394,7 +400,8 @@ export default function CustomersPage() {
                       >
                         <Ban size={13} /> Block orders
                       </button>
-                    ) : (
+                    )}
+                    {isAdmin && blocked && (
                       <button
                         type="button"
                         onClick={() => block && unblockCustomer(block.id, c.name)}

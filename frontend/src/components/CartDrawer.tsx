@@ -7,6 +7,7 @@ import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { cartTotal, useCart } from "@/lib/cart";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
+import { quoteCharges } from "@/lib/charges";
 import { useStore } from "@/lib/store";
 import { useStoreOpen } from "@/lib/use-store-open";
 
@@ -26,7 +27,8 @@ export function CartDrawer() {
     store?.settings.freeDeliveryAbove != null ? Number(store.settings.freeDeliveryAbove) : null;
   const qualifiesFree = freeAbove != null && subtotal >= freeAbove;
   const deliveryFee = mode === "DELIVERY" && !qualifiesFree ? deliveryCharge : 0;
-  const total = subtotal + deliveryFee;
+  const quoted = quoteCharges(subtotal, deliveryFee, store?.settings ?? {});
+  const total = quoted.total;
   const minimumOrder = Number(store?.settings.minimumOrder ?? 0);
   const belowMinimum = minimumOrder > 0 && subtotal < minimumOrder;
 
@@ -161,6 +163,18 @@ export function CartDrawer() {
               <div className="flex justify-between">
                 <span className="text-stone-500">Delivery{areaName ? ` · ${areaName}` : ""}</span>
                 <span>{qualifiesFree ? <span className="text-emerald-600">Free</span> : pkr(deliveryFee)}</span>
+              </div>
+            )}
+            {quoted.tax > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-500">{store?.settings.taxLabel || "Tax"}{store?.settings.taxIncluded ? " incl." : ""}</span>
+                <span>{pkr(quoted.tax)}</span>
+              </div>
+            )}
+            {quoted.service > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-500">{store?.settings.serviceChargeLabel || "Service"}{store?.settings.serviceIncluded ? " incl." : ""}</span>
+                <span>{pkr(quoted.service)}</span>
               </div>
             )}
             {freeAbove != null && !qualifiesFree && (

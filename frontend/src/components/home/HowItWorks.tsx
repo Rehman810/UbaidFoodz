@@ -20,7 +20,9 @@ export function HowItWorks() {
     {
       icon: Bike,
       title: "Hot at your door",
-      text: `Cash on delivery${city ? ` across ${city}` : ""}. Rider calls if they need gate help.`,
+      text: store?.settings.acceptCash === false
+        ? `Pay at the counter${city ? ` in ${city}` : ""}.`
+        : `Cash on delivery${city ? ` across ${city}` : ""}. Rider calls if they need gate help.`,
     },
   ];
   return (

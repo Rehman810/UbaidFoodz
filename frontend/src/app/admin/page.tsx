@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Area,
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { useStore } from "@/lib/store";
 import { pkr } from "@/lib/format";
 import { AdminStats } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
@@ -47,6 +48,11 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const store = useStore();
+  const [twoFaHidden, setTwoFaHidden] = useState(false);
+  useEffect(() => {
+    setTwoFaHidden(sessionStorage.getItem("ros-2fa-dismiss") === "1");
+  }, []);
   const fetchStats = useCallback(() => api<AdminStats>("/admin/stats"), []);
   const { data: stats, loading, refresh } = usePoll(fetchStats, 12000);
   useLiveOrders(refresh);
@@ -59,6 +65,14 @@ export default function AdminDashboard() {
   async function assign(id: string, riderId: string) {
     await api(`/orders/${id}/assign`, { method: "PATCH", body: JSON.stringify({ riderId }) });
     refresh();
+  }
+
+  async function toggleKitchen() {
+    const manuallyClosed = Boolean(store?.settings.forceClosed);
+    const open = Boolean(store?.isOpen);
+    if (!open && !manuallyClosed) return;
+    await api("/settings", { method: "PATCH", body: JSON.stringify({ forceClosed: open }) });
+    window.dispatchEvent(new Event("store-refresh"));
   }
 
   if (loading || !stats) {
@@ -75,8 +89,26 @@ export default function AdminDashboard() {
     stats.awaitingConfirmation + stats.pending + stats.preparing + stats.outForDelivery;
   const maxTop = stats.topItems[0]?.qty || 1;
 
+  const needsName = !store?.settings.storeName?.trim();
+  const showTwoFa = user?.role === "ADMIN" && !user.totpEnabled && !twoFaHidden;
+
   return (
     <div className="space-y-6">
+      {needsName && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Set your restaurant name before you open the storefront.{" "}
+          <Link href="/admin/settings" className="font-bold underline">Open settings</Link>
+        </div>
+      )}
+      {showTwoFa && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-950">
+          <p>Two-factor sign-in is off for this admin account.</p>
+          <div className="flex gap-2">
+            <Link href="/admin/settings" className="font-bold underline">Set up authenticator</Link>
+            <button type="button" className="text-xs font-semibold text-stone-500" onClick={() => { sessionStorage.setItem("ros-2fa-dismiss", "1"); setTwoFaHidden(true); }}>Dismiss</button>
+          </div>
+        </div>
+      )}
       {/* Welcome strip */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-stone-900 via-stone-900 to-brand-900 p-6 text-white shadow-xl sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-500/20 blur-3xl" />
@@ -96,12 +128,14 @@ export default function AdminDashboard() {
               <p className="text-xs text-orange-200">Today&apos;s revenue</p>
               <p className="font-display text-3xl font-bold">{pkr(stats.todayRevenue)}</p>
             </div>
-            <Link
-              href="/admin/kitchen"
-              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-stone-900 shadow-lg hover:bg-brand-50"
+            <button
+              type="button"
+              onClick={toggleKitchen}
+              disabled={store != null && !store.isOpen && !store.settings.forceClosed}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-stone-900 shadow-lg hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Open kitchen
-            </Link>
+              {store?.isOpen ? "Close kitchen" : store?.settings.forceClosed ? "Open kitchen" : "Closed by schedule"}
+            </button>
             <button
               onClick={refresh}
               className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-5 py-4 text-sm font-bold shadow-lg shadow-brand-900/40 hover:bg-brand-500"

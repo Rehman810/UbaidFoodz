@@ -11,10 +11,37 @@ import { storeNameFrom } from "../lib/branding";
 import { sendPasswordResetEmail } from "../lib/email";
 import { getStoreSettings } from "../lib/settings-data";
 import { authLimiter } from "../middleware/security";
-
 import { jwtSecret } from "../lib/jwt-secret";
+import {
+  GENERIC_LOGIN_ERROR,
+  LOCKED_LOGIN_ERROR,
+  isLocked,
+  nextLockState,
+} from "../lib/login-guard";
+import { createRecoveryCodes, matchRecoveryCode } from "../lib/recovery-codes";
+import { clearSessionCookie, cookieSecure, sessionCookie } from "../lib/session-cookie";
 
 const JWT_SECRET = jwtSecret();
+
+function issueSession(res: import("express").Response, req: import("express").Request, user: {
+  id: string;
+  role: Role;
+  email: string;
+  name: string;
+  tokenVersion: number;
+  phone: string | null;
+  totpEnabled?: boolean;
+}) {
+  const token = signToken({
+    id: user.id,
+    role: user.role,
+    email: user.email,
+    name: user.name,
+    tv: user.tokenVersion,
+  });
+  res.setHeader("Set-Cookie", sessionCookie(token, cookieSecure(req.header("x-forwarded-proto") || undefined)));
+  return token;
+}
 
 export const authRouter = Router();
 
@@ -74,8 +101,8 @@ authRouter.post("/register", authLimiter, async (req, res) => {
     });
   }
 
-  const payload = { id: user.id, role: user.role, email: user.email, name: user.name };
-  res.json({ token: signToken(payload), user: publicUser(user) });
+  const token = issueSession(res, req, user);
+  res.json({ token, user: publicUser(user) });
 });
 
 authRouter.post("/login", authLimiter, async (req, res) => {
@@ -83,20 +110,28 @@ authRouter.post("/login", authLimiter, async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: "Email and password are required." });
 
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-    return res.status(401).json({ error: "Incorrect email or password." });
+  if (user && isLocked(user.lockedUntil)) {
+    return res.status(429).json({ error: LOCKED_LOGIN_ERROR });
   }
-  if (!user.isActive) {
-    return res.status(403).json({ error: "This account is disabled. Ask an admin." });
+  if (!user || !user.isActive || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (user?.isActive) {
+      await prisma.user.update({ where: { id: user.id }, data: nextLockState(user.failedLoginCount) });
+    }
+    return res.status(401).json({ error: GENERIC_LOGIN_ERROR });
   }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+  });
 
   if (user.totpEnabled && user.totpSecret) {
     const challengeToken = jwt.sign({ id: user.id, typ: "2fa" }, JWT_SECRET, { expiresIn: "5m" });
     return res.json({ requiresTwoFactor: true, challengeToken });
   }
 
-  const payload = { id: user.id, role: user.role, email: user.email, name: user.name };
-  res.json({ token: signToken(payload), user: publicUser(user) });
+  const token = issueSession(res, req, user);
+  res.json({ token, user: publicUser(user) });
 });
 
 authRouter.post("/login/2fa", authLimiter, async (req, res) => {
@@ -112,10 +147,26 @@ authRouter.post("/login/2fa", authLimiter, async (req, res) => {
       return res.status(401).json({ error: "Two-factor login is not available." });
     }
     if (!verifyTotp(user.totpSecret, String(code))) {
-      return res.status(401).json({ error: "Invalid authenticator code." });
+      const recovery = matchRecoveryCode(user.recoveryCodes, String(code));
+      if (!recovery.ok) {
+        const next = nextLockState(user.failedLoginCount);
+        await prisma.user.update({ where: { id: user.id }, data: next });
+        if (next.lockedUntil) return res.status(429).json({ error: LOCKED_LOGIN_ERROR });
+        return res.status(401).json({ error: "Invalid authenticator code." });
+      }
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { recoveryCodes: recovery.remaining, failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+      });
+      const token = issueSession(res, req, user);
+      return res.json({ token, user: publicUser(user) });
     }
-    const auth = { id: user.id, role: user.role, email: user.email, name: user.name };
-    res.json({ token: signToken(auth), user: publicUser(user) });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
+    });
+    const token = issueSession(res, req, user);
+    res.json({ token, user: publicUser(user) });
   } catch {
     return res.status(401).json({ error: "Challenge expired. Sign in again." });
   }
@@ -180,6 +231,9 @@ authRouter.post("/reset-password", authLimiter, async (req, res) => {
       passwordHash: await bcrypt.hash(password, 12),
       passwordResetToken: null,
       passwordResetExpires: null,
+      tokenVersion: { increment: 1 },
+      failedLoginCount: 0,
+      lockedUntil: null,
     },
   });
 
@@ -214,8 +268,12 @@ authRouter.post("/2fa/enable", requireAuth, requireRole(Role.ADMIN), async (req,
   if (!verifyTotp(user.totpSecret, String(code || ""))) {
     return res.status(400).json({ error: "Invalid authenticator code." });
   }
-  await prisma.user.update({ where: { id: user.id }, data: { totpEnabled: true } });
-  res.json({ ok: true, totpEnabled: true });
+  const recovery = createRecoveryCodes();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { totpEnabled: true, recoveryCodes: recovery.stored },
+  });
+  res.json({ ok: true, totpEnabled: true, recoveryCodes: recovery.plain });
 });
 
 authRouter.post("/2fa/disable", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
@@ -231,7 +289,21 @@ authRouter.post("/2fa/disable", requireAuth, requireRole(Role.ADMIN), async (req
   }
   await prisma.user.update({
     where: { id: user.id },
-    data: { totpEnabled: false, totpSecret: null },
+    data: { totpEnabled: false, totpSecret: null, recoveryCodes: null },
   });
   res.json({ ok: true, totpEnabled: false });
+});
+
+authRouter.post("/logout", (_req, res) => {
+  res.setHeader("Set-Cookie", clearSessionCookie(cookieSecure(_req.header("x-forwarded-proto") || undefined)));
+  res.json({ ok: true });
+});
+
+authRouter.post("/logout-all", requireAuth, async (req, res) => {
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { tokenVersion: { increment: 1 } },
+  });
+  res.setHeader("Set-Cookie", clearSessionCookie(cookieSecure(req.header("x-forwarded-proto") || undefined)));
+  res.json({ ok: true });
 });

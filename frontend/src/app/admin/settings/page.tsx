@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   Clock,
@@ -22,7 +22,8 @@ import { OpeningHoursEditor } from "@/components/admin/OpeningHoursEditor";
 import { TwoFactorSettings } from "@/components/admin/TwoFactorSettings";
 import { SettingsField, SettingsSection } from "@/components/admin/SettingsSection";
 import { api, apiUpload } from "@/lib/api";
-import { isStoreOpen } from "@/lib/store-hours";
+import { isStoreOpen, generatedClosedMessage } from "@/lib/store-hours";
+import { validateSettingsInput } from "@/lib/settings-validate";
 import { PromoBanner, StoreSettings } from "@/lib/types";
 
 type SettingsPayload = { settings: StoreSettings; banners: PromoBanner[] };
@@ -36,6 +37,7 @@ const SOCIAL_FIELDS = [
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<StoreSettings | null>(null);
+  const [baseline, setBaseline] = useState("");
   const [banners, setBanners] = useState<PromoBanner[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -45,6 +47,7 @@ export default function AdminSettingsPage() {
   async function load() {
     const data = await api<SettingsPayload>("/settings");
     setSettings(data.settings);
+    setBaseline(JSON.stringify(data.settings));
     setBanners(data.banners);
   }
 
@@ -59,6 +62,7 @@ export default function AdminSettingsPage() {
     setMsg("");
     try {
       await api("/settings", { method: "PATCH", body: JSON.stringify(settings) });
+      setBaseline(JSON.stringify(settings));
       setMsg("Settings saved successfully.");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Save failed.");
@@ -115,6 +119,38 @@ export default function AdminSettingsPage() {
   }
 
   const storeOpen = isStoreOpen(settings);
+  const fieldErrors = useMemo(
+    () => validateSettingsInput(settings as unknown as Record<string, unknown>),
+    [settings]
+  );
+  const invalid = Object.keys(fieldErrors).length > 0;
+  const dirty = baseline !== "" && JSON.stringify(settings) !== baseline;
+  const closedHint = generatedClosedMessage(settings);
+
+  useEffect(() => {
+    const onBefore = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const onClick = (event: MouseEvent) => {
+      if (!dirty) return;
+      const anchor = (event.target as HTMLElement | null)?.closest("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+      if (!window.confirm("You have unsaved settings. Leave without saving?")) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", onBefore);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBefore);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [dirty]);
 
   return (
     <div className="space-y-6 pb-24">
@@ -144,7 +180,7 @@ export default function AdminSettingsPage() {
             <button
               type="button"
               onClick={() => onSave()}
-              disabled={saving}
+              disabled={saving || invalid}
               className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-stone-900 transition hover:bg-brand-50 disabled:opacity-60"
             >
               <Save size={16} />
@@ -182,6 +218,7 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
                 placeholder="Restaurant name"
               />
+              {fieldErrors.storeName && <p className="mt-1 text-xs text-rose-700">{fieldErrors.storeName}</p>}
             </SettingsField>
             <SettingsField label="Tagline">
               <input
@@ -396,7 +433,126 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, pickupEstimateMin: Number(e.target.value) })}
                 />
               </SettingsField>
+              <SettingsField label="Confirm SLA (min)" hint="Highlight orders waiting longer than this">
+                <input
+                  className="input"
+                  type="number"
+                  value={settings.confirmSlaMinutes ?? 15}
+                  onChange={(e) => setSettings({ ...settings, confirmSlaMinutes: Number(e.target.value) })}
+                />
+              </SettingsField>
+              <SettingsField label="Delivery SLA (min)">
+                <input
+                  className="input"
+                  type="number"
+                  value={settings.deliverySlaMinutes ?? 45}
+                  onChange={(e) => setSettings({ ...settings, deliverySlaMinutes: Number(e.target.value) })}
+                />
+              </SettingsField>
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={settings.acceptCash !== false}
+                  onChange={(e) => setSettings({ ...settings, acceptCash: e.target.checked })}
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-stone-900">Cash on delivery</span>
+                  <span className="text-xs text-stone-500">Shown at checkout and in the FAQ.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={settings.acceptCard !== false}
+                  onChange={(e) => setSettings({ ...settings, acceptCard: e.target.checked })}
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-stone-900">Card at the counter</span>
+                  <span className="text-xs text-stone-500">POS only. No online card gateway.</span>
+                </span>
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsField label={settings.taxLabel || "Tax"} hint="Percent. Leave 0 to hide.">
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={settings.taxPercent ?? 0}
+                  onChange={(e) => setSettings({ ...settings, taxPercent: e.target.value })}
+                />
+              </SettingsField>
+              <SettingsField label="Tax label">
+                <input
+                  className="input"
+                  value={settings.taxLabel ?? "Tax"}
+                  onChange={(e) => setSettings({ ...settings, taxLabel: e.target.value })}
+                />
+              </SettingsField>
+              <SettingsField label={settings.serviceChargeLabel || "Service charge"}>
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={settings.serviceChargePercent ?? 0}
+                  onChange={(e) => setSettings({ ...settings, serviceChargePercent: e.target.value })}
+                />
+              </SettingsField>
+              <SettingsField label="Service label">
+                <input
+                  className="input"
+                  value={settings.serviceChargeLabel ?? "Service charge"}
+                  onChange={(e) => setSettings({ ...settings, serviceChargeLabel: e.target.value })}
+                />
+              </SettingsField>
+            </div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="flex items-center gap-2 font-medium text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(settings.taxIncluded)}
+                  onChange={(e) => setSettings({ ...settings, taxIncluded: e.target.checked })}
+                />
+                Tax included in prices
+              </label>
+              <label className="flex items-center gap-2 font-medium text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(settings.serviceIncluded)}
+                  onChange={(e) => setSettings({ ...settings, serviceIncluded: e.target.checked })}
+                />
+                Service included in prices
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsField label="Tax registration number" hint="Optional. Printed on receipts.">
+                <input
+                  className="input"
+                  value={settings.taxNumber ?? ""}
+                  onChange={(e) => setSettings({ ...settings, taxNumber: e.target.value })}
+                />
+              </SettingsField>
+              <SettingsField label="Receipt footer">
+                <input
+                  className="input"
+                  value={settings.receiptFooter ?? ""}
+                  onChange={(e) => setSettings({ ...settings, receiptFooter: e.target.value })}
+                />
+              </SettingsField>
+            </div>
+            {(fieldErrors.taxPercent || fieldErrors.serviceChargePercent || fieldErrors.phone || fieldErrors.latitude) && (
+              <p className="text-xs text-rose-700">
+                {fieldErrors.taxPercent || fieldErrors.serviceChargePercent || fieldErrors.phone || fieldErrors.latitude}
+              </p>
+            )}
             <label
               className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
                 settings.autoConfirmOrders
@@ -455,10 +611,11 @@ export default function AdminSettingsPage() {
           />
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <SettingsField label="Closed message" hint="Shown on the storefront when you're closed">
+            <SettingsField label="Closed message" hint="Leave blank to use the schedule. Hours on the site always follow the schedule.">
               <textarea
                 className="input min-h-24 resize-none"
                 value={settings.closedMessage}
+                placeholder={closedHint}
                 onChange={(e) => setSettings({ ...settings, closedMessage: e.target.value })}
               />
             </SettingsField>
