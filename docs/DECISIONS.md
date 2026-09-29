@@ -16,7 +16,7 @@ WhatsApp message formatting is unchanged. Messaging providers are out of scope.
 
 ## Seed password
 
-`npm run seed:demo` hashes a random password and prints it once. If the admin user already exists, the password is not reset and is not printed again. Branding fields (name, city, currency, timezone) are updated.
+The seeded admin is `admin@admin.com` with password `admin`. If that user already exists, the password is not reset. Branding fields (name, city, currency, timezone) are updated. Other demo staff still get a random shared password printed once.
 
 Karachi neighbourhoods are seeded only when `--city` is Karachi. Any other city gets a short generic area list.
 

@@ -22,7 +22,7 @@ npm run prisma:migrate
 npm run seed:demo -- --name "Pizza Hub" --city "Lahore" --currency PKR --timezone Asia/Karachi
 ```
 
-The seed prints a random admin password **once**. A second run updates the name and city and does not reset that password.
+The seeded admin is `admin@admin.com` / `admin`. A second run updates the name and city and does not reset that password.
 
 5. Start the app:
 

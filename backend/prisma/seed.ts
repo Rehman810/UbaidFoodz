@@ -1,5 +1,4 @@
 import "dotenv/config";
-import crypto from "crypto";
 import { PrismaClient, OrderStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import fs from "fs";
@@ -384,7 +383,7 @@ async function main() {
   await seedDeliveryAreas(CITY);
 
   const already = await prisma.user.findUnique({
-    where: { email: "admin@demo.restaurant" },
+    where: { email: "admin@admin.com" },
   });
   if (already && process.env.FORCE_SEED !== "1") {
     await prisma.storeSettings.upsert({
@@ -409,7 +408,7 @@ async function main() {
     return;
   }
 
-  const adminPassword = crypto.randomBytes(9).toString("base64url");
+  const adminPassword = "admin";
   const hash = await bcrypt.hash(adminPassword, 10);
 
   await prisma.invoice.deleteMany();
@@ -494,7 +493,7 @@ async function main() {
     prisma.user.create({
       data: {
         name: "Demo Admin",
-        email: "admin@demo.restaurant",
+        email: "admin@admin.com",
         passwordHash: hash,
         role: Role.ADMIN,
         phone: "0300-1002003",
@@ -813,7 +812,7 @@ async function main() {
   console.log(`Seeded ${BRAND_NAME} in ${CITY}.`);
   console.log("Demo accounts (password shown once; it will not be printed or reset on the next seed):");
   console.log("  customer@demo.restaurant");
-  console.log("  admin@demo.restaurant");
+  console.log("  admin@admin.com");
   console.log("  rider@demo.restaurant");
   console.log("  chef@demo.restaurant");
   console.log("  cashier@demo.restaurant");
