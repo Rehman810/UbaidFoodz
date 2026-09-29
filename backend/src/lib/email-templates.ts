@@ -1,14 +1,11 @@
 import type { Order, OrderItem } from "@prisma/client";
-import { PRODUCT_NAME } from "./branding";
+import { POWERED_BY_NAME, POWERED_BY_URL, PRODUCT_NAME } from "./branding";
 import { formatMoney, type MoneySettings } from "./money";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
 export type EmailBrand = {
   storeName: string;
-  showPoweredBy?: boolean;
-  poweredByText?: string;
-  poweredByUrl?: string;
 } & MoneySettings;
 
 const C = {
@@ -92,14 +89,7 @@ export function renderEmail(opts: LayoutOptions): { html: string; text: string }
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all">${esc(opts.preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>`
     : "";
 
-  const powered =
-    opts.brand.showPoweredBy && opts.brand.poweredByText
-      ? `<p style="margin:16px 0 0;font-size:11px;color:${C.muted}">Powered by ${
-          opts.brand.poweredByUrl
-            ? `<a href="${esc(opts.brand.poweredByUrl)}" style="color:${C.brand};text-decoration:none;font-weight:600">${esc(opts.brand.poweredByText)}</a>`
-            : esc(opts.brand.poweredByText)
-        }</p>`
-      : "";
+  const powered = `<p style="margin:16px 0 0;font-size:11px;color:${C.muted}">Powered by <a href="${esc(POWERED_BY_URL)}" style="color:${C.brand};text-decoration:none;font-weight:600">${esc(POWERED_BY_NAME)}</a></p>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -171,9 +161,7 @@ export function renderEmail(opts: LayoutOptions): { html: string; text: string }
     opts.cta ? `\n${opts.cta.label}: ${opts.cta.url}` : "",
     "",
     opts.footerNote || "Thank you for your order.",
-    opts.brand.showPoweredBy && opts.brand.poweredByText
-      ? `Powered by ${opts.brand.poweredByText}${opts.brand.poweredByUrl ? ` — ${opts.brand.poweredByUrl}` : ""}`
-      : "",
+    `Powered by ${POWERED_BY_NAME} — ${POWERED_BY_URL}`,
   ]
     .filter(Boolean)
     .join("\n");

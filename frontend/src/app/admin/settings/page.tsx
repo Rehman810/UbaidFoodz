@@ -105,27 +105,12 @@ export default function AdminSettingsPage() {
     load();
   }
 
-  if (!settings) {
-    return (
-      <div className="space-y-4">
-        <div className="skeleton h-36 rounded-3xl" />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="skeleton h-72 rounded-3xl" />
-          <div className="skeleton h-72 rounded-3xl" />
-        </div>
-        <div className="skeleton h-64 rounded-3xl" />
-      </div>
-    );
-  }
-
-  const storeOpen = isStoreOpen(settings);
   const fieldErrors = useMemo(
-    () => validateSettingsInput(settings as unknown as Record<string, unknown>),
+    () => (settings ? validateSettingsInput(settings as unknown as Record<string, unknown>) : {}),
     [settings]
   );
   const invalid = Object.keys(fieldErrors).length > 0;
-  const dirty = baseline !== "" && JSON.stringify(settings) !== baseline;
-  const closedHint = generatedClosedMessage(settings);
+  const dirty = Boolean(settings) && baseline !== "" && JSON.stringify(settings) !== baseline;
 
   useEffect(() => {
     const onBefore = (event: BeforeUnloadEvent) => {
@@ -151,6 +136,22 @@ export default function AdminSettingsPage() {
       document.removeEventListener("click", onClick, true);
     };
   }, [dirty]);
+
+  if (!settings) {
+    return (
+      <div className="space-y-4">
+        <div className="skeleton h-36 rounded-3xl" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="skeleton h-72 rounded-3xl" />
+          <div className="skeleton h-72 rounded-3xl" />
+        </div>
+        <div className="skeleton h-64 rounded-3xl" />
+      </div>
+    );
+  }
+
+  const storeOpen = isStoreOpen(settings);
+  const closedHint = generatedClosedMessage(settings);
 
   return (
     <div className="space-y-6 pb-24">
@@ -273,29 +274,6 @@ export default function AdminSettingsPage() {
                 className="input"
                 value={settings.footerText ?? ""}
                 onChange={(e) => setSettings({ ...settings, footerText: e.target.value })}
-              />
-            </SettingsField>
-            <label className="flex items-center gap-2 text-sm text-stone-700">
-              <input
-                type="checkbox"
-                checked={Boolean(settings.showPoweredBy)}
-                onChange={(e) => setSettings({ ...settings, showPoweredBy: e.target.checked })}
-              />
-              Show “Powered by”
-            </label>
-            <SettingsField label="Powered by text">
-              <input
-                className="input"
-                value={settings.poweredByText ?? ""}
-                onChange={(e) => setSettings({ ...settings, poweredByText: e.target.value })}
-              />
-            </SettingsField>
-            <SettingsField label="Powered by URL">
-              <input
-                className="input"
-                value={settings.poweredByUrl ?? ""}
-                onChange={(e) => setSettings({ ...settings, poweredByUrl: e.target.value })}
-                placeholder="https://…"
               />
             </SettingsField>
           </div>

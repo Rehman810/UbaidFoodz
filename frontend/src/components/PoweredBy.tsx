@@ -1,6 +1,6 @@
 "use client";
 
-import { useStore } from "@/lib/store";
+import { POWERED_BY_NAME, POWERED_BY_URL } from "@/lib/branding";
 
 type Variant = "badge" | "inline" | "minimal";
 
@@ -10,18 +10,10 @@ type Props = {
 };
 
 export function PoweredBy({ className = "", variant = "badge" }: Props) {
-  const store = useStore();
-  const settings = store?.settings;
-  if (!settings?.showPoweredBy || !settings.poweredByText?.trim()) return null;
-  const label = settings.poweredByText.trim();
-  const href = settings.poweredByUrl?.trim();
-
-  const link = href ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="font-semibold transition-colors">
-      {label}
+  const link = (
+    <a href={POWERED_BY_URL} target="_blank" rel="noopener noreferrer" className="font-semibold transition-colors">
+      {POWERED_BY_NAME}
     </a>
-  ) : (
-    <span className="font-semibold">{label}</span>
   );
 
   if (variant === "minimal") {

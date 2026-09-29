@@ -44,6 +44,10 @@ CORS allows `CLIENT_URL` origins. Development also allows localhost. Vercel prev
 
 Images must match JPEG, PNG, GIF, or WebP bytes and are re-encoded with `sharp` before they are stored.
 
+## Powered by
+
+The storefront, admin sidebar, and emails always show “Powered by Devsora” linking to https://devsora.pro. Restaurant admins cannot hide or rename it. The old settings columns are ignored.
+
 ## Staff sign-in
 
 Customers use `/login`. Staff use `/admin/login`. A signed-in non-customer who opens `/login` is sent to their role home.

@@ -23,7 +23,7 @@ export function validateSettingsInput(body: Record<string, unknown>): SettingsEr
     if (value && !PHONE.test(value)) errors[key] = "Enter a phone number, or leave it blank.";
   }
 
-  for (const key of ["logoUrl", "faviconUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "youtubeUrl", "poweredByUrl"] as const) {
+  for (const key of ["logoUrl", "faviconUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "youtubeUrl"] as const) {
     if (body[key] === undefined) continue;
     const value = optionalText(body[key]);
     if (value && !URL.test(value)) errors[key] = "Enter a full http or https URL, or leave it blank.";

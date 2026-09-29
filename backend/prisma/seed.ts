@@ -608,7 +608,6 @@ async function main() {
       minimumOrder: 500,
       instagramUrl: "",
       facebookUrl: "",
-      showPoweredBy: false,
       showLiveStats: false,
       closedMessage: "",
     },

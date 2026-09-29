@@ -5,6 +5,8 @@ import { getStoreSettings } from "./settings-data";
 export const DEFAULT_STORE_NAME = "";
 export const DEFAULT_STORE_TAGLINE = "Order in minutes";
 export const PRODUCT_NAME = "Restaurant OS";
+export const POWERED_BY_NAME = "Devsora";
+export const POWERED_BY_URL = "https://devsora.pro";
 
 export function storeNameFrom(settings?: Partial<Pick<StoreSettings, "storeName">> | null) {
   const name = settings?.storeName?.trim();
@@ -19,9 +21,6 @@ export async function getEmailBranding() {
     emailNotifyChef: settings.emailNotifyChef,
     emailNotifyCashier: settings.emailNotifyCashier,
     emailNotifyRider: settings.emailNotifyRider,
-    showPoweredBy: settings.showPoweredBy,
-    poweredByText: settings.poweredByText,
-    poweredByUrl: settings.poweredByUrl,
     currencyCode: settings.currencyCode,
     currencySymbol: settings.currencySymbol,
   };

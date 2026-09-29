@@ -89,9 +89,6 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
       ...(body.currencyCode !== undefined ? { currencyCode: String(body.currencyCode).trim().toUpperCase() || "PKR" } : {}),
       ...(body.currencySymbol !== undefined ? { currencySymbol: String(body.currencySymbol).trim() || "Rs" } : {}),
       ...(body.footerText !== undefined ? { footerText: String(body.footerText) } : {}),
-      ...(body.poweredByText !== undefined ? { poweredByText: String(body.poweredByText).trim() } : {}),
-      ...(body.poweredByUrl !== undefined ? { poweredByUrl: String(body.poweredByUrl).trim() } : {}),
-      ...(body.showPoweredBy !== undefined ? { showPoweredBy: Boolean(body.showPoweredBy) } : {}),
       ...(body.showLiveStats !== undefined ? { showLiveStats: Boolean(body.showLiveStats) } : {}),
       ...(body.storeTagline !== undefined
         ? { storeTagline: String(body.storeTagline).trim() || "Order in minutes" }
