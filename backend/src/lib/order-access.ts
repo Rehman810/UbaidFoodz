@@ -2,7 +2,9 @@ import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
 import { AuthUser } from "../middleware/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET || "ubaid-fast-foodz-demo-secret";
+import { jwtSecret } from "./jwt-secret";
+
+const JWT_SECRET = jwtSecret();
 
 type OrderAccess = {
   id?: string;

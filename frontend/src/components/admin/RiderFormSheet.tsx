@@ -121,7 +121,7 @@ export function RiderFormSheet({
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 required
-                placeholder="rider@demo.restaurant"
+                placeholder="rider@email.com"
               />
             </div>
             <div>
@@ -140,7 +140,7 @@ export function RiderFormSheet({
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder="Leave blank for demo123"
+                placeholder="Leave blank to generate a password"
               />
               <p className="mt-1 text-xs text-stone-400">
                 Rider uses this email and password to sign in and see assigned deliveries.

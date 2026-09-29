@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "crypto";
 import { PrismaClient, OrderStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import fs from "fs";
@@ -11,6 +12,25 @@ import {
 } from "../src/lib/karachi-areas";
 
 const prisma = new PrismaClient();
+
+function cliArg(flag: string, envName: string, fallback: string) {
+  const idx = process.argv.indexOf(flag);
+  if (idx >= 0 && process.argv[idx + 1] && !process.argv[idx + 1].startsWith("--")) {
+    return process.argv[idx + 1];
+  }
+  return process.env[envName] || fallback;
+}
+
+const BRAND_NAME = cliArg("--name", "SEED_NAME", "Demo Restaurant");
+const CITY = cliArg("--city", "SEED_CITY", "Lahore");
+const CURRENCY = cliArg("--currency", "SEED_CURRENCY", "PKR").toUpperCase();
+const TIMEZONE = cliArg("--timezone", "SEED_TIMEZONE", "Asia/Karachi");
+
+const CITY_COORDS: Record<string, { latitude: number; longitude: number }> = {
+  lahore: { latitude: 31.5204, longitude: 74.3587 },
+  karachi: { latitude: 24.8607, longitude: 67.0011 },
+  islamabad: { latitude: 33.6844, longitude: 73.0479 },
+};
 
 const img = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&h=800&q=85`;
@@ -50,7 +70,7 @@ const MENU = [
     description: "Golden fried cheese sticks with marinara sauce.",
     price: 580,
     category: "Starters",
-    imageUrl: img("photo-1513104890138-7c749659a591"),
+    imageUrl: img("photo-1548340748-6d2b7d7da280"),
   },
   {
     name: "Chicken Corn Soup",
@@ -133,7 +153,7 @@ const MENU = [
   },
   // Biryani & Rice
   {
-    name: "Karachi Chicken Biryani",
+    name: "Chicken Biryani",
     description: "Dum-cooked basmati, tender chicken, potatoes and house garam masala.",
     price: 690,
     category: "Biryani & Rice",
@@ -238,21 +258,21 @@ const MENU = [
     description: "Toasted baguette with garlic butter and herbs.",
     price: 380,
     category: "Sides",
-    imageUrl: img("photo-1574071318508-1cdbab80d002"),
+    imageUrl: img("photo-1573140401552-3fab0b24306f"),
   },
   {
     name: "Coleslaw",
     description: "Creamy cabbage slaw — perfect with broast and burgers.",
     price: 220,
     category: "Sides",
-    imageUrl: img("photo-1565958011703-44f9829ba187"),
+    imageUrl: img("photo-1512621776951-a57141f2eefd"),
   },
   {
     name: "Raita",
     description: "Cool cucumber and mint yogurt — pairs with biryani and karahi.",
     price: 150,
     category: "Sides",
-    imageUrl: img("photo-1527661591475-527312dd65f5"),
+    imageUrl: img("photo-1488477181946-6428a0291777"),
   },
   // Beverages
   {
@@ -288,7 +308,7 @@ const MENU = [
     description: "Frozen mint lime cooler — sweet and tangy.",
     price: 320,
     category: "Beverages",
-    imageUrl: img("photo-1546173159-315724a31696"),
+    imageUrl: img("photo-1556679343-c7306c1976bc"),
   },
   {
     name: "Soft Drink",
@@ -328,35 +348,69 @@ const MENU = [
   },
 ];
 
-async function seedDeliveryAreas() {
+function areasForCity(city: string) {
+  if (city.trim().toLowerCase() === "karachi") {
+    return KARACHI_AREAS.map((name) => ({
+      name,
+      deliveryCharge: defaultChargeForArea(name),
+      isDelivering: DEFAULT_DELIVERING_AREAS.has(name),
+    }));
+  }
+  return ["Central", "North", "South", "East", "West", "Airport"].map((part, i) => ({
+    name: part === "Airport" ? `${city} Airport` : `${city} ${part}`,
+    deliveryCharge: 120 + i * 20,
+    isDelivering: true,
+  }));
+}
+
+async function seedDeliveryAreas(city: string) {
   const count = await prisma.deliveryArea.count();
   if (count > 0) return;
-  for (let i = 0; i < KARACHI_AREAS.length; i++) {
-    const name = KARACHI_AREAS[i];
+  const areas = areasForCity(city);
+  for (let i = 0; i < areas.length; i++) {
     await prisma.deliveryArea.create({
-      data: {
-        name,
-        deliveryCharge: defaultChargeForArea(name),
-        isDelivering: DEFAULT_DELIVERING_AREAS.has(name),
-        sortOrder: i + 1,
-      },
+      data: { ...areas[i], sortOrder: i + 1 },
     });
   }
-  console.log(`Seeded ${KARACHI_AREAS.length} Karachi delivery areas.`);
+  console.log(`Seeded ${areas.length} delivery areas for ${city}.`);
 }
 
 async function main() {
-  await seedDeliveryAreas();
+  await prisma.restaurant.upsert({
+    where: { id: "11111111-1111-4111-8111-111111111111" },
+    create: { id: "11111111-1111-4111-8111-111111111111" },
+    update: {},
+  });
+  await seedDeliveryAreas(CITY);
 
   const already = await prisma.user.findUnique({
     where: { email: "admin@demo.restaurant" },
   });
   if (already && process.env.FORCE_SEED !== "1") {
-    console.log("Demo data already present. Set FORCE_SEED=1 to reset.");
+    await prisma.storeSettings.upsert({
+      where: { id: "default" },
+      create: {
+        id: "default",
+        storeName: BRAND_NAME,
+        city: CITY,
+        currencyCode: CURRENCY,
+        currencySymbol: CURRENCY === "PKR" ? "Rs" : CURRENCY,
+        timezone: TIMEZONE,
+      },
+      update: {
+        storeName: BRAND_NAME,
+        city: CITY,
+        currencyCode: CURRENCY,
+        currencySymbol: CURRENCY === "PKR" ? "Rs" : CURRENCY,
+        timezone: TIMEZONE,
+      },
+    });
+    console.log("Demo data already present. Branding updated. Admin password was not reset.");
     return;
   }
 
-  const hash = await bcrypt.hash("demo123", 10);
+  const adminPassword = crypto.randomBytes(9).toString("base64url");
+  const hash = await bcrypt.hash(adminPassword, 10);
 
   await prisma.invoice.deleteMany();
   await prisma.orderItem.deleteMany();
@@ -420,15 +474,10 @@ async function main() {
     await prisma.category.create({ data: { ...categorySeed[i], sortOrder: i + 1 } });
   }
 
-  for (let i = 0; i < KARACHI_AREAS.length; i++) {
-    const name = KARACHI_AREAS[i];
+  const freshAreas = areasForCity(CITY);
+  for (let i = 0; i < freshAreas.length; i++) {
     await prisma.deliveryArea.create({
-      data: {
-        name,
-        deliveryCharge: defaultChargeForArea(name),
-        isDelivering: DEFAULT_DELIVERING_AREAS.has(name),
-        sortOrder: i + 1,
-      },
+      data: { ...freshAreas[i], sortOrder: i + 1 },
     });
   }
 
@@ -448,7 +497,7 @@ async function main() {
         email: "admin@demo.restaurant",
         passwordHash: hash,
         role: Role.ADMIN,
-        phone: "0321-5556677",
+        phone: "0300-1002003",
       },
     }),
     prisma.user.create({
@@ -540,18 +589,27 @@ async function main() {
     });
   }
 
+  const coords = CITY_COORDS[CITY.trim().toLowerCase()];
   await prisma.storeSettings.upsert({
     where: { id: "default" },
     create: { id: "default" },
     update: {
-      storeName: "Demo Restaurant",
+      storeName: BRAND_NAME,
       storeTagline: "Order in minutes",
+      city: CITY,
+      address: `Main branch, ${CITY}`,
+      phone: "0300-1002003",
+      timezone: TIMEZONE,
+      currencyCode: CURRENCY,
+      currencySymbol: CURRENCY === "PKR" ? "Rs" : CURRENCY,
       freeDeliveryAbove: 2500,
-      latitude: 24.8138,
-      longitude: 67.03,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
       minimumOrder: 500,
       instagramUrl: "",
       facebookUrl: "",
+      showPoweredBy: false,
+      showLiveStats: false,
     },
   });
 
@@ -626,7 +684,7 @@ async function main() {
       number: "UF-1042",
       status: OrderStatus.PENDING,
       createdAt: daysAgo(0, 14),
-      address: "House 12, Street 7, DHA Phase 6, Karachi",
+      address: `12 Main Street, ${CITY}`,
       notes: "Please add extra raita.",
       bag: pick("Zinger", "Fries", "Lime"),
       qty: [1, 1, 2],
@@ -635,7 +693,7 @@ async function main() {
       number: "UF-1041",
       status: OrderStatus.PREPARING,
       createdAt: daysAgo(0, 13),
-      address: "Apt 4B, Al-Tijarah, Shahrah-e-Faisal, Karachi",
+      address: `4B Canal View, ${CITY}`,
       bag: pick("Biryani", "Lassi"),
       qty: [2, 2],
     },
@@ -644,7 +702,7 @@ async function main() {
       status: OrderStatus.OUT_FOR_DELIVERY,
       riderId: rider.id,
       createdAt: daysAgo(0, 12),
-      address: "Shop 9, Boat Basin, Clifton Block 5, Karachi",
+      address: `9 Market Road, ${CITY}`,
       notes: "Call on arrival, gate code 4411.",
       bag: pick("Tikka", "Chai", "Gulab"),
       qty: [1, 1, 2],
@@ -654,7 +712,7 @@ async function main() {
       status: OrderStatus.DELIVERED,
       riderId: rider.id,
       createdAt: daysAgo(0, 11),
-      address: "C-19, North Nazimabad Block H, Karachi",
+      address: `19 North Block, ${CITY}`,
       bag: pick("Pizza", "Coffee"),
       qty: [1, 2],
     },
@@ -663,7 +721,7 @@ async function main() {
       status: OrderStatus.DELIVERED,
       riderId: rider.id,
       createdAt: daysAgo(1, 20),
-      address: "Villa 8, Bahria Town Precinct 11, Karachi",
+      address: `8 Garden Town, ${CITY}`,
       bag: pick("Smash", "Nachos", "Kulfi"),
       qty: [2, 1, 1],
     },
@@ -672,7 +730,7 @@ async function main() {
       status: OrderStatus.DELIVERED,
       riderId: rider.id,
       createdAt: daysAgo(2, 19),
-      address: "House 44, PECHS Block 2, Karachi",
+      address: `44 Park Lane, ${CITY}`,
       bag: pick("Club", "Lime"),
       qty: [1, 1],
     },
@@ -681,7 +739,7 @@ async function main() {
       status: OrderStatus.DELIVERED,
       riderId: rider.id,
       createdAt: daysAgo(3, 18),
-      address: "Office 12, I.I. Chundrigar Road, Karachi",
+      address: `12 Office Square, ${CITY}`,
       bag: pick("Alfredo", "Lassi", "Lava"),
       qty: [2, 2, 1],
     },
@@ -690,7 +748,7 @@ async function main() {
       status: OrderStatus.DELIVERED,
       riderId: rider.id,
       createdAt: daysAgo(4, 21),
-      address: "Flat 3, Gulshan-e-Iqbal Block 13-D, Karachi",
+      address: `3 Hill Apartments, ${CITY}`,
       bag: pick("Biryani", "Pakora", "Lassi"),
       qty: [3, 1, 3],
     },
@@ -698,7 +756,7 @@ async function main() {
       number: "UF-1018",
       status: OrderStatus.CANCELLED,
       createdAt: daysAgo(5, 16),
-      address: "House 2, Korangi Creek, Karachi",
+      address: `2 Creek Road, ${CITY}`,
       notes: "Customer cancelled — running late.",
       bag: pick("Zinger"),
       qty: [1],
@@ -708,7 +766,7 @@ async function main() {
       status: OrderStatus.DELIVERED,
       riderId: rider.id,
       createdAt: daysAgo(6, 20),
-      address: "Bungalow 21, Malir Cantonment, Karachi",
+      address: `21 Cantonment Road, ${CITY}`,
       bag: pick("Tikka", "Broast", "Gulab"),
       qty: [1, 2, 2],
     },
@@ -752,12 +810,14 @@ async function main() {
     }
   }
 
-  console.log("Seeded demo restaurant data.");
-  console.log("  customer@demo.restaurant / demo123");
-  console.log("  admin@demo.restaurant    / demo123");
-  console.log("  rider@demo.restaurant    / demo123");
-  console.log("  chef@demo.restaurant     / demo123");
-  console.log("  cashier@demo.restaurant  / demo123");
+  console.log(`Seeded ${BRAND_NAME} in ${CITY}.`);
+  console.log("Demo accounts (password shown once; it will not be printed or reset on the next seed):");
+  console.log("  customer@demo.restaurant");
+  console.log("  admin@demo.restaurant");
+  console.log("  rider@demo.restaurant");
+  console.log("  chef@demo.restaurant");
+  console.log("  cashier@demo.restaurant");
+  console.log(`Admin password: ${adminPassword}`);
 }
 
 main()

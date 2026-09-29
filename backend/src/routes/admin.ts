@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { FulfillmentType, OrderSource, OrderStatus, Role } from "@prisma/client";
@@ -581,7 +582,7 @@ adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, re
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) return res.status(409).json({ error: "An account with this email already exists." });
 
-  const plainPassword = password?.trim() || "demo123";
+  const plainPassword = password?.trim() || crypto.randomBytes(9).toString("base64url");
   if (plainPassword.length < 6) {
     return res.status(400).json({ error: "Password must be at least 6 characters." });
   }

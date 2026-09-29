@@ -179,7 +179,7 @@ export function DealFormSheet({
               <textarea className="input min-h-[72px] resize-none" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="What's included in this deal?" />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-stone-500">Deal price (PKR)</label>
+              <label className="mb-1.5 block text-xs font-medium text-stone-500">Deal price</label>
               <input className="input" type="number" min={0} value={form.dealPrice} onChange={(e) => setForm((f) => ({ ...f, dealPrice: e.target.value }))} required />
               {regularTotal > 0 && form.dealPrice && (
                 <p className="mt-1 text-xs text-stone-500">

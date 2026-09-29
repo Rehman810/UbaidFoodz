@@ -250,7 +250,7 @@ export function MenuFormSheet({
               <label className="mb-1.5 block text-xs font-medium text-stone-500">Dish name</label>
               <input
                 className="input"
-                placeholder="e.g. Karachi Chicken Biryani"
+                placeholder="e.g. Chicken Biryani"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 required
@@ -269,7 +269,7 @@ export function MenuFormSheet({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-stone-500">Price (PKR)</label>
+                <label className="mb-1.5 block text-xs font-medium text-stone-500">Price</label>
                 <input
                   className="input"
                   placeholder="0"

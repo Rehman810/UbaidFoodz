@@ -1,21 +1,21 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: ubaidfastfoodz-db
+    container_name: restaurant-os-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ubaid
-      POSTGRES_PASSWORD: ubaid
-      POSTGRES_DB: ubaidfastfoodz
+      POSTGRES_USER: restaurant
+      POSTGRES_PASSWORD: restaurant
+      POSTGRES_DB: restaurant_os
     ports:
       - "5432:5432"
     volumes:
-      - ubaidfastfoodz_pg:/var/lib/postgresql/data
+      - restaurant_os_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ubaid -d ubaidfastfoodz"]
+      test: ["CMD-SHELL", "pg_isready -U restaurant -d restaurant_os"]
       interval: 2s
       timeout: 5s
       retries: 20
 
 volumes:
-  ubaidfastfoodz_pg:
+  restaurant_os_pg:

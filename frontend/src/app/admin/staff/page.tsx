@@ -254,7 +254,7 @@ export default function StaffPage() {
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Email</span>
-            <input className="input" type="email" placeholder="chef@demo.restaurant" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            <input className="input" type="email" placeholder="chef@email.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Phone</span>

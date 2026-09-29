@@ -3,14 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, Flame, MapPin, Phone } from "lucide-react";
-import { PoweredByDevsora } from "@/components/PoweredByDevsora";
+import { PoweredBy } from "@/components/PoweredBy";
 import { storeDisplayName, storeTagline } from "@/lib/branding";
 import { useStore } from "@/lib/store";
 
 export function StoreFooter() {
   const store = useStore();
   const settings = store?.settings;
-  const phone = settings?.phone ?? "0321-5556677";
+  const phone = settings?.phone || "";
   const address = settings?.address ?? "Restaurant address";
   const name = storeDisplayName(settings);
 
@@ -36,7 +36,9 @@ export function StoreFooter() {
               <h2 className="font-display mt-3 text-3xl leading-tight sm:text-4xl">
                 Craving something <span className="text-brand-400">right now?</span>
               </h2>
-              <p className="mt-3 text-sm text-stone-300">Cash on delivery · Fast delivery · Order online</p>
+              <p className="mt-3 text-sm text-stone-300">
+                {settings?.footerText?.trim() || `Order online${settings?.city ? ` in ${settings.city}` : ""}`}
+              </p>
             </div>
             <Link
               href="/menu"
@@ -93,7 +95,7 @@ export function StoreFooter() {
               { href: "/orders", label: "Track order" },
               { href: "/faq", label: "FAQ" },
               { href: "/privacy", label: "Privacy" },
-              { href: "/login", label: "Staff login" },
+              { href: "/login", label: "Customer login" },
             ].map((link) => (
               <li key={link.href}>
                 <Link href={link.href} className="transition hover:text-white">
@@ -107,10 +109,12 @@ export function StoreFooter() {
         <div className="md:col-span-4">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-400">Visit & call</p>
           <ul className="mt-5 space-y-4 text-sm">
+            {phone ? (
             <li className="flex gap-3">
               <Phone size={16} className="mt-0.5 shrink-0 text-brand-500" />
               <a href={`tel:${phone}`} className="font-semibold text-stone-200 hover:text-white">{phone}</a>
             </li>
+            ) : null}
             <li className="flex gap-3">
               <MapPin size={16} className="mt-0.5 shrink-0 text-brand-500" />
               <span>{address}</span>
@@ -128,7 +132,7 @@ export function StoreFooter() {
           <p className="text-center text-xs text-stone-500 sm:text-left">
             © {new Date().getFullYear()} {name}
           </p>
-          <PoweredByDevsora variant="badge" />
+          <PoweredBy variant="badge" />
         </div>
       </div>
     </footer>

@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import { ArrowRight, Clock, MapPin, Phone, Truck } from "lucide-react";
+import { formatMoney } from "@/lib/format";
 import { useStore } from "@/lib/store";
 
 export function HomeDelivery({ zones }: { zones: string[] }) {
   const store = useStore();
   const deliveryMin = store?.settings.deliveryEstimateMin ?? 45;
+  const city = store?.settings.city?.trim();
 
   return (
     <section className="bg-[#fffaf5] py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-600">Karachi-wide</p>
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-600">
+            {city ? `${city}-wide` : "Delivery"}
+          </p>
           <h2 className="font-display mt-3 text-3xl text-stone-900 sm:text-5xl">We ride to your door</h2>
           <p className="mx-auto mt-3 max-w-lg text-sm text-stone-600 sm:text-base">
             Hot bags, live tracking, and riders who know your streets.
@@ -22,7 +26,7 @@ export function HomeDelivery({ zones }: { zones: string[] }) {
         {/* Quick stats */}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           {[
-            { icon: MapPin, label: `${zones.length || "40"}+ areas` },
+            { icon: MapPin, label: zones.length ? `${zones.length} area${zones.length === 1 ? "" : "s"}` : "Areas at checkout" },
             { icon: Clock, label: `~${deliveryMin} min delivery` },
             { icon: Truck, label: "Cash on delivery" },
           ].map(({ icon: Icon, label }) => (
@@ -45,7 +49,9 @@ export function HomeDelivery({ zones }: { zones: string[] }) {
               </span>
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-brand-600">Delivery zones</p>
-                <h3 className="font-display text-xl text-stone-900 sm:text-2xl">Across Karachi</h3>
+                <h3 className="font-display text-xl text-stone-900 sm:text-2xl">
+                  {city ? `Across ${city}` : "Delivery areas"}
+                </h3>
               </div>
             </div>
 
@@ -87,7 +93,7 @@ export function HomeDelivery({ zones }: { zones: string[] }) {
                 <div className="flex items-center justify-between gap-4 border-b border-orange-50 py-3.5">
                   <dt className="text-stone-500">Free delivery</dt>
                   <dd className="font-semibold text-stone-900">
-                    Rs {Number(store.settings.freeDeliveryAbove).toLocaleString("en-PK")}+
+                    {formatMoney(store.settings.freeDeliveryAbove)}+
                   </dd>
                 </div>
               )}
@@ -95,7 +101,7 @@ export function HomeDelivery({ zones }: { zones: string[] }) {
                 <dt className="flex items-center gap-1.5 text-stone-500">
                   <Phone size={14} className="text-brand-500" /> Kitchen
                 </dt>
-                <dd className="font-semibold text-stone-900">{store?.settings.phone ?? "0321-5556677"}</dd>
+                <dd className="font-semibold text-stone-900">{store?.settings.phone || "—"}</dd>
               </div>
             </dl>
 

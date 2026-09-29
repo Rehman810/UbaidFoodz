@@ -4,11 +4,12 @@ import path from "path";
 import { prisma } from "./prisma";
 import { getStoreSettings } from "./settings-data";
 import { storeNameFrom } from "./branding";
+import { formatMoney } from "./money";
 
 const INVOICE_DIR = path.join(__dirname, "../../invoices");
 
-function money(n: number) {
-  return `Rs ${n.toLocaleString("en-PK")}`;
+function money(n: number, settings?: { currencyCode?: string | null; currencySymbol?: string | null }) {
+  return formatMoney(n, settings);
 }
 
 export async function generateInvoicePdf(orderId: string) {
@@ -25,7 +26,7 @@ export async function generateInvoicePdf(orderId: string) {
   const storeName = storeNameFrom(settings).toUpperCase();
 
   fs.mkdirSync(INVOICE_DIR, { recursive: true });
-  const invoiceNumber = `INV-${order.orderNumber.replace("UF-", "")}`;
+  const invoiceNumber = `INV-${order.orderNumber.replace(/^[A-Z]+-/, "")}`;
   const pdfPath = path.join(INVOICE_DIR, `${invoiceNumber}.pdf`);
 
   await new Promise<void>((resolve, reject) => {
@@ -62,8 +63,8 @@ export async function generateInvoicePdf(orderId: string) {
       const amount = Number(item.priceAtOrder) * item.quantity;
       doc.text(item.nameAtOrder, 56, y, { width: 270 });
       doc.text(String(item.quantity), 340, y);
-      doc.text(money(Number(item.priceAtOrder)), 400, y);
-      doc.text(money(amount), 480, y);
+      doc.text(money(Number(item.priceAtOrder), settings), 400, y);
+      doc.text(money(amount, settings), 480, y);
       y += 22;
     }
 
@@ -72,16 +73,16 @@ export async function generateInvoicePdf(orderId: string) {
     y += 16;
     doc.font("Helvetica").fontSize(10).fillColor("#1c1917");
     doc.text("Subtotal", 400, y);
-    doc.text(money(Number(order.subtotal)), 480, y);
+    doc.text(money(Number(order.subtotal), settings), 480, y);
     y += 18;
     if (Number(order.deliveryCharge) > 0) {
       doc.text("Delivery", 400, y);
-      doc.text(money(Number(order.deliveryCharge)), 480, y);
+      doc.text(money(Number(order.deliveryCharge), settings), 480, y);
       y += 18;
     }
     doc.font("Helvetica-Bold").fontSize(13).fillColor("#C2410C");
     doc.text("Total", 400, y);
-    doc.text(money(Number(order.total)), 480, y);
+    doc.text(money(Number(order.total), settings), 480, y);
 
     y += 48;
     doc.font("Helvetica").fontSize(9).fillColor("#78716c");

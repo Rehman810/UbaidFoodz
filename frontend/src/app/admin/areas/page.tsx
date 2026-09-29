@@ -107,7 +107,7 @@ export default function AdminAreasPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Delivery zones</p>
-          <h1 className="font-display text-3xl text-stone-900">Karachi areas</h1>
+          <h1 className="font-display text-3xl text-stone-900">Delivery areas</h1>
           <p className="mt-1 text-sm text-stone-500">
             {activeCount} of {areas.length} areas enabled for delivery
           </p>

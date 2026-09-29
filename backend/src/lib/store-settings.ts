@@ -1,8 +1,8 @@
 import { StoreSettings } from "@prisma/client";
 
-export function getKarachiMinutes(now = new Date()) {
+export function getZonedMinutes(now = new Date(), timeZone = "Asia/Karachi") {
   const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Karachi",
+    timeZone,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -28,7 +28,7 @@ export function isWithinHours(
 
 export function isStoreOpen(settings: StoreSettings, now = new Date()) {
   if (settings.forceClosed) return false;
-  const nowMin = getKarachiMinutes(now);
+  const nowMin = getZonedMinutes(now, settings.timezone || "Asia/Karachi");
   return isWithinHours(
     nowMin,
     settings.openHour,

@@ -180,7 +180,7 @@ export default function AdminSettingsPage() {
                 className="input"
                 value={settings.storeName ?? ""}
                 onChange={(e) => setSettings({ ...settings, storeName: e.target.value })}
-                placeholder="Your Restaurant"
+                placeholder="Restaurant name"
               />
             </SettingsField>
             <SettingsField label="Tagline">
@@ -189,6 +189,76 @@ export default function AdminSettingsPage() {
                 value={settings.storeTagline ?? ""}
                 onChange={(e) => setSettings({ ...settings, storeTagline: e.target.value })}
                 placeholder="Order in minutes"
+              />
+            </SettingsField>
+            <SettingsField label="City">
+              <input
+                className="input"
+                value={settings.city ?? ""}
+                onChange={(e) => setSettings({ ...settings, city: e.target.value })}
+                placeholder="City"
+              />
+            </SettingsField>
+            <SettingsField label="Timezone">
+              <input
+                className="input"
+                value={settings.timezone ?? "Asia/Karachi"}
+                onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
+                placeholder="Asia/Karachi"
+              />
+            </SettingsField>
+            <SettingsField label="Currency code">
+              <input
+                className="input"
+                value={settings.currencyCode ?? "PKR"}
+                onChange={(e) => setSettings({ ...settings, currencyCode: e.target.value.toUpperCase() })}
+                placeholder="PKR"
+              />
+            </SettingsField>
+            <SettingsField label="Currency symbol">
+              <input
+                className="input"
+                value={settings.currencySymbol ?? "Rs"}
+                onChange={(e) => setSettings({ ...settings, currencySymbol: e.target.value })}
+                placeholder="Rs"
+              />
+            </SettingsField>
+            <SettingsField label="Logo URL">
+              <input
+                className="input"
+                value={settings.logoUrl ?? ""}
+                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
+                placeholder="https://…"
+              />
+            </SettingsField>
+            <SettingsField label="Footer text">
+              <input
+                className="input"
+                value={settings.footerText ?? ""}
+                onChange={(e) => setSettings({ ...settings, footerText: e.target.value })}
+              />
+            </SettingsField>
+            <label className="flex items-center gap-2 text-sm text-stone-700">
+              <input
+                type="checkbox"
+                checked={Boolean(settings.showPoweredBy)}
+                onChange={(e) => setSettings({ ...settings, showPoweredBy: e.target.checked })}
+              />
+              Show “Powered by”
+            </label>
+            <SettingsField label="Powered by text">
+              <input
+                className="input"
+                value={settings.poweredByText ?? ""}
+                onChange={(e) => setSettings({ ...settings, poweredByText: e.target.value })}
+              />
+            </SettingsField>
+            <SettingsField label="Powered by URL">
+              <input
+                className="input"
+                value={settings.poweredByUrl ?? ""}
+                onChange={(e) => setSettings({ ...settings, poweredByUrl: e.target.value })}
+                placeholder="https://…"
               />
             </SettingsField>
           </div>
@@ -377,7 +447,7 @@ export default function AdminSettingsPage() {
         <SettingsSection
           icon={Clock}
           title="Hours & availability"
-          description="When customers can order. Times are in Karachi (PKT)."
+          description={`When customers can order. Times use ${settings.timezone || "the restaurant timezone"}.`}
         >
           <OpeningHoursEditor
             settings={settings}

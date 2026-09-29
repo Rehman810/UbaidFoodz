@@ -136,7 +136,7 @@ export function FulfillmentModal() {
               {isChoose ? "Welcome" : "Delivery area"}
             </p>
             <h2 className="font-display mt-1 text-xl leading-tight text-stone-900">
-              {isChoose ? "How should we get your food to you?" : "Where in Karachi?"}
+              {isChoose ? "How should we get your food to you?" : store?.settings.city ? `Where in ${store.settings.city}?` : "Where should we deliver?"}
             </h2>
             <p className="mt-1.5 text-xs leading-relaxed text-stone-500">
               {isChoose
@@ -158,7 +158,9 @@ export function FulfillmentModal() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-base font-bold text-stone-900">Delivery</p>
-                <p className="mt-0.5 text-xs text-stone-600">To your area across Karachi</p>
+                <p className="mt-0.5 text-xs text-stone-600">
+                  To your area{store?.settings.city ? ` in ${store.settings.city}` : ""}
+                </p>
                 <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-brand-700">
                   <MapPin size={11} /> Select area & fee
                 </p>
@@ -204,7 +206,7 @@ export function FulfillmentModal() {
                 />
                 <input
                   className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2.5 pl-10 pr-3 text-sm outline-none transition placeholder:text-stone-400 focus:border-brand-400 focus:bg-white focus:ring-4 focus:ring-brand-100"
-                  placeholder="Search Clifton, DHA, Gulshan…"
+                  placeholder="Search your area…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoFocus

@@ -1,3 +1,4 @@
+import { formatMoney } from "./format";
 import { Order } from "./types";
 
 export type ReceiptStore = {
@@ -23,7 +24,7 @@ function esc(s: string) {
 }
 
 function formatPkr(n: number | string) {
-  return `Rs ${Number(n).toLocaleString("en-PK")}`;
+  return formatMoney(n);
 }
 
 function fulfillmentLabel(type?: string | null) {

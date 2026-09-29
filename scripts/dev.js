@@ -26,7 +26,7 @@ async function waitHealthy(retries = 40) {
   const { execSync } = require("child_process");
   for (let i = 0; i < retries; i++) {
     try {
-      execSync("docker compose exec -T db pg_isready -U ubaid -d ubaidfastfoodz", {
+      execSync("docker compose exec -T db pg_isready -U restaurant -d restaurant_os", {
         cwd: root,
         stdio: "ignore",
       });
@@ -39,7 +39,7 @@ async function waitHealthy(retries = 40) {
 }
 
 async function main() {
-  console.log("\n🍔  Ubaid Fast Foodz — starting demo\n");
+  console.log("\nRestaurant OS — starting\n");
   console.log("→ Starting PostgreSQL (Docker)…");
   await waitFor(run("docker", ["compose", "up", "-d"]));
   await waitHealthy();
@@ -48,8 +48,8 @@ async function main() {
   await waitFor(run("npx", ["tsx", "prisma/seed.ts"], { cwd: path.join(root, "backend") }));
   console.log("→ API http://localhost:4000");
   console.log("→ App http://localhost:3000\n");
-  const backend = run("npm", ["run", "dev", "-w", "ubaidfastfoodz-api"]);
-  const frontend = run("npm", ["run", "dev", "-w", "ubaidfastfoodz-web"]);
+  const backend = run("npm", ["run", "dev", "-w", "restaurant-os-api"]);
+  const frontend = run("npm", ["run", "dev", "-w", "restaurant-os-web"]);
   const shutdown = () => {
     backend.kill("SIGTERM");
     frontend.kill("SIGTERM");

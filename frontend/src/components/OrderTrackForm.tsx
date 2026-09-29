@@ -67,7 +67,7 @@ export function OrderTrackForm({ compact }: { compact?: boolean }) {
           </label>
           <input
             className="input"
-            placeholder="e.g. UF-1043"
+            placeholder="e.g. ORD-1043"
             value={orderNumber}
             onChange={(e) => setOrderNumber(e.target.value)}
             required

@@ -88,7 +88,7 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
 
   const [idx, setIdx] = useState(0);
   const count = slides.length;
-  const hoursStatus = store ? storeStatusLabel(store.settings) : "Karachi";
+  const hoursStatus = store ? storeStatusLabel(store.settings) : "";
   const slide = slides[idx];
   const deliveryMin = store?.settings.deliveryEstimateMin ?? 45;
 
@@ -100,7 +100,9 @@ export function HeroCarousel({ store }: { store: PublicStore | null }) {
 
   const trustPills = [
     { icon: Clock, label: `${deliveryMin} min delivery` },
-    { icon: Star, label: "4.8 rating" },
+    ...(store?.highlights?.show && store.highlights.rating != null
+      ? [{ icon: Star, label: `${store.highlights.rating.toFixed(1)} rating` }]
+      : []),
     { icon: Bike, label: "Live tracking" },
   ];
 

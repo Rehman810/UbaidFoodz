@@ -21,7 +21,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { Role } from "@/lib/types";
-import { PoweredByDevsora } from "@/components/PoweredByDevsora";
+import { PoweredBy } from "@/components/PoweredBy";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { PRODUCT_NAME, storeDisplayName } from "@/lib/branding";
@@ -134,10 +134,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .catch(() => setKitchenOpen(null));
   }, [path]);
 
+  const isStaffLogin = path === "/admin/login";
+
   useEffect(() => {
-    if (loading) return;
+    if (loading || isStaffLogin) return;
     if (!user) {
-      router.replace("/login?next=/admin");
+      router.replace("/admin/login?next=/admin");
       return;
     }
     if (user.role === "CHEF" && !path.startsWith("/admin/kitchen")) {
@@ -151,7 +153,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (user.role !== "ADMIN" && user.role !== "CHEF" && user.role !== "CASHIER") {
       router.replace("/login?next=/admin");
     }
-  }, [user, loading, router, path]);
+  }, [user, loading, router, path, isStaffLogin]);
+
+  if (isStaffLogin) return <>{children}</>;
 
   const allowed =
     user?.role === "ADMIN" || user?.role === "CHEF" || user?.role === "CASHIER";
@@ -184,8 +188,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Flame size={18} />
             </span>
             <div className={collapsed ? "lg:hidden" : ""}>
-              <p className="font-display text-lg leading-tight text-stone-900">{PRODUCT_NAME}</p>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">{storeName}</p>
+              <p className="font-display text-lg leading-tight text-stone-900">{storeName || PRODUCT_NAME}</p>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">{PRODUCT_NAME}</p>
             </div>
           </div>
 
@@ -248,7 +252,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className={collapsed ? "sr-only" : ""}>Sign out</span>
             </button>
             <div className={collapsed ? "mt-2 text-center" : "mt-3 border-t border-orange-100/80 pt-3 px-1"}>
-              <PoweredByDevsora
+              <PoweredBy
                 variant={collapsed ? "minimal" : "inline"}
                 className="[&_a]:text-brand-600 [&_a:hover]:text-brand-800"
               />
@@ -277,7 +281,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
             </button>
             <p className="text-sm font-bold text-stone-900">
-              {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
+              <span className="mr-2">{storeName}</span>
+              <span className="font-medium text-stone-500">
+                {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })}
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">

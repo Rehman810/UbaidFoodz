@@ -49,7 +49,7 @@ function transporter() {
 
 async function fromAddress(storeName?: string) {
   const user = smtpUser();
-  const name = storeName?.trim() || "Your Restaurant";
+  const name = storeName?.trim() || "Restaurant";
   const configured = (process.env.SMTP_FROM || process.env.SMTP_FROM_EMAIL || "").trim();
 
   if (!configured) {

@@ -1,7 +1,32 @@
-export function pkr(n: string | number) {
-  const v = typeof n === "string" ? Number(n) : n;
-  return `Rs ${v.toLocaleString("en-PK")}`;
+type Currency = { code: string; symbol: string; digits: number };
+
+const ZERO_DECIMAL = new Set(["PKR", "JPY", "KRW", "VND", "CLP"]);
+
+let current: Currency = { code: "PKR", symbol: "Rs", digits: 0 };
+
+export function setDisplayCurrency(next: { currencyCode?: string | null; currencySymbol?: string | null }) {
+  const code = (next.currencyCode || "PKR").toUpperCase();
+  current = {
+    code,
+    symbol: (next.currencySymbol || "Rs").trim() || "Rs",
+    digits: ZERO_DECIMAL.has(code) ? 0 : 2,
+  };
 }
+
+/** Grouped money for the active restaurant. PKR renders as `Rs 1,234` with no stray decimals. */
+export function formatMoney(n: string | number | null | undefined) {
+  const value = Number(n ?? 0);
+  const safe = Number.isFinite(value) ? value : 0;
+  const factor = 10 ** current.digits;
+  const rounded = Math.round(safe * factor) / factor;
+  const formatted = rounded.toLocaleString("en-US", {
+    minimumFractionDigits: current.digits,
+    maximumFractionDigits: current.digits,
+  });
+  return `${current.symbol} ${formatted}`;
+}
+
+export const pkr = formatMoney;
 
 export function eta(createdAt: string) {
   const start = new Date(createdAt).getTime();

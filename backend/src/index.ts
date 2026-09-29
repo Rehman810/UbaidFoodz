@@ -22,6 +22,7 @@ import { blocklistRouter } from "./routes/blocklist";
 import { posRouter } from "./routes/pos";
 import { UPLOAD_DIR } from "./lib/uploads";
 import { initRealtime } from "./lib/realtime";
+import { resolveRestaurantId, runWithRestaurant } from "./lib/prisma";
 import {
   allowedOrigins,
   errorHandler,
@@ -34,8 +35,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 4000);
 
 const jwtSecret = process.env.JWT_SECRET || "";
-const weakJwt =
-  !jwtSecret || jwtSecret === "ubaid-fast-foodz-demo-secret" || jwtSecret.length < 32;
+const weakJwt = !jwtSecret || jwtSecret.length < 32;
 if (process.env.NODE_ENV === "production" && weakJwt) {
   console.error("[security] FATAL: Set JWT_SECRET to a random string of at least 32 characters.");
   process.exit(1);
@@ -46,6 +46,14 @@ if (weakJwt) {
 
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
+app.use(async (req, _res, next) => {
+  try {
+    const id = await resolveRestaurantId(req.hostname);
+    runWithRestaurant(id, () => next());
+  } catch (err) {
+    next(err);
+  }
+});
 app.use(securityHeaders());
 app.use(cors({ origin: allowedOrigins(), credentials: true }));
 app.use(express.json({ limit: "1mb" }));

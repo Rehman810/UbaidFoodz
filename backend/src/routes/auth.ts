@@ -12,7 +12,9 @@ import { sendPasswordResetEmail } from "../lib/email";
 import { getStoreSettings } from "../lib/settings-data";
 import { authLimiter } from "../middleware/security";
 
-const JWT_SECRET = process.env.JWT_SECRET || "ubaid-fast-foodz-demo-secret";
+import { jwtSecret } from "../lib/jwt-secret";
+
+const JWT_SECRET = jwtSecret();
 
 export const authRouter = Router();
 

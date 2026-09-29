@@ -14,7 +14,7 @@ jobs:
         env:
           API_URL: ${{ secrets.RENDER_API_URL }}
         run: |
-          URL="${API_URL:-https://ubaidfoodz.onrender.com}"
+          URL="${API_URL:?Set the RENDER_API_URL secret}"
           echo "Pinging ${URL}/health"
           curl -fsS --max-time 30 "${URL}/health"
           echo "OK"

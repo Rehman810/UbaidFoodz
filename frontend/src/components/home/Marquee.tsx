@@ -1,5 +1,5 @@
 const ITEMS = [
-  "Karachi Biryani",
+  "Chicken Biryani",
   "Zinger Burger",
   "BBQ Broast",
   "Chicken Karahi",

@@ -113,7 +113,7 @@ export function OpeningHoursEditor({ settings, onChange }: OpeningHoursEditorPro
       <div className="flex items-center gap-2 border-b border-orange-100 px-4 py-3">
         <Clock size={16} className="text-brand-600" />
         <p className="text-sm font-semibold text-stone-800">Daily schedule</p>
-        <span className="ml-auto text-xs text-stone-500">Asia/Karachi</span>
+        <span className="ml-auto text-xs text-stone-500">Restaurant timezone</span>
       </div>
 
       <div className="space-y-4 p-4">

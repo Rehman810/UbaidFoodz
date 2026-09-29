@@ -28,9 +28,9 @@ export function from12HourParts(hour12: number, minute: number, period: DayPerio
   return { hour, minute };
 }
 
-export function getKarachiMinutes(now = new Date()) {
+export function getZonedMinutes(now = new Date(), timeZone = "Asia/Karachi") {
   const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Karachi",
+    timeZone,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -61,11 +61,12 @@ export function isStoreOpen(
     openMinute: number;
     closeHour: number;
     closeMinute: number;
+    timezone?: string;
   },
   now = new Date()
 ) {
   if (settings.forceClosed) return false;
-  const nowMin = getKarachiMinutes(now);
+  const nowMin = getZonedMinutes(now, settings.timezone || "Asia/Karachi");
   return isWithinHours(
     nowMin,
     settings.openHour,

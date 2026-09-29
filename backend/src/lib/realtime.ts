@@ -5,7 +5,9 @@ import { Role } from "@prisma/client";
 import { allowedOrigins } from "../middleware/security";
 import { prisma } from "./prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET || "ubaid-fast-foodz-demo-secret";
+import { jwtSecret } from "./jwt-secret";
+
+const JWT_SECRET = jwtSecret();
 
 type SocketUser = { id: string; role: Role };
 

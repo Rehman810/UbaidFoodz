@@ -48,10 +48,40 @@ export type MenuItem = {
   updatedAt?: string;
 };
 
+export type Testimonial = {
+  id: string;
+  name: string;
+  area: string;
+  text: string;
+  rating: number;
+  isPublished: boolean;
+  sortOrder: number;
+};
+
+export type StoreHighlights = {
+  show: boolean;
+  rating: number | null;
+  orderCount: number | null;
+  areaCount: number;
+};
+
 export type StoreSettings = {
   id: string;
   storeName: string;
   storeTagline: string;
+  logoUrl?: string;
+  faviconUrl?: string;
+  primaryColor?: string;
+  accentColor?: string;
+  city?: string;
+  timezone?: string;
+  currencyCode?: string;
+  currencySymbol?: string;
+  footerText?: string;
+  poweredByText?: string;
+  poweredByUrl?: string;
+  showPoweredBy?: boolean;
+  showLiveStats?: boolean;
   phone: string;
   whatsapp: string;
   address: string;
@@ -107,6 +137,9 @@ export type PromoBanner = {
 export type PublicStore = {
   settings: StoreSettings;
   banners: PromoBanner[];
+  testimonials?: Testimonial[];
+  areaCount?: number;
+  highlights?: StoreHighlights;
   isOpen: boolean;
   hoursLabel: string;
   closedMessage: string;

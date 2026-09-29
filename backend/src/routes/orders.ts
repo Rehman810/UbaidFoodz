@@ -16,6 +16,7 @@ import {
   sendNewOrderStaffEmail,
   sendRiderAssignedEmail,
 } from "../lib/email";
+import { formatMoney } from "../lib/money";
 import { emitOrderChange } from "../lib/realtime";
 import { sendNewOrderStaffWhatsApp, sendOrderReceivedWhatsApp } from "../lib/whatsapp";
 import { generateInvoicePdf } from "../lib/invoice";
@@ -266,7 +267,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   const minimumOrder = Number(storeSettings.minimumOrder);
   if (subtotal < minimumOrder) {
     return res.status(400).json({
-      error: `Minimum order is Rs ${minimumOrder.toLocaleString("en-PK")}. Add more items to continue.`,
+      error: `Minimum order is ${formatMoney(minimumOrder, storeSettings)}. Add more items to continue.`,
     });
   }
 

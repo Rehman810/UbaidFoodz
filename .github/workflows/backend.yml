@@ -33,17 +33,17 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: ubaid_ci
+          POSTGRES_DB: restaurant_os_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d ubaid_ci"
+          --health-cmd "pg_isready -U postgres -d restaurant_os_ci"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ubaid_ci?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/restaurant_os_ci?schema=public
       JWT_SECRET: ci-test-jwt-secret-with-at-least-32-characters
       PORT: 4000
       CLIENT_URL: http://localhost:3000
@@ -119,7 +119,7 @@ jobs:
             missing=1
           fi
           if [ -z "$ORACLE_APP_DIR" ]; then
-            echo "::error::Missing ORACLE_APP_DIR — set to /home/ubuntu/UbaidFoodz"
+            echo "::error::Missing ORACLE_APP_DIR — set it to the app directory on the server"
             missing=1
           fi
           if [ "$missing" -eq 1 ]; then

@@ -1,9 +1,15 @@
 import type { Order, OrderItem } from "@prisma/client";
-import { DEVSORA_URL, PRODUCT_NAME } from "./branding";
+import { PRODUCT_NAME } from "./branding";
+import { formatMoney, type MoneySettings } from "./money";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
-export type EmailBrand = { storeName: string };
+export type EmailBrand = {
+  storeName: string;
+  showPoweredBy?: boolean;
+  poweredByText?: string;
+  poweredByUrl?: string;
+} & MoneySettings;
 
 const C = {
   brand: "#ea580c",
@@ -32,8 +38,8 @@ export function esc(value: string) {
     .replace(/"/g, "&quot;");
 }
 
-export function formatPkr(amount: number | string) {
-  return `Rs ${Number(amount).toLocaleString("en-PK")}`;
+export function formatPkr(amount: number | string, settings?: MoneySettings) {
+  return formatMoney(amount, settings);
 }
 
 function stripTags(html: string) {
@@ -86,7 +92,14 @@ export function renderEmail(opts: LayoutOptions): { html: string; text: string }
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all">${esc(opts.preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>`
     : "";
 
-  const devsoraFooter = `<p style="margin:16px 0 0;font-size:11px;color:${C.muted}">Powered by <a href="${DEVSORA_URL}" style="color:${C.brand};text-decoration:none;font-weight:600">Devsora</a></p>`;
+  const powered =
+    opts.brand.showPoweredBy && opts.brand.poweredByText
+      ? `<p style="margin:16px 0 0;font-size:11px;color:${C.muted}">Powered by ${
+          opts.brand.poweredByUrl
+            ? `<a href="${esc(opts.brand.poweredByUrl)}" style="color:${C.brand};text-decoration:none;font-weight:600">${esc(opts.brand.poweredByText)}</a>`
+            : esc(opts.brand.poweredByText)
+        }</p>`
+      : "";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -139,7 +152,7 @@ export function renderEmail(opts: LayoutOptions): { html: string; text: string }
               <p style="margin:0 0 8px;font-weight:600;color:${C.stone}">${storeName}</p>
               <p style="margin:0">${opts.footerNote || "Thank you for your order."}</p>
               <p style="margin:12px 0 0">Questions? Reply to this email or contact the restaurant.</p>
-              ${devsoraFooter}
+              ${powered}
             </td>
           </tr>
         </table>
@@ -158,7 +171,9 @@ export function renderEmail(opts: LayoutOptions): { html: string; text: string }
     opts.cta ? `\n${opts.cta.label}: ${opts.cta.url}` : "",
     "",
     opts.footerNote || "Thank you for your order.",
-    `Powered by Devsora — ${DEVSORA_URL}`,
+    opts.brand.showPoweredBy && opts.brand.poweredByText
+      ? `Powered by ${opts.brand.poweredByText}${opts.brand.poweredByUrl ? ` — ${opts.brand.poweredByUrl}` : ""}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n");

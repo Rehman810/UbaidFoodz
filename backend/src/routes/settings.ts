@@ -19,10 +19,13 @@ settingsRouter.get("/reviews", async (_req, res) => {
 
 settingsRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
   const settings = await getStoreSettings();
-  const banners = await prisma.promoBanner.findMany({
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-  });
-  res.json({ settings, banners });
+  const [banners, testimonials] = await Promise.all([
+    prisma.promoBanner.findMany({
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    }),
+    prisma.testimonial.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+  ]);
+  res.json({ settings, banners, testimonials });
 });
 
 settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
@@ -70,7 +73,20 @@ settingsRouter.patch("/", requireAuth, requireRole(Role.ADMIN), async (req, res)
   const settings = await prisma.storeSettings.update({
     where: { id: "default" },
     data: {
-      ...(body.storeName !== undefined ? { storeName: String(body.storeName).trim() || "Your Restaurant" } : {}),
+      ...(body.storeName !== undefined ? { storeName: String(body.storeName).trim() } : {}),
+      ...(body.logoUrl !== undefined ? { logoUrl: String(body.logoUrl).trim() } : {}),
+      ...(body.faviconUrl !== undefined ? { faviconUrl: String(body.faviconUrl).trim() } : {}),
+      ...(body.primaryColor !== undefined ? { primaryColor: String(body.primaryColor).trim() || "#ea580c" } : {}),
+      ...(body.accentColor !== undefined ? { accentColor: String(body.accentColor).trim() || "#c2410c" } : {}),
+      ...(body.city !== undefined ? { city: String(body.city).trim() } : {}),
+      ...(body.timezone !== undefined ? { timezone: String(body.timezone).trim() || "Asia/Karachi" } : {}),
+      ...(body.currencyCode !== undefined ? { currencyCode: String(body.currencyCode).trim().toUpperCase() || "PKR" } : {}),
+      ...(body.currencySymbol !== undefined ? { currencySymbol: String(body.currencySymbol).trim() || "Rs" } : {}),
+      ...(body.footerText !== undefined ? { footerText: String(body.footerText) } : {}),
+      ...(body.poweredByText !== undefined ? { poweredByText: String(body.poweredByText).trim() } : {}),
+      ...(body.poweredByUrl !== undefined ? { poweredByUrl: String(body.poweredByUrl).trim() } : {}),
+      ...(body.showPoweredBy !== undefined ? { showPoweredBy: Boolean(body.showPoweredBy) } : {}),
+      ...(body.showLiveStats !== undefined ? { showLiveStats: Boolean(body.showLiveStats) } : {}),
       ...(body.storeTagline !== undefined
         ? { storeTagline: String(body.storeTagline).trim() || "Order in minutes" }
         : {}),
@@ -165,5 +181,35 @@ settingsRouter.delete("/banners/:id", requireAuth, requireRole(Role.ADMIN), asyn
     res.json({ ok: true });
   } catch {
     res.status(404).json({ error: "Banner not found." });
+  }
+});
+
+settingsRouter.post("/testimonials", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const { name, text, area, rating } = req.body as {
+    name?: string;
+    text?: string;
+    area?: string;
+    rating?: number;
+  };
+  if (!name?.trim() || !text?.trim()) {
+    return res.status(400).json({ error: "Name and review text are required." });
+  }
+  const row = await prisma.testimonial.create({
+    data: {
+      name: name.trim(),
+      text: text.trim(),
+      area: area?.trim() || "",
+      rating: Math.min(5, Math.max(1, Number(rating) || 5)),
+    },
+  });
+  res.status(201).json(row);
+});
+
+settingsRouter.delete("/testimonials/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  try {
+    await prisma.testimonial.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch {
+    res.status(404).json({ error: "Testimonial not found." });
   }
 });

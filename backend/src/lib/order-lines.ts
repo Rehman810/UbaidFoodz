@@ -145,12 +145,12 @@ export async function nextOrderNumber() {
       select: { orderNumber: true },
     });
     const n = last ? parseInt(last.orderNumber.replace(/\D/g, ""), 10) || 1000 : 1000;
-    const candidate = `UF-${n + 1 + attempt}`;
+    const candidate = `ORD-${n + 1 + attempt}`;
     const exists = await prisma.order.findFirst({
       where: { orderNumber: candidate },
       select: { id: true },
     });
     if (!exists) return candidate;
   }
-  return `UF-${Date.now().toString().slice(-6)}`;
+  return `ORD-${Date.now().toString().slice(-6)}`;
 }

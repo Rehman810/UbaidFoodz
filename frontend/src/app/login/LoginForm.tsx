@@ -3,51 +3,21 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Bike, Flame, Lock, Mail, Receipt, ShieldCheck, UserCog } from "lucide-react";
+import { ArrowLeft, Flame, Lock, Mail, ShieldCheck } from "lucide-react";
 import { StoreName } from "@/components/StoreName";
 import { homeFor, resolveLoginRedirect, useAuth } from "@/lib/auth";
-import { DEFAULT_STORE_NAME, PRODUCT_NAME } from "@/lib/branding";
+import { PRODUCT_NAME, storeDisplayName } from "@/lib/branding";
+import { useStore } from "@/lib/store";
 
-const DEMOS = [
-  {
-    role: "Admin",
-    email: "admin@demo.restaurant",
-    password: "demo123",
-    icon: UserCog,
-    hint: "Orders, menu & store settings",
-  },
-  {
-    role: "Chef",
-    email: "chef@demo.restaurant",
-    password: "demo123",
-    icon: Flame,
-    hint: "Kitchen tickets & bump board",
-  },
-  {
-    role: "Rider",
-    email: "rider@demo.restaurant",
-    password: "demo123",
-    icon: Bike,
-    hint: "Live deliveries & route updates",
-  },
-  {
-    role: "Cashier",
-    email: "cashier@demo.restaurant",
-    password: "demo123",
-    icon: Receipt,
-    hint: "POS counter & receipts",
-  },
-];
-
-const IS_PROD = process.env.NODE_ENV === "production";
-
-export default function LoginForm() {
+export default function LoginForm({ staff = false }: { staff?: boolean }) {
+  const store = useStore();
+  const brand = storeDisplayName(store?.settings) || PRODUCT_NAME;
   const { user, loading, login, verifyTwoFactor } = useAuth();
   const router = useRouter();
   const next = useSearchParams().get("next");
   const resetDone = useSearchParams().get("reset") === "1";
-  const [email, setEmail] = useState(IS_PROD ? "" : DEMOS[0].email);
-  const [password, setPassword] = useState(IS_PROD ? "" : "demo123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [challenge, setChallenge] = useState("");
   const [error, setError] = useState("");
@@ -55,8 +25,16 @@ export default function LoginForm() {
 
   useEffect(() => {
     if (loading || !user) return;
+    if (!staff && user.role !== "CUSTOMER") {
+      router.replace(homeFor(user.role));
+      return;
+    }
+    if (staff && user.role === "CUSTOMER") {
+      router.replace("/menu");
+      return;
+    }
     router.replace(resolveLoginRedirect(user.role, next));
-  }, [loading, user, next, router]);
+  }, [loading, user, next, router, staff]);
 
   async function signIn(asEmail: string, asPassword: string, ignoreNext = false) {
     setBusy(true);
@@ -109,7 +87,7 @@ export default function LoginForm() {
               <Flame size={22} />
             </span>
             <div>
-              <p className="font-display text-2xl leading-none">{DEFAULT_STORE_NAME}</p>
+              <p className="font-display text-2xl leading-none">{brand}</p>
               <p className="mt-1 text-sm text-orange-100/80">{PRODUCT_NAME}</p>
             </div>
           </div>
@@ -122,7 +100,7 @@ export default function LoginForm() {
               <span className="text-brand-400">Deliver hot.</span>
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-stone-300">
-              Sign in to manage orders, update the menu, and keep riders moving across Karachi.
+              Sign in to manage orders, update the menu, and keep the kitchen moving.
             </p>
             <div className="mt-8 flex flex-wrap gap-2">
               {["Live orders", "Menu control", "Rider dispatch"].map((tag) => (
@@ -136,7 +114,7 @@ export default function LoginForm() {
             </div>
           </div>
 
-          <p className="text-xs text-stone-400">© {DEFAULT_STORE_NAME}</p>
+          <p className="text-xs text-stone-400">© {brand}</p>
         </div>
       </div>
 
@@ -154,7 +132,7 @@ export default function LoginForm() {
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-white">
               <Flame size={18} />
             </span>
-            <StoreName className="font-display text-lg" fallback={DEFAULT_STORE_NAME} />
+            <StoreName className="font-display text-lg" fallback={PRODUCT_NAME} />
           </div>
         </div>
 
@@ -168,7 +146,7 @@ export default function LoginForm() {
                 </div>
                 <h1 className="font-display text-3xl text-stone-900 sm:text-4xl">Welcome back</h1>
                 <p className="mt-2 text-sm text-stone-500">
-                  Customers, staff, and riders — one login for your account.
+                  {staff ? "Staff sign in for the kitchen, counter, and riders." : "Sign in to track orders and reorder faster."}
                 </p>
               </div>
 
@@ -216,7 +194,7 @@ export default function LoginForm() {
                           onChange={(e) => setEmail(e.target.value)}
                           type="email"
                           autoComplete="email"
-                          placeholder="you@demo.restaurant"
+                          placeholder="you@email.com"
                           required
                         />
                       </div>
@@ -262,40 +240,6 @@ export default function LoginForm() {
               </div>
             </div>
 
-            {!IS_PROD && (
-            <div className="mt-6">
-              <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">
-                Quick demo access
-              </p>
-              <div className="space-y-2">
-                {DEMOS.map((d) => {
-                  const Icon = d.icon;
-                  return (
-                    <button
-                      type="button"
-                      key={d.email}
-                      disabled={busy}
-                      onClick={() => {
-                        setEmail(d.email);
-                        setPassword(d.password);
-                        signIn(d.email, d.password, true);
-                      }}
-                      className="flex w-full items-center gap-3 rounded-2xl border border-orange-100 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md disabled:opacity-60"
-                    >
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700">
-                        <Icon size={18} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-bold text-stone-900">{d.role}</span>
-                        <span className="block truncate text-xs text-stone-500">{d.hint}</span>
-                      </span>
-                      <span className="hidden text-[11px] font-medium text-stone-400 sm:block">{d.password}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            )}
           </div>
         </div>
       </div>

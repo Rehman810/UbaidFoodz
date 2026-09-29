@@ -60,7 +60,7 @@ staffRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
   if (existing) return res.status(409).json({ error: "An account with this email already exists." });
 
   const generated = Boolean(autoGeneratePassword);
-  const plainPassword = generated ? generateStaffPassword() : password?.trim() || "demo123";
+  const plainPassword = password?.trim() || generateStaffPassword();
   if (plainPassword.length < 6) {
     return res.status(400).json({ error: "Password must be at least 6 characters." });
   }

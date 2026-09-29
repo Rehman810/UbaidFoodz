@@ -1,24 +1,28 @@
-import { Bike, UtensilsCrossed, Zap } from "lucide-react";
+"use client";
 
-const STEPS = [
-  {
-    icon: UtensilsCrossed,
-    title: "Build your bag",
-    text: "Tap + to quick-add or open a dish to pick size, addons and notes.",
-  },
-  {
-    icon: Zap,
-    title: "Kitchen fires up",
-    text: "Fresh prep starts right away. Follow status from pending to on the way.",
-  },
-  {
-    icon: Bike,
-    title: "Hot at your door",
-    text: "Cash on delivery across Karachi. Rider calls if they need gate help.",
-  },
-];
+import { Bike, UtensilsCrossed, Zap } from "lucide-react";
+import { useStore } from "@/lib/store";
 
 export function HowItWorks() {
+  const store = useStore();
+  const city = store?.settings.city?.trim();
+  const steps = [
+    {
+      icon: UtensilsCrossed,
+      title: "Build your bag",
+      text: "Tap + to quick-add or open a dish to pick size, addons and notes.",
+    },
+    {
+      icon: Zap,
+      title: "Kitchen fires up",
+      text: "Fresh prep starts right away. Follow status from pending to on the way.",
+    },
+    {
+      icon: Bike,
+      title: "Hot at your door",
+      text: `Cash on delivery${city ? ` across ${city}` : ""}. Rider calls if they need gate help.`,
+    },
+  ];
   return (
     <section className="relative overflow-hidden bg-[#fffaf5] py-16 sm:py-24">
       <div className="pointer-events-none absolute -left-24 top-0 h-64 w-64 rounded-full bg-brand-200/30 blur-3xl" />
@@ -39,7 +43,7 @@ export function HowItWorks() {
             aria-hidden
           />
 
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <div
               key={s.title}
               className="group relative rounded-3xl border border-white/80 bg-white p-6 shadow-[0_8px_30px_rgba(28,25,23,0.06)] transition hover:-translate-y-0.5 hover:shadow-card sm:p-7"

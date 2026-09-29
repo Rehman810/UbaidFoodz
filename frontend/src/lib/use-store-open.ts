@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { isStoreOpen, storeStatusLabel } from "./store-hours";
 import { useStore } from "./store";
 
-/** Live open/closed state from store hours (Karachi time), refreshed every minute. */
+/** Live open/closed state from store hours in the restaurant timezone, refreshed every minute. */
 export function useStoreOpen() {
   const store = useStore();
   const [now, setNow] = useState(() => new Date());

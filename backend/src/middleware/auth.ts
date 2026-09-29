@@ -1,9 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
+import { jwtSecret } from "../lib/jwt-secret";
 import { prisma } from "../lib/prisma";
 
-const JWT_SECRET = process.env.JWT_SECRET || "ubaid-fast-foodz-demo-secret";
+const JWT_SECRET = jwtSecret();
 
 export type AuthUser = { id: string; role: Role; email: string; name: string };
 

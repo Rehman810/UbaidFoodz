@@ -7,6 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// One deployment serves one restaurant. Every tenant row carries this id.
+model Restaurant {
+  id        String   @id
+  hostname  String?  @unique
+  createdAt DateTime @default(now())
+
+  settings     StoreSettings?
+  users        User[]
+  categories   Category[]
+  menuItems    MenuItem[]
+  banners      PromoBanner[]
+  deals        Deal[]
+  areas        DeliveryArea[]
+  orders       Order[]
+  blocks       OrderBlock[]
+  testimonials Testimonial[]
+}
+
 enum Role {
   CUSTOMER
   ADMIN
@@ -42,6 +60,8 @@ enum FulfillmentType {
 
 model User {
   id           String   @id @default(uuid())
+  restaurantId String   @default("11111111-1111-4111-8111-111111111111")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
   name         String
   email        String   @unique
   passwordHash String
@@ -60,8 +80,10 @@ model User {
 }
 
 model Category {
-  id        String   @id @default(uuid())
-  name      String   @unique
+  id           String     @id @default(uuid())
+  restaurantId String     @default("11111111-1111-4111-8111-111111111111")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String     @unique
   tagline   String   @default("")
   imageUrl  String   @default("")
   sortOrder Int      @default(0)
@@ -70,6 +92,8 @@ model Category {
 
 model MenuItem {
   id            String          @id @default(uuid())
+  restaurantId  String          @default("11111111-1111-4111-8111-111111111111")
+  restaurant    Restaurant      @relation(fields: [restaurantId], references: [id])
   name          String
   description   String
   price         Decimal         @db.Decimal(10, 2)
@@ -134,11 +158,26 @@ model MenuItemAddon {
 
 model StoreSettings {
   id                  String   @id @default("default")
-  storeName           String   @default("Your Restaurant")
+  restaurantId        String   @unique @default("11111111-1111-4111-8111-111111111111")
+  restaurant          Restaurant @relation(fields: [restaurantId], references: [id])
+  storeName           String   @default("")
   storeTagline        String   @default("Order in minutes")
-  phone               String   @default("0321-5556677")
-  whatsapp            String   @default("923215556677")
-  address             String   @default("Boat Basin, Clifton Block 5, Karachi")
+  logoUrl             String   @default("")
+  faviconUrl          String   @default("")
+  primaryColor        String   @default("#ea580c")
+  accentColor         String   @default("#c2410c")
+  city                String   @default("")
+  timezone            String   @default("Asia/Karachi")
+  currencyCode        String   @default("PKR")
+  currencySymbol      String   @default("Rs")
+  footerText          String   @default("")
+  poweredByText       String   @default("")
+  poweredByUrl        String   @default("")
+  showPoweredBy       Boolean  @default(false)
+  showLiveStats       Boolean  @default(false)
+  phone               String   @default("")
+  whatsapp            String   @default("")
+  address             String   @default("")
   latitude            Decimal? @db.Decimal(10, 7)
   longitude           Decimal? @db.Decimal(10, 7)
   minimumOrder        Decimal  @default(500) @db.Decimal(10, 2)
@@ -165,8 +204,10 @@ model StoreSettings {
 }
 
 model PromoBanner {
-  id        String   @id @default(uuid())
-  title     String   @default("")
+  id           String     @id @default(uuid())
+  restaurantId String     @default("11111111-1111-4111-8111-111111111111")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  title        String     @default("")
   imageUrl  String
   linkUrl   String   @default("")
   sortOrder Int      @default(0)
@@ -175,8 +216,10 @@ model PromoBanner {
 }
 
 model Deal {
-  id          String     @id @default(uuid())
-  title       String
+  id           String     @id @default(uuid())
+  restaurantId String     @default("11111111-1111-4111-8111-111111111111")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  title        String
   description String     @default("")
   dealPrice   Decimal    @db.Decimal(10, 2)
   imageUrl    String     @default("")
@@ -198,8 +241,10 @@ model DealItem {
 }
 
 model DeliveryArea {
-  id             String   @id @default(uuid())
-  name           String   @unique
+  id             String     @id @default(uuid())
+  restaurantId   String     @default("11111111-1111-4111-8111-111111111111")
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id])
+  name           String     @unique
   deliveryCharge Decimal  @db.Decimal(10, 2)
   isDelivering   Boolean  @default(false)
   sortOrder      Int      @default(0)
@@ -209,6 +254,8 @@ model DeliveryArea {
 
 model Order {
   id               String          @id @default(uuid())
+  restaurantId     String          @default("11111111-1111-4111-8111-111111111111")
+  restaurant       Restaurant      @relation(fields: [restaurantId], references: [id])
   orderNumber      String          @unique
   customerId       String?
   customer         User?           @relation("CustomerOrders", fields: [customerId], references: [id])
@@ -257,8 +304,10 @@ model OrderItem {
 }
 
 model OrderBlock {
-  id        String   @id @default(uuid())
-  email     String?
+  id           String     @id @default(uuid())
+  restaurantId String     @default("11111111-1111-4111-8111-111111111111")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  email        String?
   phone     String?
   reason    String   @default("")
   createdAt DateTime @default(now())
@@ -266,6 +315,21 @@ model OrderBlock {
 
   @@index([email])
   @@index([phone])
+}
+
+model Testimonial {
+  id           String     @id @default(uuid())
+  restaurantId String     @default("11111111-1111-4111-8111-111111111111")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String
+  area         String     @default("")
+  text         String
+  rating       Int        @default(5)
+  isPublished  Boolean    @default(true)
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId, isPublished])
 }
 
 model Invoice {
