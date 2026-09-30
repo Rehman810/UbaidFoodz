@@ -34,7 +34,7 @@ export default function KitchenPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seenRef = useRef<Set<string> | null>(null);
 
-  const load = useCallback(() => fetchAdminOrders({ limit: 500 }), []);
+  const load = useCallback(() => fetchAdminOrders({ limit: 500 }).then((res) => res.orders), []);
   const { data, loading, refreshing, error, refresh } = usePoll(load, 5000);
   useLiveOrders(refresh);
   const showSkeleton = loading || refreshing;

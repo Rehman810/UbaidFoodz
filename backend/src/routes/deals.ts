@@ -3,6 +3,21 @@ import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 
+const DEAL_CATEGORY_PRESETS = [
+  "Summer deals",
+  "Winter deals",
+  "Ramadan specials",
+  "Weekend combos",
+  "Family packs",
+  "Student deals",
+];
+
+function canonicalDealCategory(value: unknown) {
+  const trimmed = String(value ?? "").trim().replace(/\s+/g, " ");
+  if (!trimmed) return "";
+  return DEAL_CATEGORY_PRESETS.find((name) => name.toLowerCase() === trimmed.toLowerCase()) ?? trimmed;
+}
+
 export const dealsRouter = Router();
 
 const dealInclude = {
@@ -51,7 +66,7 @@ dealsRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
     data: {
       title: String(title).trim(),
       description: description || "",
-      category: category != null ? String(category).trim() : "",
+      category: canonicalDealCategory(category),
       dealPrice: Number(dealPrice),
       imageUrl: imageUrl || "",
       isActive: isActive ?? true,
@@ -95,7 +110,7 @@ dealsRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) =
       data: {
         ...(title != null && { title: String(title).trim() }),
         ...(description != null && { description }),
-        ...(category != null && { category: String(category).trim() }),
+        ...(category != null && { category: canonicalDealCategory(category) }),
         ...(dealPrice != null && { dealPrice: Number(dealPrice) }),
         ...(imageUrl != null && { imageUrl }),
         ...(isActive != null && { isActive }),

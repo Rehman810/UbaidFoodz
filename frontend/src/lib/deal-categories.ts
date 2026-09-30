@@ -8,7 +8,10 @@ export const PRESET_DEAL_CATEGORIES = [
 ] as const;
 
 export function normalizeDealCategory(value: string | null | undefined) {
-  return (value || "").trim();
+  const trimmed = (value || "").trim().replace(/\s+/g, " ");
+  if (!trimmed) return "";
+  const preset = PRESET_DEAL_CATEGORIES.find((name) => name.toLowerCase() === trimmed.toLowerCase());
+  return preset ?? trimmed;
 }
 
 export function dealCategoryLabel(value: string | null | undefined) {
@@ -20,8 +23,9 @@ export function mergeDealCategoryOptions(existing: string[]) {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const name of [...PRESET_DEAL_CATEGORIES, ...existing.map(normalizeDealCategory)]) {
-    if (!name || seen.has(name)) continue;
-    seen.add(name);
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
     out.push(name);
   }
   return out;
@@ -31,21 +35,25 @@ export function groupDealsByCategory<T extends { category: string }>(deals: T[])
   const groups = new Map<string, T[]>();
   for (const deal of deals) {
     const label = dealCategoryLabel(deal.category);
-    const list = groups.get(label) ?? [];
+    const key = label.toLowerCase();
+    const list = groups.get(key) ?? [];
     list.push(deal);
-    groups.set(label, list);
+    groups.set(key, list);
   }
 
-  const presetOrder = [...PRESET_DEAL_CATEGORIES, "Special offers"];
-  const labels = [...groups.keys()];
-  labels.sort((a, b) => {
-    const ai = presetOrder.indexOf(a as (typeof presetOrder)[number]);
-    const bi = presetOrder.indexOf(b as (typeof presetOrder)[number]);
+  const presetOrder = [...PRESET_DEAL_CATEGORIES, "Special offers"].map((name) => name.toLowerCase());
+  const keys = [...groups.keys()];
+  keys.sort((a, b) => {
+    const ai = presetOrder.indexOf(a);
+    const bi = presetOrder.indexOf(b);
     if (ai >= 0 && bi >= 0) return ai - bi;
     if (ai >= 0) return -1;
     if (bi >= 0) return 1;
     return a.localeCompare(b);
   });
 
-  return labels.map((label) => ({ label, deals: groups.get(label)! }));
+  return keys.map((key) => ({
+    label: dealCategoryLabel(key === "special offers" ? "" : groups.get(key)![0].category),
+    deals: groups.get(key)!,
+  }));
 }

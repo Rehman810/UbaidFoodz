@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ClipboardList, LayoutGrid, Search, Sparkles, Table2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { fetchAdminOrders } from "@/lib/admin-orders";
 import { pkr } from "@/lib/format";
 import {
   formatDateSpanLabel,
-  orderInDateSpan,
   QuickDatePreset,
   quickPresetRange,
 } from "@/lib/order-dates";
@@ -15,7 +14,6 @@ import { STATUS_THEME } from "@/lib/admin-status";
 import { AdminStats } from "@/lib/admin-types";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
-import { usePagination } from "@/hooks/usePagination";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { Pagination } from "@/components/Pagination";
@@ -66,6 +64,8 @@ export default function AdminOrders() {
   const [datePreset, setDatePreset] = useState<QuickDatePreset | null>("today");
   const [view, setView] = useState<OrderView>("table");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
 
   useEffect(() => {
     const saved = localStorage.getItem(VIEW_KEY);
@@ -77,13 +77,29 @@ export default function AdminOrders() {
     localStorage.setItem(VIEW_KEY, next);
   }
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, dateFrom, dateTo]);
+
   const load = useCallback(async () => {
-    const [orders, stats] = await Promise.all([
-      fetchAdminOrders({ limit: 500 }),
+    const [list, stats] = await Promise.all([
+      fetchAdminOrders({
+        limit: PAGE_SIZE.table,
+        offset: (page - 1) * PAGE_SIZE.table,
+        status: filter === "ALL" ? undefined : filter,
+        search,
+        from: dateFrom,
+        to: dateTo,
+      }),
       api<AdminStats>("/admin/stats"),
     ]);
-    return { orders, riders: stats.riders };
-  }, []);
+    return { ...list, riders: stats.riders };
+  }, [page, filter, search, dateFrom, dateTo]);
 
   const { data, loading, refreshing, refresh } = usePoll(load, 10000);
   useLiveOrders(refresh);
@@ -110,34 +126,16 @@ export default function AdminOrders() {
     setDatePreset(preset);
   }
 
-  const dateFiltered = useMemo(() => {
-    if (!data) return [];
-    return data.orders.filter((o) => orderInDateSpan(o.createdAt, dateFrom, dateTo));
-  }, [data, dateFrom, dateTo]);
-
-  const filtered = useMemo(() => {
-    let list = dateFiltered;
-    if (filter !== "ALL") list = list.filter((o) => o.status === filter);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (o) =>
-          o.orderNumber.toLowerCase().includes(q) ||
-          o.customerName.toLowerCase().includes(q) ||
-          o.customerPhone.includes(q) ||
-          o.deliveryAddress.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [dateFiltered, filter, search]);
-
-  const orderPagination = usePagination(filtered, PAGE_SIZE.table, `${filter}|${search}|${dateFrom}|${dateTo}|${view}`);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { ALL: dateFiltered.length };
-    for (const o of dateFiltered) c[o.status] = (c[o.status] || 0) + 1;
-    return c;
-  }, [dateFiltered]);
+  const orders = data?.orders ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE.table));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE.table + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE.table, total);
+  const counts: Record<string, number> = {
+    ALL: Object.values(data?.statusCounts ?? {}).reduce((sum, n) => sum + n, 0),
+    ...(data?.statusCounts ?? {}),
+  };
+  const filteredRevenue = data?.filteredTotal ?? 0;
 
   const activeCount =
     (counts.PENDING_CONFIRMATION || 0) +
@@ -145,7 +143,6 @@ export default function AdminOrders() {
     (counts.READY || 0) +
     (counts.PREPARING || 0) +
     (counts.OUT_FOR_DELIVERY || 0);
-  const filteredRevenue = filtered.reduce((sum, o) => sum + Number(o.total), 0);
   const periodLabel = formatDateSpanLabel(dateFrom, dateTo);
 
   return (
@@ -171,7 +168,7 @@ export default function AdminOrders() {
             </div>
             <div className="rounded-xl bg-stone-50 px-3 py-2 ring-1 ring-stone-200">
               <p className="text-[11px] font-medium text-stone-500">Showing</p>
-              <p className="text-lg font-semibold text-stone-900">{filtered.length}</p>
+              <p className="text-lg font-semibold text-stone-900">{total}</p>
             </div>
             <div className="rounded-xl bg-brand-50 px-3 py-2 ring-1 ring-brand-100">
               <p className="text-[11px] font-medium text-stone-500">Value</p>
@@ -186,7 +183,7 @@ export default function AdminOrders() {
         to={dateTo}
         activePreset={datePreset}
         onChange={handleDateChange}
-        orderCount={dateFiltered.length}
+        orderCount={counts.ALL || 0}
       />
 
       {/* Search + refresh */}
@@ -196,8 +193,8 @@ export default function AdminOrders() {
           <input
             className="w-full rounded-2xl border border-stone-200 bg-white py-3 pl-11 pr-4 text-sm shadow-sm outline-none transition placeholder:text-stone-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
             placeholder="Search order #, name, phone, address…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -261,7 +258,7 @@ export default function AdminOrders() {
           </div>
         ))}
 
-      {!showSkeleton && filtered.length === 0 && (
+      {!showSkeleton && total === 0 && (
         <div className="rounded-3xl border border-dashed border-stone-300 bg-white px-6 py-20 text-center shadow-sm">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 text-stone-400">
             <Sparkles size={24} />
@@ -273,10 +270,10 @@ export default function AdminOrders() {
         </div>
       )}
 
-      {!showSkeleton && filtered.length > 0 && view === "table" && (
+      {!showSkeleton && total > 0 && view === "table" && (
         <>
         <OrderTable
-          orders={orderPagination.pageItems}
+          orders={orders}
           riders={data?.riders || []}
           onStatus={setStatus}
           onAssign={assign}
@@ -284,12 +281,12 @@ export default function AdminOrders() {
           onSelect={setSelectedOrder}
         />
         <Pagination
-          page={orderPagination.page}
-          totalPages={orderPagination.totalPages}
-          totalItems={orderPagination.totalItems}
-          rangeStart={orderPagination.rangeStart}
-          rangeEnd={orderPagination.rangeEnd}
-          onPageChange={orderPagination.setPage}
+          page={page}
+          totalPages={totalPages}
+          totalItems={total}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          onPageChange={setPage}
         />
         </>
       )}
@@ -298,10 +295,10 @@ export default function AdminOrders() {
         <OrderDetailSheet order={selectedOrder} onClose={() => setSelectedOrder(null)} />
       )}
 
-      {!showSkeleton && filtered.length > 0 && view === "grid" && (
+      {!showSkeleton && total > 0 && view === "grid" && (
         <>
         <div className="grid gap-5 lg:grid-cols-2">
-          {orderPagination.pageItems.map((o) => (
+          {orders.map((o) => (
             <OrderPanel
               key={o.id}
               order={o}
@@ -314,12 +311,12 @@ export default function AdminOrders() {
           ))}
         </div>
         <Pagination
-          page={orderPagination.page}
-          totalPages={orderPagination.totalPages}
-          totalItems={orderPagination.totalItems}
-          rangeStart={orderPagination.rangeStart}
-          rangeEnd={orderPagination.rangeEnd}
-          onPageChange={orderPagination.setPage}
+          page={page}
+          totalPages={totalPages}
+          totalItems={total}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          onPageChange={setPage}
         />
         </>
       )}

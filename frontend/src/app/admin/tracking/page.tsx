@@ -24,7 +24,7 @@ const KANBAN_STATUSES = [
 
 export default function TrackingPage() {
   const load = useCallback(async () => {
-    const orders = await fetchAdminOrders({ limit: 500 });
+    const orders = (await fetchAdminOrders({ limit: 500 })).orders;
     let riders: AdminStats["riders"] = [];
     try {
       const stats = await api<AdminStats>("/admin/stats");

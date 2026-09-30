@@ -34,6 +34,28 @@ import { effectiveItemPrice, isStoreOpen, publicClosedMessage } from "../lib/sto
 import { quoteCharges } from "../lib/charges";
 import { cleanText } from "../lib/text";
 
+function zonedDayStart(isoDate: string, timeZone: string) {
+  try {
+    const utcMidnight = new Date(`${isoDate}T00:00:00Z`);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).formatToParts(utcMidnight);
+    const pick = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+    const hour = pick("hour") === 24 ? 0 : pick("hour");
+    const zonedAsUtc = Date.UTC(pick("year"), pick("month") - 1, pick("day"), hour, pick("minute"), pick("second"));
+    return new Date(utcMidnight.getTime() - (zonedAsUtc - utcMidnight.getTime()));
+  } catch {
+    return new Date(`${isoDate}T00:00:00+05:00`);
+  }
+}
+
 export const ordersRouter = Router();
 
 const include = {
@@ -344,25 +366,42 @@ ordersRouter.get("/mine", requireAuth, async (req, res) => {
 });
 
 ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {
-  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 20));
   const offset = Math.max(0, Number(req.query.offset) || 0);
   const status = req.query.status as OrderStatus | undefined;
   const search = String(req.query.search || "").trim();
+  const from = String(req.query.from || "").trim();
+  const to = String(req.query.to || "").trim();
 
+  const settings = await getStoreSettings();
+  const timeZone = settings.timezone || "Asia/Karachi";
+  const createdAt: { gte?: Date; lt?: Date } = {};
+  if (/^\d{4}-\d{2}-\d{2}$/.test(from)) createdAt.gte = zonedDayStart(from, timeZone);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    createdAt.lt = new Date(zonedDayStart(to, timeZone).getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  const searchWhere = search
+    ? {
+        OR: [
+          { orderNumber: { contains: search, mode: "insensitive" as const } },
+          { customerName: { contains: search, mode: "insensitive" as const } },
+          { customerPhone: { contains: search } },
+          { deliveryAddress: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const rangedWhere = {
+    ...(createdAt.gte || createdAt.lt ? { createdAt } : {}),
+    ...searchWhere,
+  };
   const where = {
+    ...rangedWhere,
     ...(status && Object.values(OrderStatus).includes(status) ? { status } : {}),
-    ...(search
-      ? {
-          OR: [
-            { orderNumber: { contains: search, mode: "insensitive" as const } },
-            { customerName: { contains: search, mode: "insensitive" as const } },
-            { customerPhone: { contains: search.replace(/\D/g, "") } },
-          ],
-        }
-      : {}),
   };
 
-  const [orders, total] = await Promise.all([
+  const [orders, total, grouped, revenue] = await Promise.all([
     prisma.order.findMany({
       where,
       include: { ...include, customer: { select: { id: true, name: true, email: true } } },
@@ -371,8 +410,28 @@ ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHI
       skip: offset,
     }),
     prisma.order.count({ where }),
+    prisma.order.groupBy({
+      by: ["status"],
+      where: rangedWhere,
+      _count: { _all: true },
+    }),
+    prisma.order.aggregate({
+      where,
+      _sum: { total: true },
+    }),
   ]);
-  res.json({ orders, total, limit, offset });
+
+  const statusCounts: Record<string, number> = {};
+  for (const row of grouped) statusCounts[row.status] = row._count._all;
+
+  res.json({
+    orders,
+    total,
+    limit,
+    offset,
+    statusCounts,
+    filteredTotal: Number(revenue._sum.total ?? 0),
+  });
 });
 
 ordersRouter.post("/track", trackLimiter, async (req, res) => {

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Ban,
   Search,
   ShoppingBag,
   TrendingUp,
@@ -19,6 +18,7 @@ import { PAGE_SIZE } from "@/lib/pagination";
 import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import { CustomerTable } from "@/components/admin/CustomerTable";
+import { BlockCustomerSheet } from "@/components/admin/BlockCustomerSheet";
 
 type SortKey = "recent" | "spent" | "orders" | "name";
 
@@ -87,6 +87,9 @@ export default function CustomersPage() {
   const [sort, setSort] = useState<SortKey>("spent");
   const [blocks, setBlocks] = useState<OrderBlock[]>([]);
   const [actionMsg, setActionMsg] = useState("");
+  const [blockTarget, setBlockTarget] = useState<AdminCustomer | null>(null);
+  const [blocking, setBlocking] = useState(false);
+  const [blockError, setBlockError] = useState("");
 
   const load = useCallback(() => api<AdminCustomer[]>("/admin/customers"), []);
   const { data: customers, loading, refreshing, refresh } = usePoll(load, 30000);
@@ -99,19 +102,28 @@ export default function CustomersPage() {
     loadBlocks().then(setBlocks).catch(() => setBlocks([]));
   }, [loadBlocks, isAdmin]);
 
-  async function blockCustomer(c: AdminCustomer) {
-    const reason = window.prompt(`Block ${c.name} from ordering? Enter a reason.`);
-    if (!reason?.trim()) return;
+  function blockCustomer(c: AdminCustomer) {
+    setBlockError("");
+    setBlockTarget(c);
+  }
+
+  async function confirmBlock(reason: string) {
+    if (!blockTarget) return;
+    setBlocking(true);
+    setBlockError("");
     setActionMsg("");
     try {
       await api("/admin/blocks", {
         method: "POST",
-        body: JSON.stringify({ email: c.email, phone: c.phone, reason: reason.trim() }),
+        body: JSON.stringify({ email: blockTarget.email, phone: blockTarget.phone, reason }),
       });
       setBlocks(await loadBlocks());
-      setActionMsg(`${c.name} blocked from placing orders.`);
+      setActionMsg(`${blockTarget.name} blocked from placing orders.`);
+      setBlockTarget(null);
     } catch (err) {
-      setActionMsg(err instanceof Error ? err.message : "Could not block customer.");
+      setBlockError(err instanceof Error ? err.message : "Could not block customer.");
+    } finally {
+      setBlocking(false);
     }
   }
 
@@ -296,6 +308,15 @@ export default function CustomersPage() {
           />
         </>
       )}
+      <BlockCustomerSheet
+        customer={blockTarget}
+        saving={blocking}
+        error={blockError}
+        onClose={() => {
+          if (!blocking) setBlockTarget(null);
+        }}
+        onConfirm={confirmBlock}
+      />
     </div>
   );
 }

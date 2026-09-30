@@ -54,7 +54,7 @@ export default function AdminAreasPage() {
     });
   }, [areas, query, filter]);
 
-  const areaPagination = usePagination(filtered, PAGE_SIZE.list, `${query}|${filter}`);
+  const areaPagination = usePagination(filtered, PAGE_SIZE.table, `${query}|${filter}`);
 
   const activeCount = areas.filter((a) => a.isDelivering).length;
   const showSkeleton = loading || refreshing;
@@ -230,61 +230,69 @@ export default function AdminAreasPage() {
       </div>
 
       {showSkeleton ? (
-        <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="skeleton h-16 rounded-2xl" />
-          ))}
-        </div>
+        <div className="skeleton h-80 rounded-2xl" />
       ) : (
-      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="hidden grid-cols-[1fr_140px_120px] gap-4 border-b border-stone-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-stone-500 md:grid">
-          <span>Area</span>
-          <span>Delivery charge</span>
-          <span>Delivering</span>
-        </div>
-        <ul className="divide-y divide-stone-100">
-          {areaPagination.pageItems.map((area) => (
-            <li
-              key={area.id}
-              className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_140px_120px] md:items-center"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700">
-                  <MapPin size={16} />
-                </span>
-                <p className="truncate font-medium text-stone-900">{area.name}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  step={10}
-                  className="input h-10 w-full py-2"
-                  value={draftCharges[area.id] ?? ""}
-                  onChange={(e) =>
-                    setDraftCharges((d) => ({ ...d, [area.id]: e.target.value }))
-                  }
-                  onBlur={() => saveCharge(area.id)}
-                  onKeyDown={(e) => e.key === "Enter" && saveCharge(area.id)}
-                />
-                {savingId === area.id && <RefreshCw size={14} className="animate-spin text-stone-400" />}
-              </div>
-              <button
-                type="button"
-                disabled={savingId === area.id}
-                onClick={() => patchArea(area.id, { isDelivering: !area.isDelivering })}
-                className={`inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition ${
-                  area.isDelivering
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                }`}
-              >
-                {area.isDelivering ? <Check size={14} /> : <Truck size={14} />}
-                {area.isDelivering ? "On" : "Off"}
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <table className="w-full min-w-[640px] table-fixed text-left text-sm">
+          <colgroup>
+            <col className="w-[46%]" />
+            <col className="w-[28%]" />
+            <col className="w-[26%]" />
+          </colgroup>
+          <thead className="border-b border-stone-100 bg-stone-50 text-xs font-semibold uppercase tracking-wide text-stone-500">
+            <tr>
+              <th className="px-5 py-3">Area</th>
+              <th className="px-5 py-3">Delivery charge</th>
+              <th className="px-5 py-3">Delivering</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100">
+            {areaPagination.pageItems.map((area) => (
+              <tr key={area.id}>
+                <td className="px-5 py-3 align-middle">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700">
+                      <MapPin size={16} />
+                    </span>
+                    <p className="truncate font-medium text-stone-900">{area.name}</p>
+                  </div>
+                </td>
+                <td className="px-5 py-3 align-middle">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      className="input h-10 min-w-0 py-2"
+                      value={draftCharges[area.id] ?? ""}
+                      onChange={(e) =>
+                        setDraftCharges((d) => ({ ...d, [area.id]: e.target.value }))
+                      }
+                      onBlur={() => saveCharge(area.id)}
+                      onKeyDown={(e) => e.key === "Enter" && saveCharge(area.id)}
+                    />
+                    {savingId === area.id && <RefreshCw size={14} className="shrink-0 animate-spin text-stone-400" />}
+                  </div>
+                </td>
+                <td className="px-5 py-3 align-middle">
+                  <button
+                    type="button"
+                    disabled={savingId === area.id}
+                    onClick={() => patchArea(area.id, { isDelivering: !area.isDelivering })}
+                    className={`inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition ${
+                      area.isDelivering
+                        ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                        : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    }`}
+                  >
+                    {area.isDelivering ? <Check size={14} /> : <Truck size={14} />}
+                    {area.isDelivering ? "On" : "Off"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         {filtered.length === 0 && (
           <p className="px-5 py-12 text-center text-sm text-stone-500">No areas match your search.</p>
         )}

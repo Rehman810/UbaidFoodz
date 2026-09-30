@@ -38,6 +38,18 @@ const SOCIAL_FIELDS = [
   { key: "youtubeUrl" as const, label: "YouTube", icon: Youtube, placeholder: "https://youtube.com/..." },
 ];
 
+const SETTINGS_TABS = [
+  { id: "store", label: "Store" },
+  { id: "contact", label: "Contact" },
+  { id: "delivery", label: "Delivery" },
+  { id: "hours", label: "Hours" },
+  { id: "social", label: "Social" },
+  { id: "banners", label: "Banners" },
+  { id: "security", label: "Security" },
+] as const;
+
+type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [baseline, setBaseline] = useState("");
@@ -49,6 +61,7 @@ export default function AdminSettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState("");
+  const [tab, setTab] = useState<SettingsTab>("store");
 
   async function load() {
     const data = await api<SettingsPayload>("/settings");
@@ -241,11 +254,11 @@ export default function AdminSettingsPage() {
             <button
               type="button"
               onClick={() => onSave()}
-              disabled={saving || invalid}
+              disabled={saving || invalid || !dirty || tab === "banners" || tab === "security"}
               className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-stone-900 transition hover:bg-brand-50 disabled:opacity-60"
             >
               <Save size={16} />
-              {saving ? "Saving…" : "Save all"}
+              {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
             </button>
           </div>
         </div>
@@ -263,9 +276,28 @@ export default function AdminSettingsPage() {
         </p>
       )}
 
-      <TwoFactorSettings />
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {SETTINGS_TABS.map((item) => {
+          const active = tab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                active ? "bg-stone-900 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
 
-      <form onSubmit={onSave} className="space-y-6">
+      {tab === "security" && <TwoFactorSettings />}
+
+      <form onSubmit={onSave} className={tab === "banners" || tab === "security" ? "hidden" : "space-y-6"}>
+        {tab === "store" && (
         <SettingsSection
           icon={Store}
           title="Branding"
@@ -377,8 +409,9 @@ export default function AdminSettingsPage() {
             </SettingsField>
           </div>
         </SettingsSection>
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        {tab === "contact" && (
           <SettingsSection
             icon={Phone}
             title="Contact & notifications"
@@ -478,7 +511,9 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </SettingsSection>
+        )}
 
+        {tab === "delivery" && (
           <SettingsSection icon={Truck} title="Orders & delivery" description="Minimums, free delivery threshold, and time estimates.">
             <div className="grid gap-4 sm:grid-cols-2">
               <SettingsField label={`Minimum order (${settings.currencySymbol ?? "Rs"})`}>
@@ -678,8 +713,9 @@ export default function AdminSettingsPage() {
               </div>
             </label>
           </SettingsSection>
-        </div>
+        )}
 
+        {tab === "hours" && (
         <SettingsSection
           icon={Clock}
           title="Hours & availability"
@@ -724,7 +760,9 @@ export default function AdminSettingsPage() {
             </div>
           </div>
         </SettingsSection>
+        )}
 
+        {tab === "social" && (
         <SettingsSection
           icon={Share2}
           title="Social links"
@@ -748,8 +786,10 @@ export default function AdminSettingsPage() {
             ))}
           </div>
         </SettingsSection>
+        )}
       </form>
 
+      {tab === "banners" && (
       <SettingsSection
         icon={ImageIcon}
         title="Promo banners"
@@ -874,22 +914,30 @@ export default function AdminSettingsPage() {
           </button>
         </div>
       </SettingsSection>
+      )}
 
-      {/* Sticky save bar */}
-      <div className="fixed bottom-20 left-0 right-0 z-20 px-4 lg:bottom-6 lg:left-72">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-md">
-          <p className="hidden text-sm text-stone-500 sm:block">Changes apply to the live storefront after saving.</p>
+      {tab !== "banners" && tab !== "security" && (
+      <div className="fixed bottom-20 left-0 right-0 z-20 px-4 lg:bottom-6 lg:left-72 lg:right-0">
+        <div className={`mx-auto flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-md ${
+          dirty ? "border-amber-300 bg-amber-50/95" : "border-stone-200 bg-white/95"
+        }`}>
+          <p className={`hidden text-sm sm:block ${dirty ? "font-medium text-amber-950" : "text-stone-500"}`}>
+            {dirty
+              ? "Unsaved changes. Uploaded logos are included when you save."
+              : "Saved. The storefront matches these settings."}
+          </p>
           <button
             type="button"
             onClick={() => onSave()}
-            disabled={saving}
+            disabled={saving || invalid || !dirty}
             className="btn-primary ml-auto shrink-0"
           >
             <Save size={16} />
-            {saving ? "Saving…" : "Save settings"}
+            {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }
