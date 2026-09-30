@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { HeroCarousel } from "@/components/home/HeroCarousel";
 import { Marquee } from "@/components/home/Marquee";
@@ -15,6 +14,7 @@ import { HomeDelivery } from "@/components/home/HomeDelivery";
 import { Reveal } from "@/components/home/Reveal";
 import { DealCard } from "@/components/DealCard";
 import { api } from "@/lib/api";
+import { groupDealsByCategory } from "@/lib/deal-categories";
 import { Deal, DeliveryArea } from "@/lib/types";
 
 export default function HomePage() {
@@ -31,6 +31,9 @@ export default function HomePage() {
       .catch(() => setZones([]));
   }, []);
 
+  const dealGroups = useMemo(() => groupDealsByCategory(deals), [deals]);
+  const singleGroup = dealGroups.length <= 1;
+
   return (
     <StoreShell>
       <Suspense fallback={null}>
@@ -46,16 +49,28 @@ export default function HomePage() {
             <Reveal>
               <div className="flex items-center gap-2 text-brand-600">
                 <Sparkles size={18} />
-                <p className="text-xs font-bold uppercase tracking-[0.25em]">Tonight&apos;s deals</p>
+                <p className="text-xs font-bold uppercase tracking-[0.25em]">Combo deals</p>
               </div>
               <h2 className="font-display mt-2 text-3xl sm:text-4xl">Save on your bag</h2>
               <p className="mt-2 max-w-lg text-stone-600">Combo deals with everything included — add straight to your bag.</p>
             </Reveal>
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:gap-5 lg:max-w-3xl">
-              {deals.map((deal, i) => (
-                <Reveal key={deal.id} delay={i * 80}>
-                  <DealCard deal={deal} />
-                </Reveal>
+
+            <div className="mt-8 space-y-12">
+              {dealGroups.map((group, gi) => (
+                <div key={group.label}>
+                  {!singleGroup && (
+                    <Reveal delay={gi * 40}>
+                      <h3 className="font-display text-xl font-bold text-stone-900 sm:text-2xl">{group.label}</h3>
+                    </Reveal>
+                  )}
+                  <div className={`grid grid-cols-1 gap-4 sm:gap-5 lg:max-w-3xl ${singleGroup ? "" : "mt-5"}`}>
+                    {group.deals.map((deal, i) => (
+                      <Reveal key={deal.id} delay={(gi * 3 + i) * 80}>
+                        <DealCard deal={deal} />
+                      </Reveal>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

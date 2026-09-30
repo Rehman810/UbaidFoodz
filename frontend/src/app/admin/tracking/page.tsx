@@ -8,6 +8,7 @@ import { pkr } from "@/lib/format";
 import { AdminStats } from "@/lib/admin-types";
 import { Order, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { KanbanBoard, kanbanActiveCount } from "@/components/admin/KanbanBoard";
 import { STATUS_THEME } from "@/lib/admin-status";
@@ -34,7 +35,8 @@ export default function TrackingPage() {
     return { orders, riders };
   }, []);
 
-  const { data, loading, error, refresh } = usePoll(load, 8000);
+  const { data, loading, refreshing, error, refresh } = usePoll(load, 8000);
+  const showSkeleton = loading || refreshing;
   useLiveOrders(refresh);
 
   const stats = useMemo(() => {
@@ -100,12 +102,7 @@ export default function TrackingPage() {
               );
             })}
           </div>
-          <button
-            onClick={refresh}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-500"
-          >
-            <RefreshCw size={15} /> Refresh
-          </button>
+          <RefreshButton busy={showSkeleton} onClick={refresh} variant="primary" />
         </div>
       </div>
 
@@ -117,14 +114,14 @@ export default function TrackingPage() {
 
       {/* Kanban — fills remaining height, columns scroll internally */}
       <div className="min-h-0 flex-1 overflow-hidden">
-        {loading && (
+        {showSkeleton && (
           <div className="flex h-full gap-3 overflow-hidden">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="skeleton min-h-[200px] flex-1 rounded-2xl" />
             ))}
           </div>
         )}
-        {!loading && data && (
+        {!showSkeleton && data && (
           <KanbanBoard orders={data.orders} onRefresh={refresh} className="h-full" />
         )}
       </div>

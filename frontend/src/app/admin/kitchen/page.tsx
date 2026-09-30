@@ -9,6 +9,13 @@ import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { KitchenTicket } from "@/components/admin/KitchenTicket";
+import { RefreshButton } from "@/components/admin/RefreshButton";
+import {
+  playKitchenChime,
+  readKitchenAlertsEnabled,
+  unlockKitchenAudio,
+  writeKitchenAlertsEnabled,
+} from "@/lib/kitchen-chime";
 
 type Lane = "CONFIRMED" | "PREPARING" | "READY";
 type TypeFilter = "ALL" | "DELIVERY" | "PICKUP" | "DINE_IN";
@@ -19,37 +26,24 @@ const LANES: { status: Lane; title: string; hint: string }[] = [
   { status: "READY", title: "Ready", hint: "Waiting for rider or counter" },
 ];
 
-function playChime() {
-  const AudioCtx =
-    window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) return;
-  const ctx = new AudioCtx();
-  const now = ctx.currentTime;
-  [880, 1174].forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02 + i * 0.08);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28 + i * 0.1);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now + i * 0.08);
-    osc.stop(now + 0.35 + i * 0.1);
-  });
-}
-
 export default function KitchenPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [soundOn, setSoundOn] = useState(false);
+  const [soundReady, setSoundReady] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seenRef = useRef<Set<string> | null>(null);
 
   const load = useCallback(() => fetchAdminOrders({ limit: 500 }), []);
-  const { data, loading, error, refresh } = usePoll(load, 5000);
+  const { data, loading, refreshing, error, refresh } = usePoll(load, 5000);
   useLiveOrders(refresh);
+  const showSkeleton = loading || refreshing;
+
+  useEffect(() => {
+    const saved = readKitchenAlertsEnabled();
+    setSoundOn(saved);
+    if (saved) void unlockKitchenAudio().then(setSoundReady);
+  }, []);
 
   const kitchenOrders = useMemo(() => {
     const list = (data || []).filter(
@@ -66,9 +60,29 @@ export default function KitchenPage() {
       return;
     }
     const fresh = newIds.filter((id) => !seenRef.current!.has(id));
-    if (fresh.length && soundOn) playChime();
+    if (fresh.length && soundOn) void playKitchenChime();
     seenRef.current = new Set(newIds.concat(kitchenOrders.map((o) => o.id)));
   }, [kitchenOrders, soundOn]);
+
+  async function toggleAlerts() {
+    if (soundOn && soundReady) {
+      setSoundOn(false);
+      setSoundReady(false);
+      writeKitchenAlertsEnabled(false);
+      return;
+    }
+    if (soundOn && !soundReady) {
+      const ok = await unlockKitchenAudio();
+      setSoundReady(ok);
+      await playKitchenChime(true);
+      return;
+    }
+    setSoundOn(true);
+    writeKitchenAlertsEnabled(true);
+    const ok = await unlockKitchenAudio();
+    setSoundReady(ok);
+    await playKitchenChime(true);
+  }
 
   async function bump(order: Order, status: OrderStatus) {
     setBusyId(order.id);
@@ -116,7 +130,7 @@ export default function KitchenPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-7.25rem)] flex-col gap-3 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="shrink-0 rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -188,23 +202,20 @@ export default function KitchenPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSoundOn((v) => !v)}
+              onClick={() => void toggleAlerts()}
               className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold ring-1 ${
                 soundOn
-                  ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+                  ? soundReady
+                    ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+                    : "bg-amber-50 text-amber-900 ring-amber-200"
                   : "bg-white text-stone-600 ring-stone-200"
               }`}
+              title={soundOn && !soundReady ? "Click again if you did not hear the test beep" : undefined}
             >
               {soundOn ? <Volume2 size={14} /> : <BellOff size={14} />}
-              {soundOn ? "Alerts on" : "Alerts off"}
+              {soundOn ? (soundReady ? "Alerts on" : "Tap to enable sound") : "Alerts off"}
             </button>
-            <button
-              type="button"
-              onClick={refresh}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-500"
-            >
-              <RefreshCw size={15} /> Refresh
-            </button>
+            <RefreshButton busy={showSkeleton} onClick={refresh} variant="primary" />
           </div>
         </div>
       </div>
@@ -234,15 +245,16 @@ export default function KitchenPage() {
                 <p className="mt-1 text-xs text-stone-500">{lane.hint}</p>
               </div>
 
-              <div className="kanban-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain rounded-b-2xl border border-t-0 border-stone-200/80 bg-white p-2 shadow-inner">
-                {loading && !data && (
+              <div className="kanban-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain rounded-b-2xl border border-t-0 border-stone-200/80 bg-white p-2 pr-1 shadow-inner">
+                <div className="flex flex-col gap-2.5">
+                {showSkeleton && !data && (
                   <>
                     <div className="skeleton h-32 rounded-xl" />
                     <div className="skeleton h-28 rounded-xl" />
                   </>
                 )}
-                {!loading && list.length === 0 && (
-                  <div className="flex min-h-[140px] flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/80 px-4 py-10 text-center">
+                {!showSkeleton && list.length === 0 && (
+                  <div className="flex min-h-[140px] flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/80 px-4 py-10 text-center">
                     <div className={`mb-3 grid h-10 w-10 place-items-center rounded-full ${theme.bg}`}>
                       <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
                     </div>
@@ -263,6 +275,7 @@ export default function KitchenPage() {
                     />
                   );
                 })}
+                </div>
               </div>
             </div>
           );

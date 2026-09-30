@@ -352,9 +352,9 @@ export function MenuFormSheet({
                     Required selection
                   </label>
                   {group.options.map((row, oi) => (
-                    <div key={oi} className="mb-2 flex gap-2">
+                    <div key={oi} className="mb-2 grid grid-cols-[minmax(0,1fr)_5rem_5rem_auto] items-center gap-2">
                       <input
-                        className="input flex-1"
+                        className="input min-w-0"
                         placeholder="Option name"
                         value={row.name}
                         onChange={(e) =>
@@ -368,7 +368,7 @@ export function MenuFormSheet({
                         }
                       />
                       <input
-                        className="input w-20"
+                        className="input min-w-0 px-2 text-center"
                         placeholder="Price"
                         type="number"
                         value={row.price}
@@ -383,7 +383,7 @@ export function MenuFormSheet({
                         }
                       />
                       <input
-                        className="input w-20"
+                        className="input min-w-0 px-2 text-center"
                         placeholder="Sale"
                         type="number"
                         value={row.discountPrice}
@@ -399,7 +399,7 @@ export function MenuFormSheet({
                       />
                       <button
                         type="button"
-                        className="text-stone-400"
+                        className="grid h-10 w-10 place-items-center text-stone-400"
                         onClick={() =>
                           setForm((f) => {
                             const optionGroups = [...f.optionGroups];
@@ -447,10 +447,10 @@ export function MenuFormSheet({
                 </button>
               </div>
               {form.addons.map((row, i) => (
-                <div key={i} className="mb-2 flex gap-2">
+                <div key={i} className="mb-2 grid grid-cols-[minmax(0,1fr)_6rem_auto] items-center gap-2">
                   <input
-                    className="input flex-1"
-                    placeholder="Name"
+                    className="input min-w-0"
+                    placeholder="Add-on name"
                     value={row.name}
                     onChange={(e) =>
                       setForm((f) => {
@@ -461,8 +461,8 @@ export function MenuFormSheet({
                     }
                   />
                   <input
-                    className="input w-24"
-                    placeholder="Rs"
+                    className="input min-w-0 px-2 text-center"
+                    placeholder="Price"
                     type="number"
                     value={row.price}
                     onChange={(e) =>
@@ -475,7 +475,7 @@ export function MenuFormSheet({
                   />
                   <button
                     type="button"
-                    className="text-stone-400"
+                    className="grid h-10 w-10 place-items-center text-stone-400"
                     onClick={() => setForm((f) => ({ ...f, addons: f.addons.filter((_, j) => j !== i) }))}
                   >
                     <X size={16} />
@@ -503,7 +503,7 @@ export function MenuFormSheet({
             >
               <span className="flex items-center gap-2">
                 {form.isAvailable ? <Eye size={16} /> : <EyeOff size={16} />}
-                {form.isAvailable ? "Visible on menu" : "Hidden (sold out)"}
+                {form.isAvailable ? "Visible on menu" : "Hidden (out of stock)"}
               </span>
               <span
                 className={`grid h-5 w-5 place-items-center rounded-full ${

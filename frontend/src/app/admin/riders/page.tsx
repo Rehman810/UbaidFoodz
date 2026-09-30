@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Bike,
@@ -8,26 +8,20 @@ import {
   MapPin,
   Package,
   Phone,
-  Plus,
-  RefreshCw,
   Search,
   Truck,
   Users,
 } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { pkr, formatWhen } from "@/lib/format";
 import { AdminRider } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
+import { usePagination } from "@/hooks/usePagination";
+import { PAGE_SIZE } from "@/lib/pagination";
+import { Pagination } from "@/components/Pagination";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { RiderFormSheet, RiderFormData } from "@/components/admin/RiderFormSheet";
-
-const emptyRider: RiderFormData = {
-  name: "",
-  email: "",
-  phone: "",
-  password: "",
-};
 
 const AVATAR_GRADIENTS = [
   "from-violet-500 to-purple-600",
@@ -89,13 +83,10 @@ function KpiCard({
 
 export default function RidersPage() {
   const [search, setSearch] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState<RiderFormData>(emptyRider);
-  const [formError, setFormError] = useState("");
-  const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => api<AdminRider[]>("/admin/riders"), []);
-  const { data: riders, loading, refresh } = usePoll(load, 10000);
+  const { data: riders, loading, refreshing, refresh } = usePoll(load, 10000);
+  const showSkeleton = loading || refreshing;
 
   const stats = useMemo(() => {
     const list = riders ?? [];
@@ -125,38 +116,10 @@ export default function RidersPage() {
     });
   }, [riders, search]);
 
-  function closeForm() {
-    setFormOpen(false);
-    setForm(emptyRider);
-    setFormError("");
-  }
-
-  async function onCreateRider(e: FormEvent) {
-    e.preventDefault();
-    setFormError("");
-    setSaving(true);
-    try {
-      await api("/admin/riders", {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          ...(form.password ? { password: form.password } : {}),
-        }),
-      });
-      closeForm();
-      refresh();
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not create rider");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const riderPagination = usePagination(filtered, PAGE_SIZE.grid, search);
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-5">
-      {/* Header */}
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -166,42 +129,22 @@ export default function RidersPage() {
             <div>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl">Riders</h1>
               <p className="mt-0.5 text-sm text-stone-500">
-                Delivery fleet — live assignments and rider accounts
+                Fleet overview — live assignments and delivery stats
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={refresh}
-              className="inline-flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-white"
-            >
-              <RefreshCw size={15} /> Refresh
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setForm(emptyRider);
-                setFormError("");
-                setFormOpen(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
-            >
-              <Plus size={16} /> Add rider
-            </button>
-          </div>
+          <RefreshButton busy={showSkeleton} onClick={refresh} />
         </div>
       </div>
 
       <p className="rounded-xl border border-violet-100 bg-violet-50/80 px-4 py-3 text-sm text-violet-900">
-        To create rider logins with auto-generated passwords and welcome emails, use{" "}
+        New rider accounts are created on{" "}
         <Link href="/admin/staff" className="font-semibold underline hover:text-violet-700">
-          Staff → Add staff (Rider)
+          Staff → Add staff member (Rider role)
         </Link>
-        . This page is for fleet overview and quick rider creation.
+        . This page is for monitoring deliveries and assigning orders.
       </p>
 
-      {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Fleet size" value={stats.total} hint="Registered riders" icon={Users} accent="violet" />
         <KpiCard
@@ -227,7 +170,6 @@ export default function RidersPage() {
         />
       </div>
 
-      {/* Search */}
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
@@ -243,8 +185,7 @@ export default function RidersPage() {
         </p>
       </div>
 
-      {/* Riders */}
-      {loading ? (
+      {showSkeleton ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="skeleton h-56 rounded-2xl" />
@@ -256,110 +197,111 @@ export default function RidersPage() {
           <p className="mt-3 font-medium text-stone-600">
             {search ? "No riders match your search" : "No riders yet"}
           </p>
-          <button type="button" onClick={() => setFormOpen(true)} className="btn-primary mt-4">
-            <Plus size={16} /> Add first rider
-          </button>
+          {!search && (
+            <Link href="/admin/staff" className="btn-primary mt-4 inline-flex">
+              Add rider via Staff
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {filtered.map((r) => {
-            const busy = r.activeOrders.length > 0;
-            return (
-              <article
-                key={r.id}
-                className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-                  busy ? "border-violet-200 ring-1 ring-violet-100" : "border-stone-200/80"
-                }`}
-              >
-                <div className="flex items-center gap-4 border-b border-stone-100 p-4 sm:p-5">
-                  <div
-                    className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-lg font-bold text-white shadow-sm ${avatarGradient(r.id)}`}
-                  >
-                    {initials(r.name)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="font-semibold text-stone-900">{r.name}</h2>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                          busy
-                            ? "bg-violet-100 text-violet-700"
-                            : "bg-emerald-50 text-emerald-700"
-                        }`}
-                      >
-                        {busy ? "On delivery" : "Available"}
-                      </span>
+        <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {riderPagination.pageItems.map((r) => {
+              const busy = r.activeOrders.length > 0;
+              return (
+                <article
+                  key={r.id}
+                  className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
+                    busy ? "border-violet-200 ring-1 ring-violet-100" : "border-stone-200/80"
+                  }`}
+                >
+                  <div className="flex items-center gap-4 border-b border-stone-100 p-4 sm:p-5">
+                    <div
+                      className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-lg font-bold text-white shadow-sm ${avatarGradient(r.id)}`}
+                    >
+                      {initials(r.name)}
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-stone-500">{r.email}</p>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500">
-                      <Phone size={12} /> {r.phone || "No phone"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-emerald-600">{r.deliveredCount}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Delivered</p>
-                    <p className="mt-1 text-xs text-stone-400">{r.totalAssigned} assigned</p>
-                  </div>
-                </div>
-
-                <div className="p-4 sm:p-5">
-                  <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                    <Package size={12} /> Active deliveries ({r.activeOrders.length})
-                  </p>
-
-                  {r.activeOrders.length === 0 ? (
-                    <div className="mt-3 rounded-xl border border-dashed border-stone-200 bg-stone-50/80 py-8 text-center">
-                      <Truck size={24} className="mx-auto text-stone-300" />
-                      <p className="mt-2 text-sm text-stone-500">No active drops</p>
-                      <p className="mt-0.5 text-xs text-stone-400">Assign from Orders when ready</p>
-                    </div>
-                  ) : (
-                    <ul className="mt-3 space-y-2">
-                      {r.activeOrders.map((o) => (
-                        <li
-                          key={o.id}
-                          className="rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white p-3.5"
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="font-semibold text-stone-900">{r.name}</h2>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            busy
+                              ? "bg-violet-100 text-violet-700"
+                              : "bg-emerald-50 text-emerald-700"
+                          }`}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-bold text-stone-900">{o.orderNumber}</p>
-                                <FulfillmentBadge type={o.fulfillmentType} />
-                              </div>
-                              <p className="mt-0.5 text-xs text-stone-500">
-                                {formatWhen(o.createdAt)} · {pkr(o.total)}
-                              </p>
-                            </div>
-                            <StatusBadge status={o.status} fulfillmentType={o.fulfillmentType} />
-                          </div>
-                          <p className="mt-2 flex items-start gap-1.5 text-xs text-stone-600">
-                            <MapPin size={12} className="mt-0.5 shrink-0 text-violet-500" />
-                            {o.deliveryAddress}
-                          </p>
-                          <p className="mt-1.5 text-xs font-medium text-stone-700">
-                            {o.customerName} · {o.customerPhone}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+                          {busy ? "On delivery" : "Available"}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-stone-500">{r.email}</p>
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-stone-500">
+                        <Phone size={12} /> {r.phone || "No phone"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-emerald-600">{r.deliveredCount}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Delivered</p>
+                      <p className="mt-1 text-xs text-stone-400">{r.totalAssigned} assigned</p>
+                    </div>
+                  </div>
 
-      {formOpen && (
-        <RiderFormSheet
-          open={formOpen}
-          form={form}
-          setForm={setForm}
-          saving={saving}
-          error={formError}
-          onClose={closeForm}
-          onSubmit={onCreateRider}
-        />
+                  <div className="p-4 sm:p-5">
+                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                      <Package size={12} /> Active deliveries ({r.activeOrders.length})
+                    </p>
+
+                    {r.activeOrders.length === 0 ? (
+                      <div className="mt-3 rounded-xl border border-dashed border-stone-200 bg-stone-50/80 py-8 text-center">
+                        <Truck size={24} className="mx-auto text-stone-300" />
+                        <p className="mt-2 text-sm text-stone-500">No active drops</p>
+                        <p className="mt-0.5 text-xs text-stone-400">Assign from Orders when ready</p>
+                      </div>
+                    ) : (
+                      <ul className="mt-3 space-y-2">
+                        {r.activeOrders.map((o) => (
+                          <li
+                            key={o.id}
+                            className="rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white p-3.5"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-bold text-stone-900">{o.orderNumber}</p>
+                                  <FulfillmentBadge type={o.fulfillmentType} />
+                                </div>
+                                <p className="mt-0.5 text-xs text-stone-500">
+                                  {formatWhen(o.createdAt)} · {pkr(o.total)}
+                                </p>
+                              </div>
+                              <StatusBadge status={o.status} fulfillmentType={o.fulfillmentType} />
+                            </div>
+                            <p className="mt-2 flex items-start gap-1.5 text-xs text-stone-600">
+                              <MapPin size={12} className="mt-0.5 shrink-0 text-violet-500" />
+                              {o.deliveryAddress}
+                            </p>
+                            <p className="mt-1.5 text-xs font-medium text-stone-700">
+                              {o.customerName} · {o.customerPhone}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <Pagination
+            page={riderPagination.page}
+            totalPages={riderPagination.totalPages}
+            totalItems={riderPagination.totalItems}
+            rangeStart={riderPagination.rangeStart}
+            rangeEnd={riderPagination.rangeEnd}
+            onPageChange={riderPagination.setPage}
+            className="mt-4"
+          />
+        </>
       )}
     </div>
   );

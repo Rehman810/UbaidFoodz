@@ -21,6 +21,7 @@ const CLOSE_MS = 340;
 export type DealFormData = {
   title: string;
   description: string;
+  category: string;
   dealPrice: string;
   imageUrl: string;
   isActive: boolean;
@@ -55,6 +56,7 @@ export function DealFormSheet({
   saving,
   uploading,
   uploadError,
+  categoryOptions,
   onClose,
   onSubmit,
   onImagePick,
@@ -67,6 +69,7 @@ export function DealFormSheet({
   saving: boolean;
   uploading: boolean;
   uploadError: string;
+  categoryOptions: string[];
   onClose: () => void;
   onSubmit: (e: FormEvent) => void;
   onImagePick: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -173,6 +176,22 @@ export function DealFormSheet({
             <div>
               <label className="mb-1.5 block text-xs font-medium text-stone-500">Deal title</label>
               <input className="input" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required placeholder="e.g. Family Feast" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-stone-500">Category</label>
+              <input
+                className="input"
+                list="deal-category-suggestions"
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                placeholder="e.g. Summer deals"
+              />
+              <datalist id="deal-category-suggestions">
+                {categoryOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+              <p className="mt-1 text-xs text-stone-400">Group deals on the site — Summer, Winter, Ramadan, etc.</p>
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-medium text-stone-500">Description</label>

@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { StoreShell } from "@/components/StoreShell";
 import { OrderTrackForm } from "@/components/OrderTrackForm";
 import { StatusTrack } from "@/components/StatusTrack";
+import { Pagination } from "@/components/Pagination";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatWhen, pkr } from "@/lib/format";
+import { PAGE_SIZE } from "@/lib/pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order } from "@/lib/types";
 import { ClipboardList } from "lucide-react";
@@ -26,6 +29,8 @@ export default function OrdersPage() {
     load();
   }, [load]);
   useLiveOrders(load);
+
+  const orderPagination = usePagination(orders ?? [], PAGE_SIZE.list);
 
   return (
     <StoreShell>
@@ -58,7 +63,7 @@ export default function OrdersPage() {
               </div>
             )}
             <ul className="space-y-4">
-              {orders?.map((o) => (
+              {orderPagination.pageItems.map((o) => (
                 <li key={o.id}>
                   <Link
                     href={`/orders/${o.id}`}
@@ -79,6 +84,17 @@ export default function OrdersPage() {
                 </li>
               ))}
             </ul>
+            {orders && orders.length > 0 && (
+              <Pagination
+                page={orderPagination.page}
+                totalPages={orderPagination.totalPages}
+                totalItems={orderPagination.totalItems}
+                rangeStart={orderPagination.rangeStart}
+                rangeEnd={orderPagination.rangeEnd}
+                onPageChange={orderPagination.setPage}
+                className="mt-4"
+              />
+            )}
           </section>
         )}
 

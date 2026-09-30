@@ -642,6 +642,7 @@ async function main() {
       data: {
         title: "Biryani + Lassi Combo",
         description: "2 chicken biryanis and 2 mango lassis — perfect for sharing.",
+        category: "Family packs",
         dealPrice: 2200,
         imageUrl: biryani.imageUrl,
         isActive: true,

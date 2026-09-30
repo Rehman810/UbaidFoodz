@@ -180,6 +180,7 @@ export type Deal = {
   id: string;
   title: string;
   description: string;
+  category: string;
   dealPrice: string | number;
   imageUrl: string;
   isActive: boolean;

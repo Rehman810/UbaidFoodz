@@ -4,6 +4,9 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Check, MapPin, Plus, RefreshCw, Search, Truck, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { pkr } from "@/lib/format";
+import { PAGE_SIZE } from "@/lib/pagination";
+import { usePagination } from "@/hooks/usePagination";
+import { Pagination } from "@/components/Pagination";
 import { DeliveryArea } from "@/lib/types";
 
 export default function AdminAreasPage() {
@@ -40,6 +43,8 @@ export default function AdminAreasPage() {
       return a.name.toLowerCase().includes(q);
     });
   }, [areas, query, filter]);
+
+  const areaPagination = usePagination(filtered, PAGE_SIZE.list, `${query}|${filter}`);
 
   const activeCount = areas.filter((a) => a.isDelivering).length;
 
@@ -221,8 +226,8 @@ export default function AdminAreasPage() {
           <span>Delivery charge</span>
           <span>Delivering</span>
         </div>
-        <ul className="max-h-[calc(100vh-280px)] divide-y divide-stone-100 overflow-y-auto">
-          {filtered.map((area) => (
+        <ul className="divide-y divide-stone-100">
+          {areaPagination.pageItems.map((area) => (
             <li
               key={area.id}
               className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_140px_120px] md:items-center"
@@ -268,6 +273,17 @@ export default function AdminAreasPage() {
           <p className="px-5 py-12 text-center text-sm text-stone-500">No areas match your search.</p>
         )}
       </div>
+
+      {filtered.length > 0 && (
+        <Pagination
+          page={areaPagination.page}
+          totalPages={areaPagination.totalPages}
+          totalItems={areaPagination.totalItems}
+          rangeStart={areaPagination.rangeStart}
+          rangeEnd={areaPagination.rangeEnd}
+          onPageChange={areaPagination.setPage}
+        />
+      )}
 
       <p className="text-xs text-stone-500">
         Customers only see areas marked <strong>On</strong>. Charge shown is added to their order total ({pkr(150)}–{pkr(250)} typical).

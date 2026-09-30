@@ -15,10 +15,14 @@ const dealInclude = {
 
 dealsRouter.get("/", async (req, res) => {
   const activeOnly = req.query.active === "true";
+  const category = String(req.query.category || "").trim();
   const deals = await prisma.deal.findMany({
-    where: activeOnly ? { isActive: true } : undefined,
+    where: {
+      ...(activeOnly ? { isActive: true } : {}),
+      ...(category ? { category } : {}),
+    },
     include: dealInclude,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ category: "asc" }, { createdAt: "desc" }],
   });
   res.json(deals);
 });
@@ -33,7 +37,7 @@ dealsRouter.get("/:id", async (req, res) => {
 });
 
 dealsRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
-  const { title, description, dealPrice, imageUrl, isActive, items } = req.body;
+  const { title, description, category, dealPrice, imageUrl, isActive, items } = req.body;
   if (!title || dealPrice == null) {
     return res.status(400).json({ error: "Title and deal price are required." });
   }
@@ -47,6 +51,7 @@ dealsRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
     data: {
       title: String(title).trim(),
       description: description || "",
+      category: category != null ? String(category).trim() : "",
       dealPrice: Number(dealPrice),
       imageUrl: imageUrl || "",
       isActive: isActive ?? true,
@@ -63,7 +68,7 @@ dealsRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
 });
 
 dealsRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
-  const { title, description, dealPrice, imageUrl, isActive, items } = req.body;
+  const { title, description, category, dealPrice, imageUrl, isActive, items } = req.body;
 
   try {
     const existing = await prisma.deal.findUnique({ where: { id: req.params.id } });
@@ -90,6 +95,7 @@ dealsRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) =
       data: {
         ...(title != null && { title: String(title).trim() }),
         ...(description != null && { description }),
+        ...(category != null && { category: String(category).trim() }),
         ...(dealPrice != null && { dealPrice: Number(dealPrice) }),
         ...(imageUrl != null && { imageUrl }),
         ...(isActive != null && { isActive }),

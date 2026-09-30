@@ -1,15 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  ArrowUpRight,
   Ban,
-  Calendar,
-  Crown,
-  Mail,
-  Phone,
-  RefreshCw,
   Search,
   ShoppingBag,
   TrendingUp,
@@ -18,10 +11,14 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { pkr, formatWhen } from "@/lib/format";
+import { pkr } from "@/lib/format";
 import { AdminCustomer } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { usePagination } from "@/hooks/usePagination";
+import { PAGE_SIZE } from "@/lib/pagination";
+import { Pagination } from "@/components/Pagination";
+import { RefreshButton } from "@/components/admin/RefreshButton";
+import { CustomerTable } from "@/components/admin/CustomerTable";
 
 type SortKey = "recent" | "spent" | "orders" | "name";
 
@@ -45,29 +42,6 @@ function findContactBlock(blocks: OrderBlock[], email: string, phone: string | n
   return blocks.find(
     (b) => (b.email && b.email === emailKey) || (b.phone && pKey && b.phone === pKey)
   );
-}
-
-const AVATAR_GRADIENTS = [
-  "from-brand-500 to-orange-600",
-  "from-violet-500 to-purple-600",
-  "from-sky-500 to-blue-600",
-  "from-emerald-500 to-teal-600",
-  "from-rose-500 to-pink-600",
-];
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase();
-}
-
-function avatarGradient(id: string) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash + id.charCodeAt(i)) % AVATAR_GRADIENTS.length;
-  return AVATAR_GRADIENTS[hash];
 }
 
 function KpiCard({
@@ -115,7 +89,8 @@ export default function CustomersPage() {
   const [actionMsg, setActionMsg] = useState("");
 
   const load = useCallback(() => api<AdminCustomer[]>("/admin/customers"), []);
-  const { data: customers, loading, refresh } = usePoll(load, 30000);
+  const { data: customers, loading, refreshing, refresh } = usePoll(load, 30000);
+  const showSkeleton = loading || refreshing;
 
   const loadBlocks = useCallback(() => api<OrderBlock[]>("/admin/blocks"), []);
 
@@ -140,12 +115,14 @@ export default function CustomersPage() {
     }
   }
 
-  async function unblockCustomer(blockId: string, name: string) {
+  async function unblockCustomer(c: AdminCustomer) {
+    const block = findContactBlock(blocks, c.email, c.phone ?? null);
+    if (!block) return;
     setActionMsg("");
     try {
-      await api(`/admin/blocks/${blockId}`, { method: "DELETE" });
+      await api(`/admin/blocks/${block.id}`, { method: "DELETE" });
       setBlocks(await loadBlocks());
-      setActionMsg(`${name} can order again.`);
+      setActionMsg(`${c.name} can order again.`);
     } catch (err) {
       setActionMsg(err instanceof Error ? err.message : "Could not unblock customer.");
     }
@@ -188,11 +165,15 @@ export default function CustomersPage() {
     return list;
   }, [customers, search, sort]);
 
-  const topThreshold = stats.topSpender?.totalSpent ?? 0;
+  const customerPagination = usePagination(filtered, PAGE_SIZE.table, `${search}|${sort}`);
+
+  const isCustomerBlocked = useCallback(
+    (c: AdminCustomer) => Boolean(findContactBlock(blocks, c.email, c.phone ?? null)),
+    [blocks]
+  );
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-5">
-      {/* Header */}
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -206,17 +187,10 @@ export default function CustomersPage() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={refresh}
-            className="inline-flex items-center gap-2 self-start rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-white lg:self-auto"
-          >
-            <RefreshCw size={15} /> Refresh
-          </button>
+          <RefreshButton busy={showSkeleton} onClick={refresh} />
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Total customers"
@@ -254,7 +228,6 @@ export default function CustomersPage() {
         </p>
       )}
 
-      {/* Search & sort */}
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative flex-1">
@@ -288,18 +261,10 @@ export default function CustomersPage() {
             ))}
           </div>
         </div>
-        <p className="mt-3 text-xs text-stone-400">
-          Showing {filtered.length} of {stats.count} customers
-        </p>
       </div>
 
-      {/* List */}
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="skeleton h-32 rounded-2xl" />
-          ))}
-        </div>
+      {showSkeleton ? (
+        <div className="skeleton h-80 rounded-2xl" />
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
           <Users size={36} className="mx-auto text-stone-300" />
@@ -311,137 +276,25 @@ export default function CustomersPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((c, index) => {
-            const avgOrder = c.orderCount > 0 ? c.totalSpent / c.orderCount : 0;
-            const isTop = index === 0 && sort === "spent" && c.totalSpent > 0 && c.totalSpent >= topThreshold;
-            const block = findContactBlock(blocks, c.email, c.phone ?? null);
-            const blocked = Boolean(block);
-
-            return (
-              <article
-                key={c.id}
-                className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-                  blocked
-                    ? "border-red-200 ring-1 ring-red-100"
-                    : isTop
-                      ? "border-brand-200 ring-1 ring-brand-100"
-                      : "border-stone-200/80"
-                }`}
-              >
-                <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
-                  {/* Identity */}
-                  <div className="flex min-w-0 flex-1 items-center gap-4">
-                    <div
-                      className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-lg font-bold text-white shadow-sm ${avatarGradient(c.id)}`}
-                    >
-                      {initials(c.name)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-semibold text-stone-900">{c.name}</h2>
-                        {blocked && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-red-200">
-                            <Ban size={10} /> Blocked
-                          </span>
-                        )}
-                        {c.isGuest && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stone-600 ring-1 ring-stone-200">
-                            Guest checkout
-                          </span>
-                        )}
-                        {isTop && !blocked && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
-                            <Crown size={10} /> Top customer
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-                        {c.email && (
-                          <span className="inline-flex items-center gap-1">
-                            <Mail size={12} className="shrink-0" /> {c.email}
-                          </span>
-                        )}
-                        {c.phone && (
-                          <span className="inline-flex items-center gap-1">
-                            <Phone size={12} className="shrink-0" /> {c.phone}
-                          </span>
-                        )}
-                        <span className="inline-flex items-center gap-1">
-                          <Calendar size={12} className="shrink-0" /> Joined {formatWhen(c.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-2 sm:gap-4 lg:w-[420px] lg:shrink-0">
-                    <div className="rounded-xl bg-stone-50 px-3 py-2.5 text-center">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Orders</p>
-                      <p className="mt-0.5 text-lg font-bold text-stone-900">{c.orderCount}</p>
-                    </div>
-                    <div className="rounded-xl bg-brand-50 px-3 py-2.5 text-center ring-1 ring-brand-100">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">Spent</p>
-                      <p className="mt-0.5 text-lg font-bold text-brand-800">{pkr(c.totalSpent)}</p>
-                    </div>
-                    <div className="rounded-xl bg-stone-50 px-3 py-2.5 text-center">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Avg order</p>
-                      <p className="mt-0.5 text-lg font-bold text-stone-900">{pkr(Math.round(avgOrder))}</p>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-col gap-2 lg:w-[220px] lg:shrink-0">
-                    {isAdmin && !blocked && (
-                      <button
-                        type="button"
-                        onClick={() => blockCustomer(c)}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                      >
-                        <Ban size={13} /> Block orders
-                      </button>
-                    )}
-                    {isAdmin && blocked && (
-                      <button
-                        type="button"
-                        onClick={() => block && unblockCustomer(block.id, c.name)}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                      >
-                        Unblock
-                      </button>
-                    )}
-
-                  {/* Last order */}
-                  <div className="flex-1">
-                    {c.lastOrder ? (
-                      <Link
-                        href={`/admin/orders`}
-                        className="block rounded-xl border border-stone-100 bg-stone-50/80 p-3 transition hover:border-brand-200 hover:bg-brand-50/50"
-                      >
-                        <p className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-stone-400">
-                          <span className="inline-flex items-center gap-1">
-                            <ShoppingBag size={11} /> Last order
-                          </span>
-                          <ArrowUpRight size={12} />
-                        </p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-              <StatusBadge status={c.lastOrder.status} fulfillmentType={c.lastOrder.fulfillmentType} />
-                          <span className="text-sm font-bold text-stone-900">{pkr(c.lastOrder.total)}</span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-stone-400">{formatWhen(c.lastOrder.createdAt)}</p>
-                      </Link>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50/50 px-3 py-4 text-center text-xs text-stone-400">
-                        No orders yet
-                      </div>
-                    )}
-                  </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+        <>
+          <CustomerTable
+            customers={customerPagination.pageItems}
+            topSpenderId={stats.topSpender?.id}
+            sortBySpent={sort === "spent"}
+            isBlocked={isCustomerBlocked}
+            isAdmin={isAdmin}
+            onBlock={blockCustomer}
+            onUnblock={unblockCustomer}
+          />
+          <Pagination
+            page={customerPagination.page}
+            totalPages={customerPagination.totalPages}
+            totalItems={customerPagination.totalItems}
+            rangeStart={customerPagination.rangeStart}
+            rangeEnd={customerPagination.rangeEnd}
+            onPageChange={customerPagination.setPage}
+          />
+        </>
       )}
     </div>
   );

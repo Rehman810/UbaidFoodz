@@ -15,7 +15,11 @@ import { STATUS_THEME } from "@/lib/admin-status";
 import { AdminStats } from "@/lib/admin-types";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
+import { usePagination } from "@/hooks/usePagination";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
+import { PAGE_SIZE } from "@/lib/pagination";
+import { Pagination } from "@/components/Pagination";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { OrderDateFilter } from "@/components/admin/OrderDateFilter";
 import { OrderDetailSheet } from "@/components/admin/OrderDetailSheet";
 import { OrderPanel } from "@/components/admin/OrderPanel";
@@ -81,8 +85,9 @@ export default function AdminOrders() {
     return { orders, riders: stats.riders };
   }, []);
 
-  const { data, loading, refresh } = usePoll(load, 10000);
+  const { data, loading, refreshing, refresh } = usePoll(load, 10000);
   useLiveOrders(refresh);
+  const showSkeleton = loading || refreshing;
 
   async function setStatus(id: string, status: OrderStatus) {
     await api(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
@@ -125,6 +130,8 @@ export default function AdminOrders() {
     }
     return list;
   }, [dateFiltered, filter, search]);
+
+  const orderPagination = usePagination(filtered, PAGE_SIZE.table, `${filter}|${search}|${dateFrom}|${dateTo}|${view}`);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: dateFiltered.length };
@@ -216,12 +223,7 @@ export default function AdminOrders() {
               <LayoutGrid size={15} /> Grid
             </button>
           </div>
-          <button
-            onClick={refresh}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-brand-200 transition hover:bg-brand-500"
-          >
-            <RefreshCw size={16} /> Refresh
-          </button>
+          <RefreshButton busy={showSkeleton} onClick={refresh} variant="primary" />
         </div>
       </div>
 
@@ -248,7 +250,7 @@ export default function AdminOrders() {
         })}
       </div>
 
-      {loading &&
+      {showSkeleton &&
         (view === "table" ? (
           <div className="skeleton h-80 rounded-2xl" />
         ) : (
@@ -259,7 +261,7 @@ export default function AdminOrders() {
           </div>
         ))}
 
-      {!loading && filtered.length === 0 && (
+      {!showSkeleton && filtered.length === 0 && (
         <div className="rounded-3xl border border-dashed border-stone-300 bg-white px-6 py-20 text-center shadow-sm">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-stone-100 text-stone-400">
             <Sparkles size={24} />
@@ -271,24 +273,35 @@ export default function AdminOrders() {
         </div>
       )}
 
-      {!loading && filtered.length > 0 && view === "table" && (
+      {!showSkeleton && filtered.length > 0 && view === "table" && (
+        <>
         <OrderTable
-          orders={filtered}
+          orders={orderPagination.pageItems}
           riders={data?.riders || []}
           onStatus={setStatus}
           onAssign={assign}
           onConfirm={confirmOrder}
           onSelect={setSelectedOrder}
         />
+        <Pagination
+          page={orderPagination.page}
+          totalPages={orderPagination.totalPages}
+          totalItems={orderPagination.totalItems}
+          rangeStart={orderPagination.rangeStart}
+          rangeEnd={orderPagination.rangeEnd}
+          onPageChange={orderPagination.setPage}
+        />
+        </>
       )}
 
       {selectedOrder && (
         <OrderDetailSheet order={selectedOrder} onClose={() => setSelectedOrder(null)} />
       )}
 
-      {!loading && filtered.length > 0 && view === "grid" && (
+      {!showSkeleton && filtered.length > 0 && view === "grid" && (
+        <>
         <div className="grid gap-5 lg:grid-cols-2">
-          {filtered.map((o) => (
+          {orderPagination.pageItems.map((o) => (
             <OrderPanel
               key={o.id}
               order={o}
@@ -300,6 +313,15 @@ export default function AdminOrders() {
             />
           ))}
         </div>
+        <Pagination
+          page={orderPagination.page}
+          totalPages={orderPagination.totalPages}
+          totalItems={orderPagination.totalItems}
+          rangeStart={orderPagination.rangeStart}
+          rangeEnd={orderPagination.rangeEnd}
+          onPageChange={orderPagination.setPage}
+        />
+        </>
       )}
     </div>
   );

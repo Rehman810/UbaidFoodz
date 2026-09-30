@@ -23,7 +23,7 @@ export function KitchenTicket({
   const itemCount = order.items.reduce((n, i) => n + i.quantity, 0);
 
   return (
-    <article className={`relative overflow-hidden rounded-xl border bg-white shadow-sm ${theme.border}`}>
+    <article className={`relative shrink-0 overflow-hidden rounded-xl border bg-white shadow-sm ${theme.border}`}>
       <div className={`absolute left-0 top-0 h-full w-1 ${theme.stripe}`} />
 
       <div className="p-3 pl-4">
@@ -50,24 +50,28 @@ export function KitchenTicket({
           </p>
         </div>
 
-        <div className="mt-2.5 flex items-center gap-1.5 text-xs text-stone-600">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-stone-600">
           <Package size={12} className="shrink-0 text-stone-400" />
-          <span className="truncate font-medium">{order.customerName}</span>
+          <span className="font-medium text-stone-800">{order.customerName || "Guest"}</span>
           <span className="text-stone-300">·</span>
-          <span className="shrink-0 text-stone-500">{itemCount} items</span>
+          <span className="shrink-0 text-stone-500">{itemCount} item{itemCount === 1 ? "" : "s"}</span>
         </div>
 
-        <ul className="mt-2.5 space-y-1">
-          {order.items.map((item) => (
-            <li key={item.id} className="text-xs leading-snug text-stone-700">
-              <span className="font-semibold text-stone-900">{item.quantity}×</span> {item.nameAtOrder}
-              {item.optionsLabel ? <span className="text-stone-500"> · {item.optionsLabel}</span> : null}
-              {item.instructions ? (
-                <span className="block pl-4 text-[11px] italic text-stone-500">{item.instructions}</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        {order.items.length > 0 ? (
+          <ul className="mt-2.5 space-y-1.5 rounded-lg bg-stone-50 px-2.5 py-2 ring-1 ring-stone-100">
+            {order.items.map((item) => (
+              <li key={item.id} className="text-xs leading-snug text-stone-700">
+                <span className="font-semibold text-stone-900">{item.quantity}×</span> {item.nameAtOrder}
+                {item.optionsLabel ? <span className="text-stone-500"> · {item.optionsLabel}</span> : null}
+                {item.instructions ? (
+                  <span className="mt-0.5 block text-[11px] italic text-stone-500">{item.instructions}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2.5 text-xs text-stone-400">No line items loaded</p>
+        )}
 
         {order.notes && (
           <p className="mt-2 flex gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900 ring-1 ring-amber-100">

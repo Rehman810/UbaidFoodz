@@ -197,6 +197,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const sidebarSections = navSectionsForRole(user.role);
   const mobileNav = MOBILE_FOR_ROLE[user.role];
   const isPos = path.startsWith("/admin/pos");
+  const isKitchen = path.startsWith("/admin/kitchen");
 
   return (
     <div className="min-h-screen bg-[#fffaf5] lg:flex">
@@ -307,7 +308,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       <div
-        className={`flex min-h-screen flex-1 flex-col transition-[padding] duration-300 ${
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden lg:h-dvh lg:max-h-dvh ${
           collapsed ? "lg:pl-[4.75rem]" : "lg:pl-72"
         }`}
       >
@@ -388,8 +389,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main
           className={
             isPos
-              ? "flex-1 p-0 lg:p-8 lg:pb-8"
-              : "flex-1 p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8"
+              ? "flex min-h-0 flex-1 flex-col overflow-y-auto p-0 lg:p-8 lg:pb-8"
+              : isKitchen
+                ? "flex min-h-0 flex-1 flex-col overflow-hidden p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8"
+                : "flex min-h-0 flex-1 flex-col overflow-y-auto p-4 pb-24 sm:p-6 sm:pb-6 lg:p-8 lg:pb-8"
           }
         >
           {children}

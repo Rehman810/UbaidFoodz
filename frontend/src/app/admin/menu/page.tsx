@@ -18,6 +18,10 @@ import {
 import { api, apiUpload, ApiError } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { enrichCategories } from "@/lib/category-meta";
+import { mergeDealCategoryOptions, dealCategoryLabel } from "@/lib/deal-categories";
+import { PAGE_SIZE } from "@/lib/pagination";
+import { usePagination } from "@/hooks/usePagination";
+import { Pagination } from "@/components/Pagination";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, Deal, MenuItem } from "@/lib/types";
 import { MenuFormSheet, MenuFormData } from "@/components/admin/MenuFormSheet";
 import { DealFormSheet, DealFormData } from "@/components/admin/DealFormSheet";
@@ -40,6 +44,7 @@ const emptyDish: MenuFormData = {
 const emptyDeal: DealFormData = {
   title: "",
   description: "",
+  category: "",
   dealPrice: "",
   imageUrl: "",
   isActive: true,
@@ -84,6 +89,7 @@ export default function AdminMenu() {
   const [dishForm, setDishForm] = useState<MenuFormData>(emptyDish);
   const [editingDish, setEditingDish] = useState<string | null>(null);
 
+  const [dealCategoryFilter, setDealCategoryFilter] = useState<string>("ALL");
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [dealForm, setDealForm] = useState<DealFormData>(emptyDeal);
   const [editingDeal, setEditingDeal] = useState<string | null>(null);
@@ -146,7 +152,7 @@ export default function AdminMenu() {
     () => ({
       total: items.length,
       available: items.filter((i) => i.isAvailable).length,
-      soldOut: items.filter((i) => !i.isAvailable).length,
+      outOfStock: items.filter((i) => !i.isAvailable).length,
       deals: deals.length,
       activeDeals: deals.filter((d) => d.isActive).length,
     }),
@@ -158,6 +164,34 @@ export default function AdminMenu() {
     for (const c of categoryNames) counts[c] = items.filter((i) => i.category === c).length;
     return counts;
   }, [items, categoryNames]);
+
+  const dealCategoryOptions = useMemo(
+    () => mergeDealCategoryOptions(deals.map((d) => d.category)),
+    [deals]
+  );
+
+  const dealFilterOptions = useMemo(() => {
+    const labels = new Set(deals.map((d) => dealCategoryLabel(d.category)));
+    return ["ALL", ...Array.from(labels).sort((a, b) => a.localeCompare(b))];
+  }, [deals]);
+
+  const dealCategoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: deals.length };
+    for (const d of deals) {
+      const label = dealCategoryLabel(d.category);
+      counts[label] = (counts[label] ?? 0) + 1;
+    }
+    return counts;
+  }, [deals]);
+
+  const filteredDeals = useMemo(() => {
+    if (dealCategoryFilter === "ALL") return deals;
+    return deals.filter((d) => dealCategoryLabel(d.category) === dealCategoryFilter);
+  }, [deals, dealCategoryFilter]);
+
+  const dishPagination = usePagination(filtered, PAGE_SIZE.grid, `${tab}|${catFilter}|${search}`);
+  const dealPagination = usePagination(filteredDeals, PAGE_SIZE.grid, `${tab}|${dealCategoryFilter}`);
+  const categoryPagination = usePagination(categories, PAGE_SIZE.grid, tab);
 
   function closeDishForm() {
     setDishFormOpen(false);
@@ -235,6 +269,7 @@ export default function AdminMenu() {
       const body = {
         title: dealForm.title,
         description: dealForm.description,
+        category: dealForm.category.trim(),
         dealPrice: Number(dealForm.dealPrice),
         imageUrl: dealForm.imageUrl,
         isActive: dealForm.isActive,
@@ -391,6 +426,7 @@ export default function AdminMenu() {
     setDealForm({
       title: deal.title,
       description: deal.description,
+      category: deal.category || "",
       dealPrice: String(deal.dealPrice),
       imageUrl: deal.imageUrl,
       isActive: deal.isActive,
@@ -486,7 +522,7 @@ export default function AdminMenu() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filtered.map((item) => {
+              {dishPagination.pageItems.map((item) => {
                 const catStyle = CATEGORY_STYLE[item.category] || CATEGORY_STYLE["Main Course"];
                 return (
                   <article key={item.id} className={`flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm ${editingDish === item.id ? "border-brand-400 ring-2 ring-brand-100" : "border-stone-200/80"}`}>
@@ -494,7 +530,7 @@ export default function AdminMenu() {
                       <DishImage src={item.imageUrl} alt={item.name} />
                       {!item.isAvailable && (
                         <div className="absolute inset-0 flex items-center justify-center bg-stone-900/55">
-                          <span className="rounded-full bg-red-500 px-3 py-1 text-[11px] font-bold text-white">Sold out</span>
+                          <span className="rounded-full bg-red-500 px-3 py-1 text-[11px] font-bold text-white">Out of stock</span>
                         </div>
                       )}
                       <span className={`absolute left-2 top-2 rounded-lg px-2 py-1 text-[10px] font-semibold ring-1 ${catStyle.bg} ${catStyle.text} ${catStyle.ring}`}>{item.category}</span>
@@ -504,7 +540,7 @@ export default function AdminMenu() {
                       <h3 className="font-semibold text-stone-900">{item.name}</h3>
                       {item.description && <p className="mt-1 line-clamp-2 text-xs text-stone-500">{item.description}</p>}
                       <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-stone-100 pt-3">
-                        <button type="button" onClick={() => toggleDish(item)} className="rounded-lg bg-stone-100 py-2 text-[10px] font-semibold sm:text-xs">{item.isAvailable ? "Sold out" : "Enable"}</button>
+                        <button type="button" onClick={() => toggleDish(item)} className="rounded-lg bg-stone-100 py-2 text-[10px] font-semibold sm:text-xs">{item.isAvailable ? "Out of stock" : "Enable"}</button>
                         <button type="button" onClick={() => startEditDish(item)} className="rounded-lg bg-stone-100 py-2 text-[10px] font-semibold sm:text-xs"><Pencil size={12} className="mx-auto" /></button>
                         <button type="button" onClick={() => removeDish(item.id)} className="rounded-lg py-2 text-red-600 hover:bg-red-50"><Trash2 size={12} className="mx-auto" /></button>
                       </div>
@@ -514,38 +550,79 @@ export default function AdminMenu() {
               })}
             </div>
           )}
+          {!loading && filtered.length > 0 && (
+            <Pagination
+              page={dishPagination.page}
+              totalPages={dishPagination.totalPages}
+              totalItems={dishPagination.totalItems}
+              rangeStart={dishPagination.rangeStart}
+              rangeEnd={dishPagination.rangeEnd}
+              onPageChange={dishPagination.setPage}
+              className="mt-4"
+            />
+          )}
         </>
       )}
 
       {/* DEALS TAB */}
       {tab === "deals" && (
-        loading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-64 rounded-2xl" />)}
-          </div>
-        ) : deals.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
-            <Sparkles size={36} className="mx-auto text-stone-300" />
-            <p className="mt-3 font-medium text-stone-600">No deals yet</p>
-            <button type="button" onClick={openAddDeal} className="btn-primary mt-4"><Plus size={16} /> Create first deal</button>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {deals.map((deal) => {
-              const regular = deal.items.reduce((s, i) => s + Number(i.menuItem.price) * i.quantity, 0);
-              return (
-                <article key={deal.id} className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
-                  <div className="relative aspect-[16/10] bg-violet-50">
-                    {deal.imageUrl ? (
-                      <img src={deal.imageUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="grid h-full place-items-center text-violet-300"><Sparkles size={32} /></div>
-                    )}
-                    {!deal.isActive && (
-                      <span className="absolute left-2 top-2 rounded-full bg-stone-800 px-2.5 py-1 text-[10px] font-bold text-white">Hidden</span>
-                    )}
-                    <span className="absolute bottom-2 right-2 rounded-lg bg-violet-600 px-2.5 py-1 text-sm font-bold text-white">{pkr(deal.dealPrice)}</span>
-                  </div>
+        <>
+          {deals.length > 0 && (
+            <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
+              <div className="flex gap-1.5 overflow-x-auto">
+                {dealFilterOptions.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setDealCategoryFilter(c)}
+                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${
+                      dealCategoryFilter === c ? "bg-violet-600 text-white" : "bg-stone-50 text-stone-600 ring-1 ring-stone-200"
+                    }`}
+                  >
+                    {c === "ALL" ? "All" : c} ({dealCategoryCounts[c === "ALL" ? "ALL" : c] ?? 0})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-64 rounded-2xl" />)}
+            </div>
+          ) : deals.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
+              <Sparkles size={36} className="mx-auto text-stone-300" />
+              <p className="mt-3 font-medium text-stone-600">No deals yet</p>
+              <button type="button" onClick={openAddDeal} className="btn-primary mt-4"><Plus size={16} /> Create first deal</button>
+            </div>
+          ) : filteredDeals.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
+              <Sparkles size={36} className="mx-auto text-stone-300" />
+              <p className="mt-3 font-medium text-stone-600">No deals in this category</p>
+              <button type="button" onClick={() => setDealCategoryFilter("ALL")} className="btn-primary mt-4">Show all deals</button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {dealPagination.pageItems.map((deal) => {
+                const regular = deal.items.reduce((s, i) => s + Number(i.menuItem.price) * i.quantity, 0);
+                const categoryName = dealCategoryLabel(deal.category);
+                return (
+                  <article key={deal.id} className="overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-sm">
+                    <div className="relative aspect-[16/10] bg-violet-50">
+                      {deal.imageUrl ? (
+                        <img src={deal.imageUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="grid h-full place-items-center text-violet-300"><Sparkles size={32} /></div>
+                      )}
+                      {!deal.isActive && (
+                        <span className="absolute left-2 top-2 rounded-full bg-stone-800 px-2.5 py-1 text-[10px] font-bold text-white">Hidden</span>
+                      )}
+                      <span className="absolute left-2 bottom-2 max-w-[calc(100%-5rem)] truncate rounded-lg bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-violet-800 ring-1 ring-violet-100">
+                        {categoryName}
+                      </span>
+                      <span className="absolute bottom-2 right-2 rounded-lg bg-violet-600 px-2.5 py-1 text-sm font-bold text-white">{pkr(deal.dealPrice)}</span>
+                    </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-stone-900">{deal.title}</h3>
                     <p className="mt-1 text-xs text-stone-500 line-clamp-2">{deal.description}</p>
@@ -567,7 +644,19 @@ export default function AdminMenu() {
               );
             })}
           </div>
-        )
+          )}
+          {!loading && filteredDeals.length > 0 && (
+            <Pagination
+              page={dealPagination.page}
+              totalPages={dealPagination.totalPages}
+              totalItems={dealPagination.totalItems}
+              rangeStart={dealPagination.rangeStart}
+              rangeEnd={dealPagination.rangeEnd}
+              onPageChange={dealPagination.setPage}
+              className="mt-4"
+            />
+          )}
+        </>
       )}
 
       {/* CATEGORIES TAB */}
@@ -583,8 +672,9 @@ export default function AdminMenu() {
             <button type="button" onClick={openAddCategory} className="btn-primary mt-4"><Plus size={16} /> Create first category</button>
           </div>
         ) : (
+          <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((cat) => {
+            {categoryPagination.pageItems.map((cat) => {
               const display = enrichCategories([cat])[0];
               return (
               <article key={cat.id} className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
@@ -611,6 +701,16 @@ export default function AdminMenu() {
             );
             })}
           </div>
+          <Pagination
+            page={categoryPagination.page}
+            totalPages={categoryPagination.totalPages}
+            totalItems={categoryPagination.totalItems}
+            rangeStart={categoryPagination.rangeStart}
+            rangeEnd={categoryPagination.rangeEnd}
+            onPageChange={categoryPagination.setPage}
+            className="mt-4"
+          />
+          </>
         )
       )}
 
@@ -640,6 +740,7 @@ export default function AdminMenu() {
           saving={saving}
           uploading={uploading}
           uploadError={uploadError}
+          categoryOptions={dealCategoryOptions}
           onClose={closeDealForm}
           onSubmit={onDealSubmit}
           onImagePick={(e) => onImagePick(e, "deal")}

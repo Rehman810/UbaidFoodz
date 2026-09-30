@@ -28,6 +28,7 @@ import { AnalyticsData, AnalyticsPeriod } from "@/lib/admin-types";
 import { STATUS_LABEL, OrderStatus } from "@/lib/types";
 import { STATUS_THEME } from "@/lib/admin-status";
 import { usePoll } from "@/hooks/usePoll";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { formatDateSpanLabel } from "@/lib/order-dates";
 
 const PERIODS: { id: AnalyticsPeriod; label: string; short: string }[] = [
@@ -134,7 +135,8 @@ export default function AnalyticsPage() {
     [period]
   );
 
-  const { data, loading, refresh } = usePoll(fetchAnalytics, 30000);
+  const { data, loading, refreshing, refresh } = usePoll(fetchAnalytics, 30000);
+  const showSkeleton = loading || refreshing;
 
   const chartTitle = useMemo(() => {
     if (period === "today") return "Hourly sales";
@@ -204,18 +206,12 @@ export default function AnalyticsPage() {
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={refresh}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800"
-            >
-              <RefreshCw size={15} /> Refresh
-            </button>
+            <RefreshButton busy={showSkeleton} onClick={refresh} className="!bg-stone-900 !text-white hover:!bg-stone-800" />
           </div>
         </div>
       </div>
 
-      {loading || !data ? (
+      {showSkeleton || !data ? (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (

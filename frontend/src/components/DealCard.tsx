@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ImageIcon, Plus, Sparkles } from "lucide-react";
 import { pkr } from "@/lib/format";
+import { dealCategoryLabel } from "@/lib/deal-categories";
 import { useCart } from "@/lib/cart";
 import { useDealModal } from "@/lib/deal-modal";
 import { useStoreOpen } from "@/lib/use-store-open";
@@ -27,6 +28,7 @@ export function DealCard({ deal }: { deal: Deal }) {
   const savePct = regular > 0 ? Math.round((save / regular) * 100) : 0;
   const image = dealImage(deal);
   const includes = deal.items.map((r) => `${r.quantity}× ${r.menuItem.name}`).join(" · ");
+  const categoryName = dealCategoryLabel(deal.category);
 
   function quickAdd(e: React.MouseEvent) {
     e.stopPropagation();
@@ -49,7 +51,7 @@ export function DealCard({ deal }: { deal: Deal }) {
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 py-0.5">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700">
-            <Sparkles size={11} /> Combo deal
+            <Sparkles size={11} /> {categoryName}
           </span>
           <h3 className="mt-2 font-display text-xl font-bold leading-snug text-stone-900 sm:text-2xl">
             {deal.title}

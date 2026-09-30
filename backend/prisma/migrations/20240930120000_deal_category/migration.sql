@@ -1,0 +1,1 @@
+ALTER TABLE "Deal" ADD COLUMN "category" TEXT NOT NULL DEFAULT '';

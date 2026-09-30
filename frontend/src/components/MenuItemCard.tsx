@@ -96,7 +96,7 @@ export function MenuItemCard({ item }: { item: MenuItem }) {
 
           {!item.isAvailable && (
             <div className="absolute inset-0 grid place-items-center bg-stone-900/50 text-[10px] font-bold text-white">
-              Sold out
+              Out of stock
             </div>
           )}
 

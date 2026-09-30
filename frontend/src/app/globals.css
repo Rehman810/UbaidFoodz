@@ -159,14 +159,16 @@ h4 {
 
 .kanban-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #fdba74 transparent;
+  scrollbar-color: #fb923c #fff7ed;
+  scrollbar-gutter: stable;
 }
 .kanban-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 .kanban-scroll::-webkit-scrollbar-track {
-  background: transparent;
+  background: #fff7ed;
   margin: 4px 0;
+  border-radius: 99px;
 }
 .kanban-scroll::-webkit-scrollbar-thumb {
   background: #fdba74;

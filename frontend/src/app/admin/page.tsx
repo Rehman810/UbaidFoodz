@@ -28,6 +28,7 @@ import { AdminStats } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 import { StatCard } from "@/components/admin/StatCard";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { PipelineFlow } from "@/components/admin/PipelineFlow";
 import { RecentOrderRow } from "@/components/admin/RecentOrderRow";
 import { OrderStatus } from "@/lib/types";
@@ -54,8 +55,9 @@ export default function AdminDashboard() {
     setTwoFaHidden(sessionStorage.getItem("ros-2fa-dismiss") === "1");
   }, []);
   const fetchStats = useCallback(() => api<AdminStats>("/admin/stats"), []);
-  const { data: stats, loading, refresh } = usePoll(fetchStats, 12000);
+  const { data: stats, loading, refreshing, refresh } = usePoll(fetchStats, 12000);
   useLiveOrders(refresh);
+  const showSkeleton = loading || refreshing;
 
   async function setStatus(id: string, status: OrderStatus) {
     await api(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
@@ -75,7 +77,7 @@ export default function AdminDashboard() {
     window.dispatchEvent(new Event("store-refresh"));
   }
 
-  if (loading || !stats) {
+  if (showSkeleton || !stats) {
     return (
       <div className="space-y-4">
         <div className="skeleton h-44 rounded-3xl" />
@@ -136,12 +138,7 @@ export default function AdminDashboard() {
             >
               {store?.isOpen ? "Close kitchen" : store?.settings.forceClosed ? "Open kitchen" : "Closed by schedule"}
             </button>
-            <button
-              onClick={refresh}
-              className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-5 py-4 text-sm font-bold shadow-lg shadow-brand-900/40 hover:bg-brand-500"
-            >
-              <RefreshCw size={16} /> Refresh
-            </button>
+            <RefreshButton busy={showSkeleton} onClick={refresh} variant="dark" />
           </div>
         </div>
       </div>

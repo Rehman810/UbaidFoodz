@@ -242,6 +242,7 @@ model Deal {
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
   title        String
   description String     @default("")
+  category    String     @default("")
   dealPrice   Decimal    @db.Decimal(10, 2)
   imageUrl    String     @default("")
   isActive    Boolean    @default(true)

@@ -5,6 +5,9 @@ import { StoreShell } from "@/components/StoreShell";
 import { MenuCard } from "@/components/MenuCard";
 import { MenuFilters } from "@/components/MenuFilters";
 import { api } from "@/lib/api";
+import { PAGE_SIZE } from "@/lib/pagination";
+import { usePagination } from "@/hooks/usePagination";
+import { Pagination } from "@/components/Pagination";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, MenuItem } from "@/lib/types";
 
 export default function MenuPage() {
@@ -51,6 +54,8 @@ export default function MenuPage() {
     }
     return list;
   }, [items, cat, search]);
+
+  const menuPagination = usePagination(filtered, PAGE_SIZE.grid, `${cat}|${search}`);
 
   const subtitle = search.trim()
     ? `${filtered.length} result${filtered.length === 1 ? "" : "s"} for “${search.trim()}”`
@@ -117,11 +122,22 @@ export default function MenuPage() {
         )}
 
         {items && filtered.length > 0 && (
+          <>
           <div className="mt-8 grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
-            {filtered.map((item) => (
+            {menuPagination.pageItems.map((item) => (
               <MenuCard key={item.id} item={item} />
             ))}
           </div>
+          <Pagination
+            page={menuPagination.page}
+            totalPages={menuPagination.totalPages}
+            totalItems={menuPagination.totalItems}
+            rangeStart={menuPagination.rangeStart}
+            rangeEnd={menuPagination.rangeEnd}
+            onPageChange={menuPagination.setPage}
+            className="mt-8"
+          />
+          </>
         )}
       </div>
     </StoreShell>
