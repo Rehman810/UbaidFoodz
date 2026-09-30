@@ -80,9 +80,18 @@ export function StaffTable({
   onToggleActive: (member: StaffRow) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+    <div className="w-full overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[960px] table-fixed border-collapse text-left text-sm">
+          <colgroup>
+            <col className="w-[22%]" />
+            <col className="w-[20%]" />
+            <col className="w-[12%]" />
+            <col className="w-[10%]" />
+            <col className="w-[8%]" />
+            <col className="w-[12%]" />
+            <col className="w-[16%]" />
+          </colgroup>
           <thead>
             <tr className="border-b border-stone-100 bg-stone-50/80 text-[11px] font-bold uppercase tracking-wider text-stone-400">
               <th className="px-4 py-3 font-semibold">Staff member</th>
@@ -126,7 +135,7 @@ export function StaffTable({
                     </div>
                   </td>
                   <td className="px-4 py-3.5 align-top">
-                    <p className="max-w-[200px] truncate text-xs text-stone-600">{s.email}</p>
+                    <p className="truncate text-xs text-stone-600">{s.email}</p>
                     {s.phone ? (
                       <p className="mt-0.5 text-xs text-stone-500">{s.phone}</p>
                     ) : (

@@ -436,7 +436,7 @@ export default function AdminMenu() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5">
+    <div className="w-full space-y-5">
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">

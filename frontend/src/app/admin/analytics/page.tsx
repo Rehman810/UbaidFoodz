@@ -18,7 +18,6 @@ import {
   CalendarDays,
   ClipboardList,
   PackageCheck,
-  RefreshCw,
   ShoppingBag,
   TrendingUp,
 } from "lucide-react";
@@ -171,7 +170,7 @@ export default function AnalyticsPage() {
   const maxTopQty = data?.topItems[0]?.qty || 1;
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5">
+    <div className="w-full space-y-5">
       {/* Toolbar */}
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">

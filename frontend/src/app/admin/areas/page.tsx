@@ -7,6 +7,7 @@ import { pkr } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/Pagination";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { DeliveryArea } from "@/lib/types";
 
 export default function AdminAreasPage() {
@@ -21,14 +22,23 @@ export default function AdminAreasPage() {
   const [newDelivering, setNewDelivering] = useState(true);
   const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(() => {
-    return api<DeliveryArea[]>("/delivery-areas/all").then((rows) => {
-      setAreas(rows);
-      setDraftCharges(
-        Object.fromEntries(rows.map((a) => [a.id, String(Number(a.deliveryCharge))]))
-      );
-    });
+  const load = useCallback((manual = false) => {
+    if (manual) setRefreshing(true);
+    else setLoading(true);
+    return api<DeliveryArea[]>("/delivery-areas/all")
+      .then((rows) => {
+        setAreas(rows);
+        setDraftCharges(
+          Object.fromEntries(rows.map((a) => [a.id, String(Number(a.deliveryCharge))]))
+        );
+      })
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -47,6 +57,7 @@ export default function AdminAreasPage() {
   const areaPagination = usePagination(filtered, PAGE_SIZE.list, `${query}|${filter}`);
 
   const activeCount = areas.filter((a) => a.isDelivering).length;
+  const showSkeleton = loading || refreshing;
 
   async function patchArea(id: string, data: Partial<Pick<DeliveryArea, "isDelivering" | "deliveryCharge">>) {
     setSavingId(id);
@@ -121,9 +132,7 @@ export default function AdminAreasPage() {
           <button type="button" onClick={() => setShowAdd((v) => !v)} className="btn-primary">
             <Plus size={15} /> Add area
           </button>
-          <button type="button" onClick={() => load()} className="btn-ghost">
-            <RefreshCw size={15} /> Refresh
-          </button>
+          <RefreshButton busy={showSkeleton} onClick={() => load(true)} />
         </div>
       </div>
 
@@ -220,6 +229,13 @@ export default function AdminAreasPage() {
         </button>
       </div>
 
+      {showSkeleton ? (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton h-16 rounded-2xl" />
+          ))}
+        </div>
+      ) : (
       <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
         <div className="hidden grid-cols-[1fr_140px_120px] gap-4 border-b border-stone-100 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-stone-500 md:grid">
           <span>Area</span>
@@ -273,8 +289,9 @@ export default function AdminAreasPage() {
           <p className="px-5 py-12 text-center text-sm text-stone-500">No areas match your search.</p>
         )}
       </div>
+      )}
 
-      {filtered.length > 0 && (
+      {!showSkeleton && filtered.length > 0 && (
         <Pagination
           page={areaPagination.page}
           totalPages={areaPagination.totalPages}

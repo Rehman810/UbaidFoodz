@@ -5,19 +5,18 @@ import {
   Bike,
   ChefHat,
   Plus,
-  Receipt,
   ShieldCheck,
   UserCog,
   Users,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Role } from "@/lib/types";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
-import { ASSIGNABLE_ROLES, StaffRow, StaffTable } from "@/components/admin/StaffTable";
+import { StaffRow, StaffTable } from "@/components/admin/StaffTable";
+import { StaffFormData, StaffFormSheet } from "@/components/admin/StaffFormSheet";
 
 function KpiCard({
   label,
@@ -59,14 +58,17 @@ export default function StaffPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [msgTone, setMsgTone] = useState<"ok" | "err">("ok");
-  const [form, setForm] = useState({
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const emptyForm: StaffFormData = {
     name: "",
     email: "",
     phone: "",
     password: "",
-    role: "CHEF" as Role,
+    role: "CHEF",
     autoGeneratePassword: true,
-  });
+  };
+  const [form, setForm] = useState<StaffFormData>(emptyForm);
 
   const stats = useMemo(
     () => ({
@@ -99,9 +101,15 @@ export default function StaffPage() {
     });
   }, []);
 
+  function closeForm() {
+    setFormOpen(false);
+    setForm(emptyForm);
+  }
+
   async function createStaff(e: FormEvent) {
     e.preventDefault();
     setMsg("");
+    setSaving(true);
     try {
       const res = await api<{ emailed?: boolean }>("/admin/staff", {
         method: "POST",
@@ -114,7 +122,7 @@ export default function StaffPage() {
           password: form.autoGeneratePassword ? undefined : form.password.trim() || undefined,
         }),
       });
-      setForm({ name: "", email: "", phone: "", password: "", role: "CHEF", autoGeneratePassword: true });
+      closeForm();
       await load(true);
       setMsgTone("ok");
       setMsg(
@@ -125,6 +133,8 @@ export default function StaffPage() {
     } catch (err) {
       setMsgTone("err");
       setMsg(err instanceof Error ? err.message : "Could not create staff.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -150,7 +160,7 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6">
+    <div className="w-full space-y-6">
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -164,7 +174,19 @@ export default function StaffPage() {
               </p>
             </div>
           </div>
-          <RefreshButton busy={showSkeleton} onClick={() => load(true)} />
+          <div className="flex flex-wrap gap-2">
+            <RefreshButton busy={showSkeleton} onClick={() => load(true)} />
+            <button
+              type="button"
+              onClick={() => {
+                setForm(emptyForm);
+                setFormOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500"
+            >
+              <Plus size={16} /> Add staff
+            </button>
+          </div>
         </div>
       </div>
 
@@ -175,7 +197,7 @@ export default function StaffPage() {
         <KpiCard label="Active" value={stats.active} icon={ShieldCheck} accent="emerald" />
       </div>
 
-      {msg && (
+      {msg && !(formOpen && msgTone === "err") && (
         <p
           className={`rounded-2xl border px-4 py-3 text-sm ${
             msgTone === "ok"
@@ -186,63 +208,6 @@ export default function StaffPage() {
           {msg}
         </p>
       )}
-
-      <form onSubmit={createStaff} className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
-        <div className="border-b border-stone-100 bg-gradient-to-r from-brand-50/80 to-orange-50/50 px-5 py-4">
-          <p className="flex items-center gap-2 text-sm font-bold text-stone-900">
-            <Plus size={16} className="text-brand-600" />
-            Add staff member
-          </p>
-          <p className="mt-0.5 text-xs text-stone-500">
-            Choose Chef, Rider, or Cashier — riders are created here only, not on the Riders page.
-          </p>
-        </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Name</span>
-            <input className="input" placeholder="Chef Ali" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Email</span>
-            <input className="input" type="email" placeholder="chef@email.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Phone</span>
-            <input className="input" placeholder="0322-4455667" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Role</span>
-            <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-              {ASSIGNABLE_ROLES.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
-          </label>
-          {!form.autoGeneratePassword && (
-            <label className="block sm:col-span-2 lg:col-span-1">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500">Password</span>
-              <input className="input" type="password" placeholder="Min 6 characters" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            </label>
-          )}
-        </div>
-        <div className="border-t border-stone-100 px-5 py-3">
-          <label className="flex cursor-pointer items-center gap-3 text-sm text-stone-700">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-stone-300 text-brand-600"
-              checked={form.autoGeneratePassword}
-              onChange={(e) => setForm({ ...form, autoGeneratePassword: e.target.checked, password: "" })}
-            />
-            Auto-generate a secure password and email login details to this person
-          </label>
-        </div>
-        <div className="border-t border-stone-100 px-5 py-4">
-          <button type="submit" className="btn-primary h-11 gap-2 px-5">
-            <Plus size={16} />
-            Create account
-          </button>
-        </div>
-      </form>
 
       {showSkeleton ? (
         <div className="skeleton h-80 rounded-2xl" />
@@ -264,6 +229,18 @@ export default function StaffPage() {
             onPageChange={staffPagination.setPage}
           />
         </>
+      )}
+
+      {formOpen && (
+        <StaffFormSheet
+          open={formOpen}
+          form={form}
+          setForm={setForm}
+          saving={saving}
+          error={msgTone === "err" ? msg : ""}
+          onClose={closeForm}
+          onSubmit={createStaff}
+        />
       )}
     </div>
   );

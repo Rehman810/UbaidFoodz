@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipboardList, LayoutGrid, RefreshCw, Search, Sparkles, Table2 } from "lucide-react";
+import { ClipboardList, LayoutGrid, Search, Sparkles, Table2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { fetchAdminOrders } from "@/lib/admin-orders";
 import { pkr } from "@/lib/format";

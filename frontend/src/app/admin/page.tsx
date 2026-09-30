@@ -16,7 +16,6 @@ import {
   ClipboardList,
   PackageCheck,
   Receipt,
-  RefreshCw,
   TrendingUp,
   Wallet,
 } from "lucide-react";

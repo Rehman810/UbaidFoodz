@@ -75,7 +75,7 @@ export default function RiderDeliveriesPage() {
         <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</p>
       )}
 
-      {loading ? (
+      {loading || refreshing ? (
         <div className="space-y-3">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="skeleton h-48 rounded-2xl" />

@@ -119,7 +119,7 @@ export default function RidersPage() {
   const riderPagination = usePagination(filtered, PAGE_SIZE.grid, search);
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5">
+    <div className="w-full space-y-5">
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -186,7 +186,7 @@ export default function RidersPage() {
       </div>
 
       {showSkeleton ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid w-full gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="skeleton h-56 rounded-2xl" />
           ))}
@@ -205,7 +205,7 @@ export default function RidersPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid w-full gap-4">
             {riderPagination.pageItems.map((r) => {
               const busy = r.activeOrders.length > 0;
               return (

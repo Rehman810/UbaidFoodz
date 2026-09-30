@@ -47,9 +47,19 @@ export function CustomerTable({
   onUnblock: (customer: AdminCustomer) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1080px] border-collapse text-left text-sm">
+    <div className="w-full overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-sm">
+          <colgroup>
+            <col className="w-[18%]" />
+            <col className="w-[20%]" />
+            <col className="w-[12%]" />
+            <col className="w-[8%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[14%]" />
+            {isAdmin && <col className="w-[8%]" />}
+          </colgroup>
           <thead>
             <tr className="border-b border-stone-100 bg-stone-50/80 text-[11px] font-bold uppercase tracking-wider text-stone-400">
               <th className="px-4 py-3 font-semibold">Customer</th>
@@ -75,7 +85,7 @@ export function CustomerTable({
                     blocked ? "bg-red-50/30" : isTop ? "bg-amber-50/20" : ""
                   }`}
                 >
-                  <td className="px-4 py-3.5 align-top">
+                  <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-3">
                       <div
                         className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-sm font-bold text-white ${avatarGradient(c.id)}`}
@@ -104,11 +114,11 @@ export function CustomerTable({
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 align-top">
+                  <td className="px-4 py-3 align-middle">
                     {c.email ? (
                       <p className="flex items-center gap-1.5 text-xs text-stone-600">
                         <Mail size={12} className="shrink-0 text-stone-400" />
-                        <span className="max-w-[180px] truncate">{c.email}</span>
+                        <span className="truncate">{c.email}</span>
                       </p>
                     ) : (
                       <span className="text-xs text-stone-400">—</span>
@@ -116,31 +126,26 @@ export function CustomerTable({
                     {c.phone ? (
                       <p className="mt-1 flex items-center gap-1.5 text-xs text-stone-600">
                         <Phone size={12} className="shrink-0 text-stone-400" />
-                        {c.phone}
+                        <span className="truncate">{c.phone}</span>
                       </p>
                     ) : null}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 align-top text-xs text-stone-500">
+                  <td className="whitespace-nowrap px-4 py-3 align-middle text-xs text-stone-500">
                     {formatWhen(c.createdAt)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-center align-top">
-                    <span className="inline-flex min-w-[2rem] justify-center rounded-lg bg-stone-100 px-2 py-1 text-sm font-bold text-stone-800">
-                      {c.orderCount}
-                    </span>
+                  <td className="whitespace-nowrap px-4 py-3 text-center align-middle font-semibold text-stone-800">
+                    {c.orderCount}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right align-top">
-                    <span className="font-bold text-brand-800">{pkr(c.totalSpent)}</span>
+                  <td className="whitespace-nowrap px-4 py-3 text-right align-middle font-bold text-brand-800">
+                    {pkr(c.totalSpent)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 text-right align-top text-stone-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-right align-middle text-stone-700">
                     {c.orderCount > 0 ? pkr(Math.round(avgOrder)) : "—"}
                   </td>
-                  <td className="px-4 py-3.5 align-top">
+                  <td className="px-4 py-3 align-middle">
                     {c.lastOrder ? (
-                      <Link
-                        href="/admin/orders"
-                        className="block min-w-[140px] rounded-xl border border-stone-100 bg-stone-50/80 px-2.5 py-2 transition hover:border-brand-200 hover:bg-brand-50/50"
-                      >
-                        <div className="flex items-center justify-between gap-2">
+                      <Link href="/admin/orders" className="block hover:text-brand-700">
+                        <div className="flex flex-wrap items-center gap-2">
                           <StatusBadge
                             status={c.lastOrder.status}
                             fulfillmentType={c.lastOrder.fulfillmentType}
@@ -154,7 +159,7 @@ export function CustomerTable({
                     )}
                   </td>
                   {isAdmin && (
-                    <td className="whitespace-nowrap px-4 py-3.5 align-top">
+                    <td className="whitespace-nowrap px-4 py-3 align-middle">
                       {!blocked ? (
                         <button
                           type="button"

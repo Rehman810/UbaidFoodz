@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BellOff, ChefHat, RefreshCw, Timer, Volume2 } from "lucide-react";
+import { BellOff, ChefHat, Timer, Volume2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { fetchAdminOrders } from "@/lib/admin-orders";
 import { Order, OrderStatus } from "@/lib/types";
@@ -247,13 +247,12 @@ export default function KitchenPage() {
 
               <div className="kanban-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain rounded-b-2xl border border-t-0 border-stone-200/80 bg-white p-2 pr-1 shadow-inner">
                 <div className="flex flex-col gap-2.5">
-                {showSkeleton && !data && (
+                {showSkeleton ? (
                   <>
                     <div className="skeleton h-32 rounded-xl" />
                     <div className="skeleton h-28 rounded-xl" />
                   </>
-                )}
-                {!showSkeleton && list.length === 0 && (
+                ) : list.length === 0 ? (
                   <div className="flex min-h-[140px] flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/80 px-4 py-10 text-center">
                     <div className={`mb-3 grid h-10 w-10 place-items-center rounded-full ${theme.bg}`}>
                       <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
@@ -261,8 +260,8 @@ export default function KitchenPage() {
                     <p className="text-sm font-medium text-stone-500">No tickets</p>
                     <p className="mt-1 text-xs text-stone-400">{lane.hint}</p>
                   </div>
-                )}
-                {list.map((order) => {
+                ) : (
+                list.map((order) => {
                   const action = actionFor(order);
                   return (
                     <KitchenTicket
@@ -274,7 +273,8 @@ export default function KitchenPage() {
                       error={errors[order.id]}
                     />
                   );
-                })}
+                })
+                )}
                 </div>
               </div>
             </div>
