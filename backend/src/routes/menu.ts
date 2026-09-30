@@ -98,12 +98,37 @@ function serializeMenuItem(item: {
   };
 }
 
-menuRouter.get("/", async (_req, res) => {
-  const items = await prisma.menuItem.findMany({
-    include: menuInclude,
-    orderBy: { createdAt: "desc" },
-  });
-  res.json(items.map(serializeMenuItem));
+menuRouter.get("/", async (req, res) => {
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 500));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const search = String(req.query.search || "").trim();
+  const category = String(req.query.category || "").trim();
+
+  const where = {
+    ...(category && category !== "All" ? { category } : {}),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+            { category: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.menuItem.findMany({
+      where,
+      include: menuInclude,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.menuItem.count({ where }),
+  ]);
+
+  res.json({ items: items.map(serializeMenuItem), total, limit, offset });
 });
 
 menuRouter.get("/:id", async (req, res) => {

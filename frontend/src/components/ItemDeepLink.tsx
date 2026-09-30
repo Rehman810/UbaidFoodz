@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { api } from "@/lib/api";
+import { fetchAllMenuItems } from "@/lib/catalog-api";
 import { useItemModal } from "@/lib/item-modal";
 import { MenuItem } from "@/lib/types";
 
@@ -18,7 +18,7 @@ function ItemDeepLinkInner() {
     if (!itemId || handled.current === itemId) return;
     handled.current = itemId;
 
-    api<MenuItem[]>("/menu")
+    fetchAllMenuItems()
       .then((menu) => {
         const found = menu.find((m) => m.id === itemId);
         if (found) open(found);

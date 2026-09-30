@@ -357,12 +357,55 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
 });
 
 ordersRouter.get("/mine", requireAuth, async (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const where = { customerId: req.user!.id };
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  res.json({ orders, total, limit, offset });
+});
+
+const BOARD_STATUSES: OrderStatus[] = [
+  OrderStatus.PENDING_CONFIRMATION,
+  OrderStatus.CONFIRMED,
+  OrderStatus.PREPARING,
+  OrderStatus.READY,
+  OrderStatus.OUT_FOR_DELIVERY,
+  OrderStatus.DELIVERED,
+];
+
+ordersRouter.get("/board", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {
+  const days = Math.min(14, Math.max(1, Number(req.query.days) || 7));
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const statusParam = String(req.query.statuses || "").trim();
+  const statuses = statusParam
+    ? statusParam
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s): s is OrderStatus => Object.values(OrderStatus).includes(s as OrderStatus))
+    : BOARD_STATUSES;
+
   const orders = await prisma.order.findMany({
-    where: { customerId: req.user!.id },
-    include,
+    where: {
+      status: { in: statuses },
+      createdAt: { gte: since },
+    },
+    include: { ...include, customer: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: "desc" },
+    take: 200,
   });
-  res.json(orders);
+
+  res.json({ orders });
 });
 
 ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {

@@ -3,6 +3,14 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { FulfillmentType, OrderSource, OrderStatus, Role } from "@prisma/client";
 import { normalizeBlockEmail, normalizeBlockPhone } from "../lib/blocklist";
+import {
+  buildCustomerDirectory,
+  customerDirectoryStats,
+  filterCustomers,
+  listCustomerOrders,
+  paginateCustomers,
+  type CustomerSort,
+} from "../lib/customer-directory";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { sendStaffWelcomeEmail } from "../lib/email";
@@ -422,148 +430,69 @@ function customerContactKey(phone: string, email: string | null | undefined) {
   return null;
 }
 
-type CustomerOrderRow = {
-  id: string;
-  total: { toString(): string } | number;
-  status: OrderStatus;
-  createdAt: Date;
-  fulfillmentType: FulfillmentType;
-  customerId: string | null;
-  customerName: string;
-  customerPhone: string;
-  customerEmail: string | null;
-};
+adminRouter.get("/customers/stats", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (_req, res) => {
+  const directory = await buildCustomerDirectory();
+  res.json(customerDirectoryStats(directory));
+});
 
-adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (_req, res) => {
-  const [users, orders] = await Promise.all([
-    prisma.user.findMany({
-      where: { role: Role.CUSTOMER },
-      select: { id: true, name: true, email: true, phone: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.order.findMany({
-      select: {
-        id: true,
-        total: true,
-        status: true,
-        createdAt: true,
-        fulfillmentType: true,
-        customerId: true,
-        customerName: true,
-        customerPhone: true,
-        customerEmail: true,
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+adminRouter.get("/customers/:customerId/orders", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const result = await listCustomerOrders(req.params.customerId, limit, offset);
+  if (!result) return res.status(404).json({ error: "Customer not found." });
+  res.json(result);
+});
 
-  type Agg = {
-    id: string;
-    name: string;
-    email: string;
-    phone: string | null;
-    createdAt: Date;
-    isGuest: boolean;
-    orders: CustomerOrderRow[];
-  };
+adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const search = String(req.query.search || "").trim();
+  const sortRaw = String(req.query.sort || "spent");
+  const sort: CustomerSort =
+    sortRaw === "orders" || sortRaw === "name" || sortRaw === "recent" ? sortRaw : "spent";
 
-  const byId = new Map<string, Agg>();
-  const contactToUserId = new Map<string, string>();
+  const directory = await buildCustomerDirectory();
+  const filtered = filterCustomers(directory, search, sort);
+  const { customers, total } = paginateCustomers(filtered, limit, offset);
 
-  for (const u of users) {
-    byId.set(u.id, {
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      phone: u.phone,
-      createdAt: u.createdAt,
-      isGuest: false,
-      orders: [],
-    });
-    const phoneKey = normalizeBlockPhone(u.phone);
-    if (phoneKey) contactToUserId.set(`phone:${phoneKey}`, u.id);
-    const emailKey = normalizeBlockEmail(u.email);
-    if (emailKey) contactToUserId.set(`email:${emailKey}`, u.id);
-  }
-
-  const guestByKey = new Map<string, Agg>();
-
-  function resolveRegisteredUserId(order: CustomerOrderRow) {
-    if (order.customerId && byId.has(order.customerId)) return order.customerId;
-    const phoneKey = normalizeBlockPhone(order.customerPhone);
-    if (phoneKey) {
-      const uid = contactToUserId.get(`phone:${phoneKey}`);
-      if (uid) return uid;
-    }
-    const emailKey = order.customerEmail ? normalizeBlockEmail(order.customerEmail) : null;
-    if (emailKey) {
-      const uid = contactToUserId.get(`email:${emailKey}`);
-      if (uid) return uid;
-    }
-    return null;
-  }
-
-  for (const order of orders) {
-    const userId = resolveRegisteredUserId(order);
-    if (userId) {
-      byId.get(userId)!.orders.push(order);
-      continue;
-    }
-
-    const key = customerContactKey(order.customerPhone, order.customerEmail);
-    if (!key) continue;
-
-    let guest = guestByKey.get(key);
-    if (!guest) {
-      guest = {
-        id: `guest:${key}`,
-        name: order.customerName,
-        email: order.customerEmail || "",
-        phone: order.customerPhone,
-        createdAt: order.createdAt,
-        isGuest: true,
-        orders: [],
-      };
-      guestByKey.set(key, guest);
-    } else if (order.createdAt > guest.createdAt) {
-      guest.name = order.customerName;
-      if (order.customerEmail) guest.email = order.customerEmail;
-    }
-    guest.orders.push(order);
-  }
-
-  const toResponse = (c: Agg) => {
-    const sorted = [...c.orders].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    const last = sorted[0];
-    return {
-      id: c.id,
-      name: c.name,
-      email: c.email,
-      phone: c.phone,
-      createdAt: c.createdAt,
-      isGuest: c.isGuest,
-      orderCount: sorted.length,
-      totalSpent: sorted
-        .filter((o) => o.status !== OrderStatus.CANCELLED)
-        .reduce((s, o) => s + Number(o.total), 0),
-      lastOrder: last
+  res.json({
+    customers: customers.map((c) => ({
+      ...c,
+      createdAt: c.createdAt.toISOString(),
+      lastOrder: c.lastOrder
         ? {
-            id: last.id,
-            total: last.total,
-            status: last.status,
-            createdAt: last.createdAt,
-            fulfillmentType: last.fulfillmentType,
+            ...c.lastOrder,
+            createdAt: c.lastOrder.createdAt.toISOString(),
           }
         : null,
-    };
-  };
+    })),
+    total,
+    limit,
+    offset,
+    stats: customerDirectoryStats(directory),
+  });
+});
 
-  const customers = [...byId.values(), ...guestByKey.values()]
-    .filter((c) => c.orders.length > 0 || !c.isGuest)
-    .map(toResponse)
-    .sort((a, b) => b.totalSpent - a.totalSpent);
-
-  res.json(customers);
+adminRouter.get("/riders/summary", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (_req, res) => {
+  const riders = await prisma.user.findMany({
+    where: { role: Role.RIDER, isActive: true },
+    select: { id: true, name: true, phone: true },
+    orderBy: { name: "asc" },
+  });
+  const activeCounts = await prisma.order.groupBy({
+    by: ["riderId"],
+    where: { riderId: { not: null }, status: OrderStatus.OUT_FOR_DELIVERY },
+    _count: { _all: true },
+  });
+  const countMap = new Map(
+    activeCounts.filter((row) => row.riderId).map((row) => [row.riderId!, row._count._all])
+  );
+  res.json(
+    riders.map((rider) => ({
+      ...rider,
+      activeDeliveries: countMap.get(rider.id) ?? 0,
+    }))
+  );
 });
 
 adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
@@ -608,26 +537,106 @@ adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, re
   });
 });
 
-adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
+adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const search = String(req.query.search || "").trim().toLowerCase();
+
   const riders = await prisma.user.findMany({
-    where: { role: Role.RIDER },
+    where: {
+      role: Role.RIDER,
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" as const } },
+              { email: { contains: search, mode: "insensitive" as const } },
+              { phone: { contains: search } },
+            ],
+          }
+        : {}),
+    },
     select: { id: true, name: true, email: true, phone: true },
+    orderBy: { name: "asc" },
   });
 
-  const result = await Promise.all(
-    riders.map(async (r) => {
-      const [active, delivered, total] = await Promise.all([
+  const page = riders.slice(offset, offset + limit);
+  const riderIds = page.map((r) => r.id);
+
+  const [activeOrders, deliveredCounts, totalCounts] = riderIds.length
+    ? await Promise.all([
         prisma.order.findMany({
-          where: { riderId: r.id, status: OrderStatus.OUT_FOR_DELIVERY },
-          include: { items: true },
+          where: { riderId: { in: riderIds }, status: OrderStatus.OUT_FOR_DELIVERY },
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            total: true,
+            createdAt: true,
+            fulfillmentType: true,
+            customerName: true,
+            deliveryAddress: true,
+            riderId: true,
+          },
           orderBy: { createdAt: "desc" },
         }),
-        prisma.order.count({ where: { riderId: r.id, status: OrderStatus.DELIVERED } }),
-        prisma.order.count({ where: { riderId: r.id } }),
-      ]);
-      return { ...r, activeOrders: active, deliveredCount: delivered, totalAssigned: total };
-    })
-  );
+        prisma.order.groupBy({
+          by: ["riderId"],
+          where: { riderId: { in: riderIds }, status: OrderStatus.DELIVERED },
+          _count: { _all: true },
+        }),
+        prisma.order.groupBy({
+          by: ["riderId"],
+          where: { riderId: { in: riderIds } },
+          _count: { _all: true },
+        }),
+      ])
+    : [[], [], []];
 
-  res.json(result);
+  const deliveredMap = new Map(
+    deliveredCounts.filter((row) => row.riderId).map((row) => [row.riderId!, row._count._all])
+  );
+  const totalMap = new Map(
+    totalCounts.filter((row) => row.riderId).map((row) => [row.riderId!, row._count._all])
+  );
+  const activeByRider = new Map<string, typeof activeOrders>();
+  for (const order of activeOrders) {
+    if (!order.riderId) continue;
+    const list = activeByRider.get(order.riderId) ?? [];
+    list.push(order);
+    activeByRider.set(order.riderId, list);
+  }
+
+  const [fleetTotal, activeDrops, deliveredAll] = await Promise.all([
+    prisma.user.count({ where: { role: Role.RIDER } }),
+    prisma.order.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY, riderId: { not: null } } }),
+    prisma.order.count({ where: { status: OrderStatus.DELIVERED, riderId: { not: null } } }),
+  ]);
+  const onRoad = await prisma.user.count({
+    where: {
+      role: Role.RIDER,
+      assignedOrders: { some: { status: OrderStatus.OUT_FOR_DELIVERY } },
+    },
+  });
+
+  res.json({
+    riders: page.map((rider) => ({
+      ...rider,
+      activeOrders: (activeByRider.get(rider.id) ?? []).map((order) => ({
+        ...order,
+        total: Number(order.total),
+      })),
+      deliveredCount: deliveredMap.get(rider.id) ?? 0,
+      totalAssigned: totalMap.get(rider.id) ?? 0,
+    })),
+    total: riders.length,
+    limit,
+    offset,
+    stats: {
+      total: fleetTotal,
+      onRoad,
+      activeDrops,
+      delivered: deliveredAll,
+      available: Math.max(0, fleetTotal - onRoad),
+    },
+  });
 });

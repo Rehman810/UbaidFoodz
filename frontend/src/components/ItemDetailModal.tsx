@@ -129,7 +129,7 @@ export function ItemDetailModal() {
       setShareStatus("copied");
       window.setTimeout(() => setShareStatus("idle"), 2000);
     } catch {
-      window.prompt("Copy this link:", url);
+      /* clipboard unavailable */
     }
   }
 

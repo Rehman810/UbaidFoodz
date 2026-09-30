@@ -30,16 +30,38 @@ const dealInclude = {
 
 dealsRouter.get("/", async (req, res) => {
   const activeOnly = req.query.active === "true";
-  const category = String(req.query.category || "").trim();
-  const deals = await prisma.deal.findMany({
-    where: {
-      ...(activeOnly ? { isActive: true } : {}),
-      ...(category ? { category } : {}),
-    },
-    include: dealInclude,
-    orderBy: [{ category: "asc" }, { createdAt: "desc" }],
-  });
-  res.json(deals);
+  const categoryRaw = String(req.query.category || "").trim();
+  const category = categoryRaw ? canonicalDealCategory(categoryRaw) : "";
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 500));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const search = String(req.query.search || "").trim();
+
+  const where = {
+    ...(activeOnly ? { isActive: true } : {}),
+    ...(category ? { category } : {}),
+    ...(search
+      ? {
+          OR: [
+            { title: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+            { category: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const [deals, total] = await Promise.all([
+    prisma.deal.findMany({
+      where,
+      include: dealInclude,
+      orderBy: [{ category: "asc" }, { createdAt: "desc" }],
+      take: limit,
+      skip: offset,
+    }),
+    prisma.deal.count({ where }),
+  ]);
+
+  res.json({ deals, total, limit, offset });
 });
 
 dealsRouter.get("/:id", async (req, res) => {

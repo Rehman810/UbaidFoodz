@@ -1,36 +1,53 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { StoreShell } from "@/components/StoreShell";
 import { OrderTrackForm } from "@/components/OrderTrackForm";
 import { StatusTrack } from "@/components/StatusTrack";
 import { Pagination } from "@/components/Pagination";
-import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatWhen, pkr } from "@/lib/format";
 import { PAGE_SIZE } from "@/lib/pagination";
-import { usePagination } from "@/hooks/usePagination";
+import { fetchMyOrdersPage } from "@/lib/admin-orders";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { Order } from "@/lib/types";
 import { ClipboardList } from "lucide-react";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
 
 export default function OrdersPage() {
-  const { user, loading } = useAuth();
-  const [orders, setOrders] = useState<Order[] | null>(null);
+  const { user, loading: authLoading } = useAuth();
+  const [page, setPage] = useState(1);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(() => {
     if (!user) return;
-    api<Order[]>("/orders/mine").then(setOrders).catch(() => setOrders([]));
-  }, [user]);
+    setLoading(true);
+    setError("");
+    fetchMyOrdersPage({ limit: PAGE_SIZE.list, offset: (page - 1) * PAGE_SIZE.list })
+      .then((res) => {
+        setOrders(res.orders);
+        setTotal(res.total);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Could not load orders.");
+        setOrders([]);
+        setTotal(0);
+      })
+      .finally(() => setLoading(false));
+  }, [user, page]);
 
   useEffect(() => {
     load();
   }, [load]);
   useLiveOrders(load);
 
-  const orderPagination = usePagination(orders ?? [], PAGE_SIZE.list);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE.list));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE.list + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE.list, total);
 
   return (
     <StoreShell>
@@ -47,12 +64,16 @@ export default function OrdersPage() {
 
         <OrderTrackForm />
 
-        {loading && user && <div className="skeleton h-40 rounded-3xl" />}
+        {authLoading && user && <div className="skeleton h-40 rounded-3xl" />}
 
         {user && (
           <section className="space-y-4">
             <h2 className="font-display text-2xl text-stone-900">My orders</h2>
-            {orders && orders.length === 0 && (
+            {error && (
+              <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+            )}
+            {loading && orders.length === 0 && <div className="skeleton h-40 rounded-3xl" />}
+            {!loading && total === 0 && (
               <div className="card grid place-items-center px-6 py-16 text-center">
                 <ClipboardList className="mb-3 text-brand-500" />
                 <p className="font-display text-2xl">No orders yet</p>
@@ -63,7 +84,7 @@ export default function OrdersPage() {
               </div>
             )}
             <ul className="space-y-4">
-              {orderPagination.pageItems.map((o) => (
+              {orders.map((o) => (
                 <li key={o.id}>
                   <Link
                     href={`/orders/${o.id}`}
@@ -84,21 +105,21 @@ export default function OrdersPage() {
                 </li>
               ))}
             </ul>
-            {orders && orders.length > 0 && (
+            {total > 0 && (
               <Pagination
-                page={orderPagination.page}
-                totalPages={orderPagination.totalPages}
-                totalItems={orderPagination.totalItems}
-                rangeStart={orderPagination.rangeStart}
-                rangeEnd={orderPagination.rangeEnd}
-                onPageChange={orderPagination.setPage}
+                page={page}
+                totalPages={totalPages}
+                totalItems={total}
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+                onPageChange={setPage}
                 className="mt-4"
               />
             )}
           </section>
         )}
 
-        {!loading && !user && (
+        {!authLoading && !user && (
           <p className="text-center text-sm text-stone-500">
             Have an account?{" "}
             <Link href="/login?next=/orders" className="font-semibold text-brand-700 hover:underline">

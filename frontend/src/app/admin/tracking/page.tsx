@@ -3,10 +3,9 @@
 import { useCallback, useMemo } from "react";
 import { Map, Timer } from "lucide-react";
 import { api } from "@/lib/api";
-import { fetchAdminOrders } from "@/lib/admin-orders";
+import { fetchOrderBoard, fetchRidersSummary } from "@/lib/admin-orders";
 import { pkr } from "@/lib/format";
-import { AdminStats } from "@/lib/admin-types";
-import { Order, STATUS_LABEL } from "@/lib/types";
+import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
@@ -24,19 +23,15 @@ const KANBAN_STATUSES = [
 
 export default function TrackingPage() {
   const load = useCallback(async () => {
-    const orders = (await fetchAdminOrders({ limit: 500 })).orders;
-    let riders: AdminStats["riders"] = [];
-    try {
-      const stats = await api<AdminStats>("/admin/stats");
-      riders = stats.riders;
-    } catch {
-      /* riders optional for board display */
-    }
-    return { orders, riders };
+    const [board, riders] = await Promise.all([
+      fetchOrderBoard(KANBAN_STATUSES as unknown as OrderStatus[]),
+      fetchRidersSummary(),
+    ]);
+    return { orders: board.orders, riders };
   }, []);
 
   const { data, loading, refreshing, error, refresh } = usePoll(load, 8000);
-  const showSkeleton = loading || refreshing;
+  const showSkeleton = loading && !data;
   useLiveOrders(refresh);
 
   const stats = useMemo(() => {
@@ -102,7 +97,7 @@ export default function TrackingPage() {
               );
             })}
           </div>
-          <RefreshButton busy={showSkeleton} onClick={refresh} variant="primary" />
+          <RefreshButton busy={loading || refreshing} onClick={refresh} variant="primary" />
         </div>
       </div>
 

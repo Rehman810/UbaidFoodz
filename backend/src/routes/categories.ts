@@ -6,11 +6,31 @@ import { requireAuth, requireRole } from "../middleware/auth";
 
 export const categoriesRouter = Router();
 
-categoriesRouter.get("/", async (_req, res) => {
-  const categories = await prisma.category.findMany({
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-  });
-  res.json(categories.map(enrichCategory));
+categoriesRouter.get("/", async (req, res) => {
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 500));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const search = String(req.query.search || "").trim();
+
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { tagline: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const [categories, total] = await Promise.all([
+    prisma.category.findMany({
+      where,
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      take: limit,
+      skip: offset,
+    }),
+    prisma.category.count({ where }),
+  ]);
+
+  res.json({ categories: categories.map(enrichCategory), total, limit, offset });
 });
 
 categoriesRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {

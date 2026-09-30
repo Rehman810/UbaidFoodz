@@ -134,8 +134,8 @@ export default function AnalyticsPage() {
     [period]
   );
 
-  const { data, loading, refreshing, refresh } = usePoll(fetchAnalytics, 30000);
-  const showSkeleton = loading || refreshing;
+  const { data, loading, refreshing, error, refresh } = usePoll(fetchAnalytics, 30000);
+  const showSkeleton = loading && !data;
 
   const chartTitle = useMemo(() => {
     if (period === "today") return "Hourly sales";
@@ -205,10 +205,14 @@ export default function AnalyticsPage() {
                 </button>
               ))}
             </div>
-            <RefreshButton busy={showSkeleton} onClick={refresh} className="!bg-stone-900 !text-white hover:!bg-stone-800" />
+            <RefreshButton busy={loading || refreshing} onClick={refresh} className="!bg-stone-900 !text-white hover:!bg-stone-800" />
           </div>
         </div>
       </div>
+
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
+      )}
 
       {showSkeleton || !data ? (
         <div className="space-y-4">

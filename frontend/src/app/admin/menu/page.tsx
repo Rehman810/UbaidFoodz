@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import {
   Eye,
@@ -19,15 +19,19 @@ import { api, apiUpload, ApiError } from "@/lib/api";
 import { pkr } from "@/lib/format";
 import { enrichCategories } from "@/lib/category-meta";
 import { mergeDealCategoryOptions, dealCategoryLabel } from "@/lib/deal-categories";
+import { fetchAllCategories, fetchAllDeals, fetchAllMenuItems } from "@/lib/catalog-api";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/Pagination";
+import { RefreshButton } from "@/components/admin/RefreshButton";
+import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, Deal, MenuItem } from "@/lib/types";
 import { MenuFormSheet, MenuFormData } from "@/components/admin/MenuFormSheet";
 import { DealFormSheet, DealFormData } from "@/components/admin/DealFormSheet";
 import { CategoryFormSheet, CategoryFormData } from "@/components/admin/CategoryFormSheet";
 
 type Tab = "dishes" | "deals" | "categories";
+type DeleteTarget = { kind: "dish" | "deal" | "category"; id: string; label: string };
 
 const emptyDish: MenuFormData = {
   name: "",
@@ -84,6 +88,11 @@ export default function AdminMenu() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const [dishFormOpen, setDishFormOpen] = useState(false);
   const [dishForm, setDishForm] = useState<MenuFormData>(emptyDish);
@@ -111,25 +120,30 @@ export default function AdminMenu() {
     [categories]
   );
 
-  async function load() {
-    setLoading(true);
+  const load = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true);
+    else setLoading(true);
+    setLoadError("");
     try {
       const [menu, dealList, cats] = await Promise.all([
-        api<MenuItem[]>("/menu"),
-        api<Deal[]>("/deals"),
-        api<Category[]>("/categories").catch(() => []),
+        fetchAllMenuItems(),
+        fetchAllDeals(),
+        fetchAllCategories().catch(() => []),
       ]);
       setItems(menu);
       setDeals(dealList);
       setCategories(enrichCategories(cats));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Could not load menu.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     let list = [...items].sort(
@@ -251,7 +265,7 @@ export default function AdminMenu() {
       if (editingDish) await api(`/menu/${editingDish}`, { method: "PUT", body: JSON.stringify(body) });
       else await api("/menu", { method: "POST", body: JSON.stringify(body) });
       closeDishForm();
-      await load();
+      await load(true);
     } finally {
       setSaving(false);
     }
@@ -278,7 +292,7 @@ export default function AdminMenu() {
       if (editingDeal) await api(`/deals/${editingDeal}`, { method: "PUT", body: JSON.stringify(body) });
       else await api("/deals", { method: "POST", body: JSON.stringify(body) });
       closeDealForm();
-      await load();
+      await load(true);
     } finally {
       setSaving(false);
     }
@@ -339,7 +353,7 @@ export default function AdminMenu() {
         await api("/categories", { method: "POST", body: JSON.stringify(body) });
       }
       closeCategoryForm();
-      await load();
+      await load(true);
     } catch (err) {
       setCategoryError(err instanceof ApiError ? err.message : "Could not save category");
     } finally {
@@ -363,38 +377,55 @@ export default function AdminMenu() {
     }
   }
 
-  async function removeCategory(id: string) {
-    if (!confirm("Delete this category?")) return;
-    try {
-      await api(`/categories/${id}`, { method: "DELETE" });
-      await load();
-    } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Could not delete category");
-    }
+  function removeCategory(id: string) {
+    const cat = categories.find((c) => c.id === id);
+    setDeleteError("");
+    setDeleteTarget({ kind: "category", id, label: cat?.name || "this category" });
   }
 
   async function toggleDish(item: MenuItem) {
     await api(`/menu/${item.id}`, { method: "PUT", body: JSON.stringify({ isAvailable: !item.isAvailable }) });
-    load();
+    load(true);
   }
 
-  async function removeDish(id: string) {
-    if (!confirm("Delete this dish?")) return;
-    await api(`/menu/${id}`, { method: "DELETE" });
-    if (editingDish === id) closeDishForm();
-    load();
+  function removeDish(id: string) {
+    const dish = items.find((i) => i.id === id);
+    setDeleteError("");
+    setDeleteTarget({ kind: "dish", id, label: dish?.name || "this dish" });
   }
 
   async function toggleDeal(deal: Deal) {
     await api(`/deals/${deal.id}`, { method: "PUT", body: JSON.stringify({ isActive: !deal.isActive }) });
-    load();
+    load(true);
   }
 
-  async function removeDeal(id: string) {
-    if (!confirm("Delete this deal?")) return;
-    await api(`/deals/${id}`, { method: "DELETE" });
-    if (editingDeal === id) closeDealForm();
-    load();
+  function removeDeal(id: string) {
+    const deal = deals.find((d) => d.id === id);
+    setDeleteError("");
+    setDeleteTarget({ kind: "deal", id, label: deal?.title || "this deal" });
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      if (deleteTarget.kind === "category") {
+        await api(`/categories/${deleteTarget.id}`, { method: "DELETE" });
+      } else if (deleteTarget.kind === "dish") {
+        await api(`/menu/${deleteTarget.id}`, { method: "DELETE" });
+        if (editingDish === deleteTarget.id) closeDishForm();
+      } else {
+        await api(`/deals/${deleteTarget.id}`, { method: "DELETE" });
+        if (editingDeal === deleteTarget.id) closeDealForm();
+      }
+      setDeleteTarget(null);
+      await load(true);
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "Could not delete.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function startEditDish(item: MenuItem) {
@@ -448,7 +479,8 @@ export default function AdminMenu() {
               <p className="mt-0.5 text-sm text-stone-500">Dishes, deals, and categories</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <RefreshButton busy={loading || refreshing} onClick={() => load(true)} />
             <div className="rounded-xl bg-stone-100 px-4 py-2.5 text-center">
               <p className="text-[11px] text-stone-500">Dishes</p>
               <p className="text-lg font-bold">{stats.total}</p>
@@ -497,6 +529,10 @@ export default function AdminMenu() {
         </div>
       </div>
 
+      {loadError && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{loadError}</p>
+      )}
+
       {/* DISHES TAB */}
       {tab === "dishes" && (
         <>
@@ -519,6 +555,13 @@ export default function AdminMenu() {
           {loading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton aspect-[3/4] rounded-2xl" />)}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
+              <UtensilsCrossed size={36} className="mx-auto text-stone-300" />
+              <p className="mt-3 font-medium text-stone-600">
+                {search || catFilter !== "All" ? "No dishes match your filters" : "No dishes yet"}
+              </p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -761,6 +804,20 @@ export default function AdminMenu() {
           onImagePick={onCategoryImagePick}
         />
       )}
+
+      <ConfirmSheet
+        open={Boolean(deleteTarget)}
+        title={`Delete ${deleteTarget?.label ?? "item"}?`}
+        message="This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        saving={deleting}
+        error={deleteError}
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

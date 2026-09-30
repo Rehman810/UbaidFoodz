@@ -1,6 +1,5 @@
-import { api } from "./api";
 import { CartLine, resolveMenuItemId } from "./cart";
-import { Deal, MenuItem } from "./types";
+import { fetchAllDeals, fetchAllMenuItems } from "./catalog-api";
 
 export function buildOrderPayload(items: CartLine[]) {
   const orderItems = items
@@ -32,8 +31,8 @@ export async function pruneStaleCartLines(
   if (!items.length) return 0;
 
   const [menu, deals] = await Promise.all([
-    api<MenuItem[]>("/menu"),
-    api<Deal[]>("/deals"),
+    fetchAllMenuItems(),
+    fetchAllDeals(),
   ]);
 
   const availableMenu = new Set(menu.filter((m) => m.isAvailable).map((m) => m.id));

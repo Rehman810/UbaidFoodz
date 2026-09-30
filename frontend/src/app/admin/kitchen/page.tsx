@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BellOff, ChefHat, Timer, Volume2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { fetchAdminOrders } from "@/lib/admin-orders";
+import { fetchOrderBoard } from "@/lib/admin-orders";
 import { Order, OrderStatus } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
@@ -34,10 +34,14 @@ export default function KitchenPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const seenRef = useRef<Set<string> | null>(null);
 
-  const load = useCallback(() => fetchAdminOrders({ limit: 500 }).then((res) => res.orders), []);
+  const load = useCallback(
+    () =>
+      fetchOrderBoard(["CONFIRMED", "PREPARING", "READY"] as OrderStatus[]).then((res) => res.orders),
+    []
+  );
   const { data, loading, refreshing, error, refresh } = usePoll(load, 5000);
   useLiveOrders(refresh);
-  const showSkeleton = loading || refreshing;
+  const showSkeleton = loading && !data;
 
   useEffect(() => {
     const saved = readKitchenAlertsEnabled();
@@ -215,7 +219,7 @@ export default function KitchenPage() {
               {soundOn ? <Volume2 size={14} /> : <BellOff size={14} />}
               {soundOn ? (soundReady ? "Alerts on" : "Tap to enable sound") : "Alerts off"}
             </button>
-            <RefreshButton busy={showSkeleton} onClick={refresh} variant="primary" />
+            <RefreshButton busy={loading || refreshing} onClick={refresh} variant="primary" />
           </div>
         </div>
       </div>

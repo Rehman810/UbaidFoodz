@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ClipboardList, LayoutGrid, Search, Sparkles, Table2 } from "lucide-react";
 import { api } from "@/lib/api";
-import { fetchAdminOrders } from "@/lib/admin-orders";
+import { fetchAdminOrders, fetchRidersSummary } from "@/lib/admin-orders";
 import { pkr } from "@/lib/format";
 import {
   formatDateSpanLabel,
@@ -11,7 +11,6 @@ import {
   quickPresetRange,
 } from "@/lib/order-dates";
 import { STATUS_THEME } from "@/lib/admin-status";
-import { AdminStats } from "@/lib/admin-types";
 import { Order, OrderStatus, STATUS_LABEL } from "@/lib/types";
 import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
@@ -87,7 +86,7 @@ export default function AdminOrders() {
   }, [filter, search, dateFrom, dateTo]);
 
   const load = useCallback(async () => {
-    const [list, stats] = await Promise.all([
+    const [list, riders] = await Promise.all([
       fetchAdminOrders({
         limit: PAGE_SIZE.table,
         offset: (page - 1) * PAGE_SIZE.table,
@@ -96,14 +95,14 @@ export default function AdminOrders() {
         from: dateFrom,
         to: dateTo,
       }),
-      api<AdminStats>("/admin/stats"),
+      fetchRidersSummary(),
     ]);
-    return { ...list, riders: stats.riders };
+    return { ...list, riders };
   }, [page, filter, search, dateFrom, dateTo]);
 
   const { data, loading, refreshing, refresh } = usePoll(load, 10000);
   useLiveOrders(refresh);
-  const showSkeleton = loading || refreshing;
+  const showSkeleton = loading && !data;
 
   async function setStatus(id: string, status: OrderStatus) {
     await api(`/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
@@ -220,7 +219,7 @@ export default function AdminOrders() {
               <LayoutGrid size={15} /> Grid
             </button>
           </div>
-          <RefreshButton busy={showSkeleton} onClick={refresh} variant="primary" />
+          <RefreshButton busy={loading || refreshing} onClick={refresh} variant="primary" />
         </div>
       </div>
 

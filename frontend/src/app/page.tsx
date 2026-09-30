@@ -14,6 +14,7 @@ import { HomeDelivery } from "@/components/home/HomeDelivery";
 import { Reveal } from "@/components/home/Reveal";
 import { DealCard } from "@/components/DealCard";
 import { api } from "@/lib/api";
+import { fetchAllDeals } from "@/lib/catalog-api";
 import { groupDealsByCategory } from "@/lib/deal-categories";
 import { Deal, DeliveryArea } from "@/lib/types";
 
@@ -23,7 +24,7 @@ export default function HomePage() {
   const [zones, setZones] = useState<string[]>([]);
 
   useEffect(() => {
-    api<Deal[]>("/deals?active=true")
+    fetchAllDeals(true)
       .then(setDeals)
       .catch(() => setDeals([]));
     api<DeliveryArea[]>("/delivery-areas")

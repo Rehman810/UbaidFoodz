@@ -19,6 +19,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { fetchAllDeals, fetchAllMenuItems } from "@/lib/catalog-api";
 import { useAuth } from "@/lib/auth";
 import { DEFAULT_STORE_NAME, storeDisplayName } from "@/lib/branding";
 import { buildPosOrderPayload, posCartTotal, usePosCart } from "@/lib/pos-cart";
@@ -107,8 +108,8 @@ export default function PosPage() {
 
   const load = useCallback(async () => {
     const [m, d, a, s] = await Promise.all([
-      api<MenuItem[]>("/menu"),
-      api<Deal[]>("/deals"),
+      fetchAllMenuItems(),
+      fetchAllDeals(),
       api<DeliveryArea[]>("/delivery-areas"),
       api<{ settings: { storeName?: string; phone: string; address: string; freeDeliveryAbove?: string | number | null } }>(
         "/settings/public"

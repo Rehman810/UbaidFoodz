@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import { api } from "@/lib/api";
+import { fetchAllCategories, fetchAllMenuItems } from "@/lib/catalog-api";
 import { MenuItemCard } from "@/components/MenuItemCard";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, MenuItem } from "@/lib/types";
 import { DEFAULT_CATEGORY_BANNER, enrichCategories } from "@/lib/category-meta";
@@ -39,8 +39,8 @@ export function HomeMenu() {
   const [active, setActive] = useState("All");
   useEffect(() => {
     Promise.all([
-      api<MenuItem[]>("/menu"),
-      api<Category[]>("/categories").catch(() => []),
+      fetchAllMenuItems(),
+      fetchAllCategories().catch(() => []),
     ])
       .then(([menu, cats]) => {
         setItems(menu);

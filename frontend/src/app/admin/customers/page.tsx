@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Search,
   ShoppingBag,
@@ -12,15 +12,17 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { pkr } from "@/lib/format";
 import { AdminCustomer } from "@/lib/admin-types";
+import { fetchCustomersPage, type CustomerSort } from "@/lib/admin-customers";
 import { usePoll } from "@/hooks/usePoll";
-import { usePagination } from "@/hooks/usePagination";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import { CustomerTable } from "@/components/admin/CustomerTable";
 import { BlockCustomerSheet } from "@/components/admin/BlockCustomerSheet";
+import { CustomerHistorySheet } from "@/components/admin/CustomerHistorySheet";
+import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
 
-type SortKey = "recent" | "spent" | "orders" | "name";
+type SortKey = CustomerSort;
 
 type OrderBlock = {
   id: string;
@@ -83,17 +85,41 @@ function KpiCard({
 export default function CustomersPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("spent");
+  const [page, setPage] = useState(1);
   const [blocks, setBlocks] = useState<OrderBlock[]>([]);
   const [actionMsg, setActionMsg] = useState("");
   const [blockTarget, setBlockTarget] = useState<AdminCustomer | null>(null);
+  const [unblockTarget, setUnblockTarget] = useState<AdminCustomer | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<AdminCustomer | null>(null);
   const [blocking, setBlocking] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
   const [blockError, setBlockError] = useState("");
 
-  const load = useCallback(() => api<AdminCustomer[]>("/admin/customers"), []);
-  const { data: customers, loading, refreshing, refresh } = usePoll(load, 30000);
-  const showSkeleton = loading || refreshing;
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, sort]);
+
+  const load = useCallback(
+    () =>
+      fetchCustomersPage({
+        limit: PAGE_SIZE.table,
+        offset: (page - 1) * PAGE_SIZE.table,
+        search,
+        sort,
+      }),
+    [page, search, sort]
+  );
+
+  const { data, loading, refreshing, error, refresh } = usePoll(load, 30000);
+  const showSkeleton = loading && !data;
 
   const loadBlocks = useCallback(() => api<OrderBlock[]>("/admin/blocks"), []);
 
@@ -120,6 +146,7 @@ export default function CustomersPage() {
       setBlocks(await loadBlocks());
       setActionMsg(`${blockTarget.name} blocked from placing orders.`);
       setBlockTarget(null);
+      refresh();
     } catch (err) {
       setBlockError(err instanceof Error ? err.message : "Could not block customer.");
     } finally {
@@ -127,57 +154,40 @@ export default function CustomersPage() {
     }
   }
 
-  async function unblockCustomer(c: AdminCustomer) {
-    const block = findContactBlock(blocks, c.email, c.phone ?? null);
+  function unblockCustomer(c: AdminCustomer) {
+    setUnblockTarget(c);
+  }
+
+  async function confirmUnblock() {
+    if (!unblockTarget) return;
+    const block = findContactBlock(blocks, unblockTarget.email, unblockTarget.phone ?? null);
     if (!block) return;
+    setUnblocking(true);
     setActionMsg("");
     try {
       await api(`/admin/blocks/${block.id}`, { method: "DELETE" });
       setBlocks(await loadBlocks());
-      setActionMsg(`${c.name} can order again.`);
+      setActionMsg(`${unblockTarget.name} can order again.`);
+      setUnblockTarget(null);
     } catch (err) {
       setActionMsg(err instanceof Error ? err.message : "Could not unblock customer.");
+    } finally {
+      setUnblocking(false);
     }
   }
 
-  const stats = useMemo(() => {
-    const list = customers ?? [];
-    const totalRevenue = list.reduce((s, c) => s + c.totalSpent, 0);
-    const totalOrders = list.reduce((s, c) => s + c.orderCount, 0);
-    const repeat = list.filter((c) => c.orderCount > 1).length;
-    const avgSpend = list.length ? totalRevenue / list.length : 0;
-    const topSpender = [...list].sort((a, b) => b.totalSpent - a.totalSpent)[0];
-    return {
-      count: list.length,
-      totalRevenue,
-      totalOrders,
-      avgSpend,
-      repeatRate: list.length ? Math.round((repeat / list.length) * 100) : 0,
-      topSpender,
-    };
-  }, [customers]);
-
-  const filtered = useMemo(() => {
-    let list = [...(customers ?? [])];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.email.toLowerCase().includes(q) ||
-          (c.phone && c.phone.includes(q))
-      );
-    }
-    list.sort((a, b) => {
-      if (sort === "spent") return b.totalSpent - a.totalSpent;
-      if (sort === "orders") return b.orderCount - a.orderCount;
-      if (sort === "name") return a.name.localeCompare(b.name);
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-    return list;
-  }, [customers, search, sort]);
-
-  const customerPagination = usePagination(filtered, PAGE_SIZE.table, `${search}|${sort}`);
+  const customers = data?.customers ?? [];
+  const total = data?.total ?? 0;
+  const stats = data?.stats ?? {
+    count: 0,
+    totalRevenue: 0,
+    totalOrders: 0,
+    avgSpend: 0,
+    repeatRate: 0,
+  };
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE.table));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE.table + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE.table, total);
 
   const isCustomerBlocked = useCallback(
     (c: AdminCustomer) => Boolean(findContactBlock(blocks, c.email, c.phone ?? null)),
@@ -199,7 +209,7 @@ export default function CustomersPage() {
               </p>
             </div>
           </div>
-          <RefreshButton busy={showSkeleton} onClick={refresh} />
+          <RefreshButton busy={loading || refreshing} onClick={refresh} />
         </div>
       </div>
 
@@ -234,6 +244,10 @@ export default function CustomersPage() {
         />
       </div>
 
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
+      )}
+
       {actionMsg && (
         <p className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700 shadow-sm">
           {actionMsg}
@@ -247,8 +261,8 @@ export default function CustomersPage() {
             <input
               className="w-full rounded-xl border border-stone-200 bg-stone-50/50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
               placeholder="Search by name, email or phone…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -277,7 +291,7 @@ export default function CustomersPage() {
 
       {showSkeleton ? (
         <div className="skeleton h-80 rounded-2xl" />
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
           <Users size={36} className="mx-auto text-stone-300" />
           <p className="mt-3 font-medium text-stone-600">
@@ -290,24 +304,26 @@ export default function CustomersPage() {
       ) : (
         <>
           <CustomerTable
-            customers={customerPagination.pageItems}
-            topSpenderId={stats.topSpender?.id}
+            customers={customers}
+            topSpenderId={stats.topSpenderId}
             sortBySpent={sort === "spent"}
             isBlocked={isCustomerBlocked}
             isAdmin={isAdmin}
             onBlock={blockCustomer}
             onUnblock={unblockCustomer}
+            onViewHistory={setHistoryTarget}
           />
           <Pagination
-            page={customerPagination.page}
-            totalPages={customerPagination.totalPages}
-            totalItems={customerPagination.totalItems}
-            rangeStart={customerPagination.rangeStart}
-            rangeEnd={customerPagination.rangeEnd}
-            onPageChange={customerPagination.setPage}
+            page={page}
+            totalPages={totalPages}
+            totalItems={total}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onPageChange={setPage}
           />
         </>
       )}
+
       <BlockCustomerSheet
         customer={blockTarget}
         saving={blocking}
@@ -317,6 +333,20 @@ export default function CustomersPage() {
         }}
         onConfirm={confirmBlock}
       />
+
+      <ConfirmSheet
+        open={Boolean(unblockTarget)}
+        title={`Unblock ${unblockTarget?.name ?? "customer"}?`}
+        message="They will be able to place orders again immediately."
+        confirmLabel="Unblock"
+        saving={unblocking}
+        onClose={() => {
+          if (!unblocking) setUnblockTarget(null);
+        }}
+        onConfirm={confirmUnblock}
+      />
+
+      <CustomerHistorySheet customer={historyTarget} onClose={() => setHistoryTarget(null)} />
     </div>
   );
 }

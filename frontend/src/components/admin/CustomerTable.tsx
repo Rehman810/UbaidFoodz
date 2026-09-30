@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Ban, Crown, Mail, Phone } from "lucide-react";
 import { AdminCustomer } from "@/lib/admin-types";
 import { formatWhen, pkr } from "@/lib/format";
@@ -37,6 +36,7 @@ export function CustomerTable({
   isAdmin,
   onBlock,
   onUnblock,
+  onViewHistory,
 }: {
   customers: AdminCustomer[];
   topSpenderId?: string;
@@ -45,6 +45,7 @@ export function CustomerTable({
   isAdmin: boolean;
   onBlock: (customer: AdminCustomer) => void;
   onUnblock: (customer: AdminCustomer) => void;
+  onViewHistory: (customer: AdminCustomer) => void;
 }) {
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
@@ -134,7 +135,13 @@ export function CustomerTable({
                     {formatWhen(c.createdAt)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-center align-middle font-semibold text-stone-800">
-                    {c.orderCount}
+                    <button
+                      type="button"
+                      onClick={() => onViewHistory(c)}
+                      className="rounded-lg px-2 py-1 text-brand-700 hover:bg-brand-50 hover:underline"
+                    >
+                      {c.orderCount}
+                    </button>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right align-middle font-bold text-brand-800">
                     {pkr(c.totalSpent)}
@@ -144,7 +151,11 @@ export function CustomerTable({
                   </td>
                   <td className="px-4 py-3 align-middle">
                     {c.lastOrder ? (
-                      <Link href="/admin/orders" className="block hover:text-brand-700">
+                      <button
+                        type="button"
+                        onClick={() => onViewHistory(c)}
+                        className="block w-full text-left hover:text-brand-700"
+                      >
                         <div className="flex flex-wrap items-center gap-2">
                           <StatusBadge
                             status={c.lastOrder.status}
@@ -153,7 +164,7 @@ export function CustomerTable({
                           <span className="text-xs font-bold text-stone-900">{pkr(c.lastOrder.total)}</span>
                         </div>
                         <p className="mt-1 text-[11px] text-stone-400">{formatWhen(c.lastOrder.createdAt)}</p>
-                      </Link>
+                      </button>
                     ) : (
                       <span className="text-xs text-stone-400">No orders</span>
                     )}

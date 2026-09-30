@@ -19,22 +19,63 @@ function generateStaffPassword() {
   return out;
 }
 
-staffRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
-  const staff = await prisma.user.findMany({
-    where: { role: { in: STAFF_ROLES } },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      isActive: true,
-      totpEnabled: true,
-      createdAt: true,
+staffRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const search = String(req.query.search || "").trim().toLowerCase();
+
+  const where = {
+    role: { in: STAFF_ROLES },
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { email: { contains: search, mode: "insensitive" as const } },
+            { phone: { contains: search } },
+          ],
+        }
+      : {}),
+  };
+
+  const [staff, total, roleCounts] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        totpEnabled: true,
+        createdAt: true,
+      },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+      take: limit,
+      skip: offset,
+    }),
+    prisma.user.count({ where }),
+    prisma.user.groupBy({
+      by: ["role"],
+      where: { role: { in: STAFF_ROLES } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const activeCount = await prisma.user.count({ where: { role: { in: STAFF_ROLES }, isActive: true } });
+
+  res.json({
+    staff,
+    total,
+    limit,
+    offset,
+    stats: {
+      total: roleCounts.reduce((sum, row) => sum + row._count._all, 0),
+      chefs: roleCounts.find((row) => row.role === Role.CHEF)?._count._all ?? 0,
+      riders: roleCounts.find((row) => row.role === Role.RIDER)?._count._all ?? 0,
+      active: activeCount,
     },
-    orderBy: [{ role: "asc" }, { name: "asc" }],
   });
-  res.json(staff);
 });
 
 staffRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {

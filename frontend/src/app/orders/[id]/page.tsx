@@ -7,7 +7,9 @@ import { Download, CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { OrderTrackForm } from "@/components/OrderTrackForm";
 import { StatusTrack } from "@/components/StatusTrack";
+import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
 import { api, downloadInvoice } from "@/lib/api";
+import { fetchAllDeals, fetchAllMenuItems } from "@/lib/catalog-api";
 import { getGuestOrderToken, orderApiPath, orderCancelPath, saveGuestOrderToken } from "@/lib/guest-order";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth";
@@ -48,17 +50,15 @@ export default function OrderDetailPage() {
   useLiveOrders(refresh, id, guestToken);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const accessDenied = needsTrack || pollError?.toLowerCase().includes("access");
   const canCancel =
     order &&
     (order.status === "PENDING_CONFIRMATION" || order.status === "CONFIRMED");
 
-  async function cancelOrder() {
-    if (!order || !canCancel) return;
-    if (!window.confirm("Cancel this order? This cannot be undone.")) return;
-    const reason = window.prompt("Why are you cancelling this order?");
-    if (!reason?.trim()) return;
+  async function cancelOrder(reason?: string) {
+    if (!order || !canCancel || !reason?.trim()) return;
     setCancelling(true);
     setCancelError("");
     try {
@@ -66,6 +66,7 @@ export default function OrderDetailPage() {
         method: "PATCH",
         body: JSON.stringify({ reason: reason.trim() }),
       });
+      setCancelOpen(false);
       refresh();
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : "Could not cancel order.");
@@ -77,8 +78,8 @@ export default function OrderDetailPage() {
   async function repeatOrder() {
     if (!order) return;
     const [menu, deals] = await Promise.all([
-      api<MenuItem[]>("/menu").catch(() => []),
-      api<Deal[]>("/deals?active=true").catch(() => []),
+      fetchAllMenuItems().catch(() => []),
+      fetchAllDeals(true).catch(() => []),
     ]);
 
     const addedDeals = new Set<string>();
@@ -224,7 +225,7 @@ export default function OrderDetailPage() {
                 <button
                   type="button"
                   className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700 hover:bg-red-100"
-                  onClick={cancelOrder}
+                  onClick={() => setCancelOpen(true)}
                   disabled={cancelling}
                 >
                   <XCircle size={16} /> {cancelling ? "Cancelling…" : "Cancel order"}
@@ -253,6 +254,23 @@ export default function OrderDetailPage() {
           </div>
         )}
       </div>
+
+      <ConfirmSheet
+        open={cancelOpen}
+        title="Cancel this order?"
+        message="This cannot be undone. The kitchen will be notified."
+        confirmLabel="Cancel order"
+        danger
+        reasonLabel="Reason"
+        reasonPlaceholder="Why are you cancelling?"
+        reasonRequired
+        saving={cancelling}
+        error={cancelError}
+        onClose={() => {
+          if (!cancelling) setCancelOpen(false);
+        }}
+        onConfirm={cancelOrder}
+      />
     </StoreShell>
   );
 }

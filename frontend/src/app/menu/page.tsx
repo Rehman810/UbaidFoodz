@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StoreShell } from "@/components/StoreShell";
 import { MenuCard } from "@/components/MenuCard";
 import { MenuFilters } from "@/components/MenuFilters";
-import { api } from "@/lib/api";
+import { fetchAllCategories, fetchAllMenuItems } from "@/lib/catalog-api";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/Pagination";
@@ -19,8 +19,8 @@ export default function MenuPage() {
 
   useEffect(() => {
     Promise.all([
-      api<MenuItem[]>("/menu"),
-      api<Category[]>("/categories").catch(() => []),
+      fetchAllMenuItems(),
+      fetchAllCategories().catch((): Category[] => []),
     ])
       .then(([menu, cats]) => {
         setItems(menu);

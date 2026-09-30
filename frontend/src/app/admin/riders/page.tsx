@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Bike,
@@ -12,11 +12,9 @@ import {
   Truck,
   Users,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { fetchRidersPage } from "@/lib/admin-riders";
 import { pkr, formatWhen } from "@/lib/format";
-import { AdminRider } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
-import { usePagination } from "@/hooks/usePagination";
 import { PAGE_SIZE } from "@/lib/pagination";
 import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
@@ -82,41 +80,38 @@ function KpiCard({
 }
 
 export default function RidersPage() {
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const load = useCallback(() => api<AdminRider[]>("/admin/riders"), []);
-  const { data: riders, loading, refreshing, refresh } = usePoll(load, 10000);
-  const showSkeleton = loading || refreshing;
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
-  const stats = useMemo(() => {
-    const list = riders ?? [];
-    const onRoad = list.filter((r) => r.activeOrders.length > 0).length;
-    const activeDrops = list.reduce((s, r) => s + r.activeOrders.length, 0);
-    const delivered = list.reduce((s, r) => s + r.deliveredCount, 0);
-    const available = list.length - onRoad;
-    return { total: list.length, onRoad, activeDrops, delivered, available };
-  }, [riders]);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
-  const filtered = useMemo(() => {
-    let list = [...(riders ?? [])];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.name.toLowerCase().includes(q) ||
-          r.email.toLowerCase().includes(q) ||
-          (r.phone && r.phone.includes(q))
-      );
-    }
-    return list.sort((a, b) => {
-      if (a.activeOrders.length !== b.activeOrders.length) {
-        return b.activeOrders.length - a.activeOrders.length;
-      }
-      return b.deliveredCount - a.deliveredCount;
-    });
-  }, [riders, search]);
+  const load = useCallback(
+    () =>
+      fetchRidersPage({
+        limit: PAGE_SIZE.grid,
+        offset: (page - 1) * PAGE_SIZE.grid,
+        search,
+      }),
+    [page, search]
+  );
 
-  const riderPagination = usePagination(filtered, PAGE_SIZE.grid, search);
+  const { data, loading, refreshing, error, refresh } = usePoll(load, 10000);
+  const showSkeleton = loading && !data;
+
+  const stats = data?.stats ?? { total: 0, onRoad: 0, activeDrops: 0, delivered: 0, available: 0 };
+  const riders = data?.riders ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE.grid));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE.grid + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE.grid, total);
 
   return (
     <div className="w-full space-y-5">
@@ -133,7 +128,7 @@ export default function RidersPage() {
               </p>
             </div>
           </div>
-          <RefreshButton busy={showSkeleton} onClick={refresh} />
+          <RefreshButton busy={loading || refreshing} onClick={refresh} />
         </div>
       </div>
 
@@ -170,14 +165,18 @@ export default function RidersPage() {
         />
       </div>
 
+      {error && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
+      )}
+
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
             className="w-full rounded-xl border border-stone-200 bg-stone-50/50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
             placeholder="Search riders by name, email or phone…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
         <p className="mt-3 text-xs text-stone-400">
@@ -191,7 +190,7 @@ export default function RidersPage() {
             <div key={i} className="skeleton h-56 rounded-2xl" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
           <Bike size={36} className="mx-auto text-stone-300" />
           <p className="mt-3 font-medium text-stone-600">
@@ -206,7 +205,7 @@ export default function RidersPage() {
       ) : (
         <>
           <div className="grid w-full gap-4">
-            {riderPagination.pageItems.map((r) => {
+            {riders.map((r) => {
               const busy = r.activeOrders.length > 0;
               return (
                 <article
@@ -293,12 +292,12 @@ export default function RidersPage() {
             })}
           </div>
           <Pagination
-            page={riderPagination.page}
-            totalPages={riderPagination.totalPages}
-            totalItems={riderPagination.totalItems}
-            rangeStart={riderPagination.rangeStart}
-            rangeEnd={riderPagination.rangeEnd}
-            onPageChange={riderPagination.setPage}
+            page={page}
+            totalPages={totalPages}
+            totalItems={total}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onPageChange={setPage}
             className="mt-4"
           />
         </>

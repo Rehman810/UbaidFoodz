@@ -1,22 +1,25 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   Bike,
   ChefHat,
   Plus,
+  Search,
   ShieldCheck,
   UserCog,
   Users,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { fetchStaffPage } from "@/lib/admin-staff";
 import { PAGE_SIZE } from "@/lib/pagination";
-import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
+import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
 import { StaffRow, StaffTable } from "@/components/admin/StaffTable";
 import { StaffFormData, StaffFormSheet } from "@/components/admin/StaffFormSheet";
+import { usePoll } from "@/hooks/usePoll";
 
 function KpiCard({
   label,
@@ -52,14 +55,15 @@ function KpiCard({
 
 export default function StaffPage() {
   const { user } = useAuth();
-  const [staff, setStaff] = useState<StaffRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [msgTone, setMsgTone] = useState<"ok" | "err">("ok");
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<StaffRow | null>(null);
   const emptyForm: StaffFormData = {
     name: "",
     email: "",
@@ -70,36 +74,27 @@ export default function StaffPage() {
   };
   const [form, setForm] = useState<StaffFormData>(emptyForm);
 
-  const stats = useMemo(
-    () => ({
-      total: staff.length,
-      chefs: staff.filter((s) => s.role === "CHEF").length,
-      riders: staff.filter((s) => s.role === "RIDER").length,
-      active: staff.filter((s) => s.isActive).length,
-    }),
-    [staff]
-  );
-
-  const staffPagination = usePagination(staff, PAGE_SIZE.table);
-  const showSkeleton = loading || refreshing;
-
-  async function load(manual = false) {
-    if (manual && staff.length > 0) setRefreshing(true);
-    else setLoading(true);
-    try {
-      setStaff(await api<StaffRow[]>("/admin/staff"));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
-    load().catch(() => {
-      setMsgTone("err");
-      setMsg("Could not load staff.");
-    });
-  }, []);
+    setPage(1);
+  }, [search]);
+
+  const load = useCallback(
+    () =>
+      fetchStaffPage({
+        limit: PAGE_SIZE.table,
+        offset: (page - 1) * PAGE_SIZE.table,
+        search,
+      }),
+    [page, search]
+  );
+
+  const { data, loading, refreshing, error, refresh } = usePoll(load, 30000);
+  const showSkeleton = loading && !data;
 
   function closeForm() {
     setFormOpen(false);
@@ -123,7 +118,7 @@ export default function StaffPage() {
         }),
       });
       closeForm();
-      await load(true);
+      refresh();
       setMsgTone("ok");
       setMsg(
         res.emailed
@@ -143,7 +138,7 @@ export default function StaffPage() {
     setMsg("");
     try {
       await api(`/admin/staff/${id}`, { method: "PATCH", body: JSON.stringify(data) });
-      await load(true);
+      refresh();
       setMsgTone("ok");
       setMsg("Staff updated.");
     } catch (err) {
@@ -155,9 +150,19 @@ export default function StaffPage() {
   }
 
   function toggleActive(member: StaffRow) {
-    if (member.isActive && !window.confirm(`Deactivate ${member.name}? Their sessions will end.`)) return;
-    patch(member.id, { isActive: !member.isActive });
+    if (member.isActive) {
+      setDeactivateTarget(member);
+      return;
+    }
+    patch(member.id, { isActive: true });
   }
+
+  const staff = data?.staff ?? [];
+  const total = data?.total ?? 0;
+  const stats = data?.stats ?? { total: 0, chefs: 0, riders: 0, active: 0 };
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE.table));
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE.table + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE.table, total);
 
   return (
     <div className="w-full space-y-6">
@@ -175,7 +180,7 @@ export default function StaffPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <RefreshButton busy={showSkeleton} onClick={() => load(true)} />
+            <RefreshButton busy={loading || refreshing} onClick={refresh} />
             <button
               type="button"
               onClick={() => {
@@ -197,6 +202,10 @@ export default function StaffPage() {
         <KpiCard label="Active" value={stats.active} icon={ShieldCheck} accent="emerald" />
       </div>
 
+      {error && (
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p>
+      )}
+
       {msg && !(formOpen && msgTone === "err") && (
         <p
           className={`rounded-2xl border px-4 py-3 text-sm ${
@@ -209,24 +218,48 @@ export default function StaffPage() {
         </p>
       )}
 
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
+        <div className="relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            className="w-full rounded-xl border border-stone-200 bg-stone-50/50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            placeholder="Search staff by name, email or phone…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
+      </div>
+
       {showSkeleton ? (
         <div className="skeleton h-80 rounded-2xl" />
+      ) : total === 0 ? (
+        <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center">
+          <Users size={36} className="mx-auto text-stone-300" />
+          <p className="mt-3 font-medium text-stone-600">
+            {search ? "No staff match your search" : "No staff yet"}
+          </p>
+          {!search && (
+            <button type="button" onClick={() => setFormOpen(true)} className="btn-primary mt-4">
+              Add first staff member
+            </button>
+          )}
+        </div>
       ) : (
         <>
           <StaffTable
-            staff={staffPagination.pageItems}
+            staff={staff}
             currentUserId={user?.id}
             busyId={busyId}
             onRoleChange={(id, role) => patch(id, { role })}
             onToggleActive={toggleActive}
           />
           <Pagination
-            page={staffPagination.page}
-            totalPages={staffPagination.totalPages}
-            totalItems={staffPagination.totalItems}
-            rangeStart={staffPagination.rangeStart}
-            rangeEnd={staffPagination.rangeEnd}
-            onPageChange={staffPagination.setPage}
+            page={page}
+            totalPages={totalPages}
+            totalItems={total}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onPageChange={setPage}
           />
         </>
       )}
@@ -242,6 +275,20 @@ export default function StaffPage() {
           onSubmit={createStaff}
         />
       )}
+
+      <ConfirmSheet
+        open={Boolean(deactivateTarget)}
+        title={`Deactivate ${deactivateTarget?.name ?? "staff"}?`}
+        message="Their active sessions will end and they will not be able to sign in until reactivated."
+        confirmLabel="Deactivate"
+        danger
+        saving={busyId === deactivateTarget?.id}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={() => {
+          if (!deactivateTarget) return;
+          patch(deactivateTarget.id, { isActive: false }).finally(() => setDeactivateTarget(null));
+        }}
+      />
     </div>
   );
 }
