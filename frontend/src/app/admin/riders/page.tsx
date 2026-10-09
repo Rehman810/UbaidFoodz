@@ -20,6 +20,7 @@ import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import { FulfillmentBadge } from "@/components/FulfillmentBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { AdminScopeBanner } from "@/components/admin/AdminScopeBanner";
 
 const AVATAR_GRADIENTS = [
   "from-violet-500 to-purple-600",
@@ -115,6 +116,7 @@ export default function RidersPage() {
 
   return (
     <div className="w-full space-y-5">
+      <AdminScopeBanner variant="branch" />
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">

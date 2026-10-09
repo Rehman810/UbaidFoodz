@@ -2,6 +2,7 @@
 
 import {
   Bike,
+  Briefcase,
   ChefHat,
   Flame,
   Receipt,
@@ -20,28 +21,42 @@ export type StaffRow = {
   isActive: boolean;
   totpEnabled: boolean;
   createdAt: string;
+  branchIds?: string[];
 };
 
-const ASSIGNABLE_ROLES: { value: Role; label: string }[] = [
+export type BranchOption = { id: string; name: string };
+
+export const ASSIGNABLE_ROLES: { value: Role; label: string }[] = [
+  { value: "MANAGER", label: "Manager" },
   { value: "CHEF", label: "Chef" },
   { value: "RIDER", label: "Rider" },
   { value: "CASHIER", label: "Cashier" },
 ];
 
 const ROLE_STYLES: Record<Role, string> = {
-  ADMIN: "bg-violet-50 text-violet-800 ring-violet-100",
-  CHEF: "bg-orange-50 text-orange-800 ring-orange-100",
-  RIDER: "bg-sky-50 text-sky-800 ring-sky-100",
-  CASHIER: "bg-emerald-50 text-emerald-800 ring-emerald-100",
+  ADMIN: "bg-violet-50 text-violet-800 ring-violet-100 dark:bg-violet-950/50 dark:text-violet-200 dark:ring-violet-800",
+  MANAGER: "bg-indigo-50 text-indigo-800 ring-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-200 dark:ring-indigo-800",
+  CHEF: "bg-orange-50 text-orange-800 ring-orange-100 dark:bg-orange-950/50 dark:text-orange-200 dark:ring-orange-800",
+  RIDER: "bg-sky-50 text-sky-800 ring-sky-100 dark:bg-sky-950/50 dark:text-sky-200 dark:ring-sky-800",
+  CASHIER: "bg-emerald-50 text-emerald-800 ring-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-800",
   CUSTOMER: "bg-stone-50 text-stone-600 ring-stone-100",
 };
 
 const ROLE_LABEL: Record<Role, string> = {
   ADMIN: "Admin",
+  MANAGER: "Manager",
   CHEF: "Chef",
   RIDER: "Rider",
   CASHIER: "Cashier",
   CUSTOMER: "Customer",
+};
+
+const ROLE_ICONS: Partial<Record<Role, typeof Shield>> = {
+  ADMIN: Shield,
+  MANAGER: Briefcase,
+  CHEF: ChefHat,
+  RIDER: Bike,
+  CASHIER: Receipt,
 };
 
 const AVATAR_GRADIENTS = [
@@ -66,36 +81,57 @@ function avatarGradient(id: string) {
   return AVATAR_GRADIENTS[hash];
 }
 
+function branchLabels(branchIds: string[], branches: BranchOption[]) {
+  const names = branchIds
+    .map((id) => branches.find((b) => b.id === id)?.name)
+    .filter(Boolean) as string[];
+  return names.length ? names.join(", ") : "—";
+}
+
+function RoleTag({ role }: { role: Role }) {
+  const Icon = ROLE_ICONS[role];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${ROLE_STYLES[role]}`}
+    >
+      {Icon ? <Icon size={12} /> : null}
+      {ROLE_LABEL[role]}
+    </span>
+  );
+}
+
 export function StaffTable({
   staff,
+  branches,
   currentUserId,
   busyId,
-  onRoleChange,
   onToggleActive,
 }: {
   staff: StaffRow[];
+  branches: BranchOption[];
   currentUserId?: string;
   busyId: string | null;
-  onRoleChange: (id: string, role: Role) => void;
   onToggleActive: (member: StaffRow) => void;
 }) {
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+    <div className="w-full overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-900">
       <div className="w-full overflow-x-auto">
-        <table className="w-full min-w-[960px] table-fixed border-collapse text-left text-sm">
+        <table className="w-full min-w-[1080px] table-fixed border-collapse text-left text-sm">
           <colgroup>
-            <col className="w-[22%]" />
-            <col className="w-[20%]" />
-            <col className="w-[12%]" />
+            <col className="w-[18%]" />
+            <col className="w-[16%]" />
+            <col className="w-[14%]" />
             <col className="w-[10%]" />
             <col className="w-[8%]" />
-            <col className="w-[12%]" />
+            <col className="w-[8%]" />
+            <col className="w-[10%]" />
             <col className="w-[16%]" />
           </colgroup>
           <thead>
-            <tr className="border-b border-stone-100 bg-stone-50/80 text-[11px] font-bold uppercase tracking-wider text-stone-400">
+            <tr className="border-b border-stone-100 bg-stone-50/80 text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:border-stone-800 dark:bg-stone-800/50">
               <th className="px-4 py-3 font-semibold">Staff member</th>
               <th className="px-4 py-3 font-semibold">Contact</th>
+              <th className="px-4 py-3 font-semibold">Branches</th>
               <th className="px-4 py-3 font-semibold">Role</th>
               <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">2FA</th>
@@ -111,7 +147,7 @@ export function StaffTable({
               return (
                 <tr
                   key={s.id}
-                  className={`border-b border-stone-100 last:border-0 transition hover:bg-orange-50/30 ${
+                  className={`border-b border-stone-100 last:border-0 transition hover:bg-orange-50/30 dark:border-stone-800 dark:hover:bg-stone-800/40 ${
                     !s.isActive ? "opacity-75" : ""
                   }`}
                 >
@@ -124,9 +160,9 @@ export function StaffTable({
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <p className="font-semibold text-stone-900">{s.name}</p>
+                          <p className="font-semibold text-stone-900 dark:text-stone-100">{s.name}</p>
                           {isSelf && (
-                            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-stone-500">
+                            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 dark:bg-stone-800 dark:text-stone-400">
                               You
                             </span>
                           )}
@@ -135,7 +171,7 @@ export function StaffTable({
                     </div>
                   </td>
                   <td className="px-4 py-3.5 align-top">
-                    <p className="truncate text-xs text-stone-600">{s.email}</p>
+                    <p className="truncate text-xs text-stone-600 dark:text-stone-300">{s.email}</p>
                     {s.phone ? (
                       <p className="mt-0.5 text-xs text-stone-500">{s.phone}</p>
                     ) : (
@@ -143,24 +179,12 @@ export function StaffTable({
                     )}
                   </td>
                   <td className="px-4 py-3.5 align-top">
-                    {isAdmin ? (
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${ROLE_STYLES.ADMIN}`}>
-                        <Shield size={12} /> {ROLE_LABEL.ADMIN}
-                      </span>
-                    ) : (
-                      <select
-                        className="rounded-xl border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-semibold text-stone-700"
-                        value={s.role}
-                        disabled={busyId === s.id}
-                        onChange={(e) => onRoleChange(s.id, e.target.value as Role)}
-                      >
-                        {ASSIGNABLE_ROLES.map((r) => (
-                          <option key={r.value} value={r.value}>
-                            {r.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                    <p className="text-xs leading-relaxed text-stone-600 dark:text-stone-300">
+                      {isAdmin ? "All outlets" : branchLabels(s.branchIds ?? [], branches)}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3.5 align-top">
+                    <RoleTag role={s.role} />
                   </td>
                   <td className="px-4 py-3.5 align-top">
                     <button
@@ -193,8 +217,9 @@ export function StaffTable({
                   <td className="whitespace-nowrap px-4 py-3.5 align-top text-xs text-stone-500">
                     {formatWhen(s.createdAt)}
                   </td>
-                  <td className="px-4 py-3.5 align-top text-xs text-stone-500">
+                  <td className="px-4 py-3.5 align-top text-xs text-stone-500 dark:text-stone-400">
                     {isAdmin && "Owner · role locked"}
+                    {s.role === "MANAGER" && "Branch operations · no system settings"}
                     {s.role === "CHEF" && (
                       <span className="inline-flex items-center gap-1">
                         <Flame size={12} className="text-brand-500" /> Kitchen
@@ -212,5 +237,3 @@ export function StaffTable({
     </div>
   );
 }
-
-export { ASSIGNABLE_ROLES };

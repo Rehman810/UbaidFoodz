@@ -24,6 +24,7 @@ import { PAGE_SIZE } from "@/lib/pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
+import { AdminScopeBanner } from "@/components/admin/AdminScopeBanner";
 import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category, Deal, MenuItem } from "@/lib/types";
 import { MenuFormSheet, MenuFormData } from "@/components/admin/MenuFormSheet";
@@ -468,6 +469,7 @@ export default function AdminMenu() {
 
   return (
     <div className="w-full space-y-5">
+      <AdminScopeBanner variant="shared" />
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">

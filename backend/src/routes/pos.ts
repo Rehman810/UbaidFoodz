@@ -14,6 +14,8 @@ import { storeNameFrom } from "../lib/branding";
 import { quoteCharges } from "../lib/charges";
 import { cleanText } from "../lib/text";
 import { getStoreSettings } from "../lib/settings-data";
+import { branchScopeError, getDefaultBranchId, resolveBranchScope } from "../lib/branch-scope";
+import { ADMIN_LIKE } from "../lib/roles";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { posLimiter } from "../middleware/security";
 
@@ -30,7 +32,7 @@ function normalizePhone(phone: string) {
   return cleaned.length >= 10 ? cleaned : "";
 }
 
-posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (req, res) => {
+posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CASHIER), async (req, res) => {
   const storeSettings = await getStoreSettings();
   const storeAddress = `${storeNameFrom(storeSettings)} — ${storeSettings.address}`;
 
@@ -127,9 +129,18 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIE
     });
   }
 
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const resolvedBranchId = scope.allBranches ? await getDefaultBranchId() : scope.branchId!;
+
   const order = await prisma.order.create({
     data: {
       orderNumber: await nextOrderNumber(),
+      branchId: resolvedBranchId,
       orderSource: OrderSource.POS,
       createdById: req.user!.id,
       fulfillmentType: mode,
@@ -159,7 +170,7 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(Role.ADMIN, Role.CASHIE
 posRouter.get(
   "/receipt/:orderId",
   requireAuth,
-  requireRole(Role.ADMIN, Role.CASHIER),
+  requireRole(...ADMIN_LIKE, Role.CASHIER),
   async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: req.params.orderId },

@@ -4,6 +4,7 @@ import { FulfillmentType, OrderStatus, Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { findOrderBlock } from "../lib/blocklist";
 import { canAccessOrder, phonesMatch, stripGuestToken } from "../lib/order-access";
+import { ADMIN_LIKE, ORDER_OPS } from "../lib/roles";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth";
 import { trackLimiter } from "../middleware/security";
 import {
@@ -24,6 +25,7 @@ import { clientIp, parseCoord } from "../lib/client-ip";
 import { deliveryNeedsRider, pickLeastBusyRider } from "../lib/rider-assign";
 import { staffOrderAlertEmails, storeNameFrom } from "../lib/branding";
 import { getStoreSettings } from "../lib/settings-data";
+import { branchScopeError, getDefaultBranchId, resolveBranchScope } from "../lib/branch-scope";
 import { buildOrderLines, nextOrderNumber } from "../lib/order-lines";
 import {
   canTransitionStatus,
@@ -97,6 +99,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     customerLatitude,
     customerLongitude,
     customerLocationAccuracy,
+    branchId: branchIdBody,
   } = req.body as {
     items?: {
       menuItemId: string;
@@ -117,6 +120,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     customerLatitude?: number;
     customerLongitude?: number;
     customerLocationAccuracy?: number;
+    branchId?: string;
   };
   const cartItems = items ?? [];
   const cartDeals = deals ?? [];
@@ -128,8 +132,33 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
     : OrderStatus.PENDING_CONFIRMATION;
   const mode: FulfillmentType =
     fulfillmentType === FulfillmentType.PICKUP ? FulfillmentType.PICKUP : FulfillmentType.DELIVERY;
+
+  let resolvedBranchId = await getDefaultBranchId();
+  if (branchIdBody) {
+    const branch = await prisma.branch.findFirst({
+      where: { id: String(branchIdBody), isActive: true },
+      select: { id: true, name: true, address: true },
+    });
+    if (!branch) {
+      return res.status(400).json({ error: "Selected branch is not available." });
+    }
+    resolvedBranchId = branch.id;
+  }
+
+  let pickupLine = pickupAddress;
+  if (mode === FulfillmentType.PICKUP) {
+    const branch = await prisma.branch.findUnique({
+      where: { id: resolvedBranchId },
+      select: { name: true, address: true },
+    });
+    if (branch) {
+      const addr = branch.address.trim() || storeSettings.address;
+      pickupLine = `${branch.name} — ${addr}`;
+    }
+  }
+
   const trimmedAddress =
-    mode === FulfillmentType.PICKUP ? pickupAddress : cleanText(deliveryAddress, 300);
+    mode === FulfillmentType.PICKUP ? pickupLine : cleanText(deliveryAddress, 300);
   const safeNotes = notes ? cleanText(notes, 400) : "";
 
   if (!cartItems.length && !cartDeals.length) {
@@ -318,6 +347,7 @@ ordersRouter.post("/", optionalAuth, async (req, res) => {
   const order = await prisma.order.create({
     data: {
       orderNumber: await nextOrderNumber(),
+      branchId: resolvedBranchId,
       customerId: isRegisteredCustomer ? user!.id : null,
       guestAccessToken,
       fulfillmentType: mode,
@@ -384,7 +414,14 @@ const BOARD_STATUSES: OrderStatus[] = [
   OrderStatus.DELIVERED,
 ];
 
-ordersRouter.get("/board", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {
+ordersRouter.get("/board", requireAuth, requireRole(...ORDER_OPS), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+
   const days = Math.min(14, Math.max(1, Number(req.query.days) || 7));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const statusParam = String(req.query.statuses || "").trim();
@@ -397,6 +434,7 @@ ordersRouter.get("/board", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.
 
   const orders = await prisma.order.findMany({
     where: {
+      ...scope.where,
       status: { in: statuses },
       createdAt: { gte: since },
     },
@@ -408,7 +446,14 @@ ordersRouter.get("/board", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.
   res.json({ orders });
 });
 
-ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {
+ordersRouter.get("/", requireAuth, requireRole(...ORDER_OPS), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+
   const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 20));
   const offset = Math.max(0, Number(req.query.offset) || 0);
   const status = req.query.status as OrderStatus | undefined;
@@ -440,6 +485,7 @@ ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHI
     ...searchWhere,
   };
   const where = {
+    ...scope.where,
     ...rangedWhere,
     ...(status && Object.values(OrderStatus).includes(status) ? { status } : {}),
   };
@@ -455,7 +501,7 @@ ordersRouter.get("/", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHI
     prisma.order.count({ where }),
     prisma.order.groupBy({
       by: ["status"],
-      where: rangedWhere,
+      where: { ...scope.where, ...rangedWhere },
       _count: { _all: true },
     }),
     prisma.order.aggregate({
@@ -548,7 +594,7 @@ ordersRouter.patch("/:id/cancel", optionalAuth, async (req, res) => {
   res.json(stripGuestToken(order));
 });
 
-ordersRouter.patch("/:id/confirm", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+ordersRouter.patch("/:id/confirm", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const existing = await prisma.order.findUnique({ where: { id: req.params.id }, include });
   if (!existing) return res.status(404).json({ error: "Order not found." });
   if (existing.status !== OrderStatus.PENDING_CONFIRMATION) {
@@ -574,7 +620,7 @@ ordersRouter.patch("/:id/confirm", requireAuth, requireRole(Role.ADMIN), async (
   res.json(order);
 });
 
-ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (req, res) => {
+ordersRouter.patch("/:id/status", requireAuth, requireRole(...ORDER_OPS), async (req, res) => {
   const status = req.body.status as OrderStatus;
   const reason = typeof req.body.reason === "string" ? req.body.reason.trim() : "";
   if (!Object.values(OrderStatus).includes(status)) {
@@ -670,7 +716,7 @@ ordersRouter.patch("/:id/status", requireAuth, requireRole(Role.ADMIN, Role.CHEF
   res.json(fresh);
 });
 
-ordersRouter.patch("/:id/assign", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+ordersRouter.patch("/:id/assign", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const { riderId } = req.body as { riderId?: string };
   if (!riderId) return res.status(400).json({ error: "riderId required" });
   const rider = await prisma.user.findFirst({ where: { id: riderId, role: Role.RIDER, isActive: true } });

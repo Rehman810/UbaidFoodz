@@ -34,11 +34,14 @@ export class ApiError extends Error {
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("uff_token") : null;
+  const branch =
+    typeof window !== "undefined" ? localStorage.getItem("uff-admin-branch") || undefined : undefined;
   const headers: Record<string, string> = {
     ...(options.body ? { "Content-Type": "application/json" } : {}),
     ...(options.headers as Record<string, string> | undefined),
   };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (branch) headers["X-Branch-Id"] = branch;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);

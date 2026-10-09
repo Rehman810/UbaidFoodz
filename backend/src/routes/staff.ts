@@ -3,13 +3,21 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import {
+  branchScopeError,
+  getDefaultBranchId,
+  resolveBranchScope,
+  staffWhereForScope,
+  syncUserBranches,
+} from "../lib/branch-scope";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { sendStaffWelcomeEmail } from "../lib/email";
+import { STAFF_DIRECTORY_ROLES } from "../lib/roles";
 
 export const staffRouter = Router();
 
-const STAFF_ROLES: Role[] = [Role.ADMIN, Role.CHEF, Role.RIDER, Role.CASHIER];
-const ASSIGNABLE_ROLES: Role[] = [Role.CHEF, Role.RIDER, Role.CASHIER];
+const STAFF_ROLES = STAFF_DIRECTORY_ROLES;
+const ASSIGNABLE_ROLES: Role[] = [Role.MANAGER, Role.CHEF, Role.RIDER, Role.CASHIER];
 
 function generateStaffPassword() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
@@ -20,24 +28,36 @@ function generateStaffPassword() {
 }
 
 staffRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   const offset = Math.max(0, Number(req.query.offset) || 0);
   const search = String(req.query.search || "").trim().toLowerCase();
 
+  const scopeWhere = staffWhereForScope(scope);
   const where = {
-    role: { in: STAFF_ROLES },
-    ...(search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { email: { contains: search, mode: "insensitive" as const } },
-            { phone: { contains: search } },
-          ],
-        }
-      : {}),
+    AND: [
+      scopeWhere,
+      ...(search
+        ? [
+            {
+              OR: [
+                { name: { contains: search, mode: "insensitive" as const } },
+                { email: { contains: search, mode: "insensitive" as const } },
+                { phone: { contains: search } },
+              ],
+            },
+          ]
+        : []),
+    ],
   };
 
-  const [staff, total, roleCounts] = await Promise.all([
+  const [staff, total, roleCounts, activeCount] = await Promise.all([
     prisma.user.findMany({
       where,
       select: {
@@ -57,15 +77,28 @@ staffRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
     prisma.user.count({ where }),
     prisma.user.groupBy({
       by: ["role"],
-      where: { role: { in: STAFF_ROLES } },
+      where: scopeWhere,
       _count: { _all: true },
     }),
+    prisma.user.count({ where: { AND: [scopeWhere, { isActive: true }] } }),
   ]);
 
-  const activeCount = await prisma.user.count({ where: { role: { in: STAFF_ROLES }, isActive: true } });
+  const branchMembers = staff.length
+    ? await prisma.branchMember.findMany({
+        where: { userId: { in: staff.map((s) => s.id) } },
+        select: { userId: true, branchId: true },
+      })
+    : [];
+
+  const branchIdsByUser = new Map<string, string[]>();
+  for (const row of branchMembers) {
+    const list = branchIdsByUser.get(row.userId) ?? [];
+    list.push(row.branchId);
+    branchIdsByUser.set(row.userId, list);
+  }
 
   res.json({
-    staff,
+    staff: staff.map((s) => ({ ...s, branchIds: branchIdsByUser.get(s.id) ?? [] })),
     total,
     limit,
     offset,
@@ -79,13 +112,21 @@ staffRouter.get("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
 });
 
 staffRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
-  const { name, email, phone, password, role, autoGeneratePassword } = req.body as {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+
+  const { name, email, phone, password, role, autoGeneratePassword, branchIds } = req.body as {
     name?: string;
     email?: string;
     phone?: string;
     password?: string;
     role?: Role;
     autoGeneratePassword?: boolean;
+    branchIds?: string[];
   };
   if (!name?.trim() || !email?.trim()) {
     return res.status(400).json({ error: "Name and email are required." });
@@ -125,6 +166,21 @@ staffRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
       createdAt: true,
     },
   });
+  const ids =
+    Array.isArray(branchIds) && branchIds.length > 0
+      ? branchIds
+      : scope.allBranches
+        ? [await getDefaultBranchId()]
+        : [scope.branchId!];
+  try {
+    await syncUserBranches(user.id, ids);
+  } catch (err) {
+    await prisma.user.delete({ where: { id: user.id } });
+    const status = typeof err === "object" && err && "status" in err ? Number((err as { status: number }).status) : 400;
+    const message = err instanceof Error ? err.message : "Invalid branches";
+    return res.status(status).json({ error: message });
+  }
+
   const emailed = generated || !password?.trim();
   if (emailed) {
     void sendStaffWelcomeEmail(user.email, user.name, user.role, plainPassword);
@@ -144,6 +200,7 @@ staffRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res)
     role?: Role;
     isActive?: boolean;
     password?: string;
+    branchIds?: string[];
   };
 
   if (existing.id === req.user!.id && body.isActive === false) {
@@ -174,6 +231,16 @@ staffRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res)
   }
 
   const bumpSession = body.isActive === false || Boolean(body.password);
+  if (body.branchIds && existing.role !== Role.ADMIN) {
+    try {
+      await syncUserBranches(existing.id, body.branchIds);
+    } catch (err) {
+      const status = typeof err === "object" && err && "status" in err ? Number((err as { status: number }).status) : 400;
+      const message = err instanceof Error ? err.message : "Invalid branches";
+      return res.status(status).json({ error: message });
+    }
+  }
+
   const user = await prisma.user.update({
     where: { id: existing.id },
     data: {

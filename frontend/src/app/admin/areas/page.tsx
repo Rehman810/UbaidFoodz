@@ -9,6 +9,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { Pagination } from "@/components/Pagination";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import { DeliveryArea } from "@/lib/types";
+import { AdminScopeBanner } from "@/components/admin/AdminScopeBanner";
 
 export default function AdminAreasPage() {
   const [areas, setAreas] = useState<DeliveryArea[]>([]);
@@ -120,6 +121,7 @@ export default function AdminAreasPage() {
 
   return (
     <div className="space-y-6">
+      <AdminScopeBanner variant="shared" />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Delivery zones</p>

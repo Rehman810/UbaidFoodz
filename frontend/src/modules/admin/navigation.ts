@@ -1,0 +1,124 @@
+import {
+  BarChart3,
+  Bike,
+  Building2,
+  ClipboardList,
+  Flame,
+  LayoutDashboard,
+  Map,
+  MapPinned,
+  Receipt,
+  Settings,
+  UserCog,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react";
+import { Role } from "@/lib/types";
+
+export type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
+export type NavSection = { title: string; items: NavItem[] };
+
+export const ADMIN_NAV_SECTIONS: NavSection[] = [
+  {
+    title: "Overview",
+    items: [
+      { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+      { href: "/admin/pos", label: "POS", icon: Receipt },
+      { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+      { href: "/admin/tracking", label: "Live tracking", icon: Map },
+    ],
+  },
+  {
+    title: "Catalog",
+    items: [
+      { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
+      { href: "/admin/areas", label: "Areas", icon: MapPinned },
+    ],
+  },
+  {
+    title: "People",
+    items: [
+      { href: "/admin/customers", label: "Customers", icon: Users },
+      { href: "/admin/riders", label: "Riders", icon: Bike },
+      { href: "/admin/staff", label: "Staff", icon: UserCog },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { href: "/admin/branches", label: "Branches", icon: Building2 },
+      { href: "/admin/settings", label: "Settings", icon: Settings },
+    ],
+  },
+];
+
+export const ADMIN_MOBILE_NAV: NavItem[] = [
+  { href: "/admin", label: "Home", icon: LayoutDashboard },
+  { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+  { href: "/admin/pos", label: "POS", icon: Receipt },
+  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
+];
+
+const MANAGER_NAV_SECTIONS: NavSection[] = ADMIN_NAV_SECTIONS.map((section) => ({
+  ...section,
+  items: section.items.filter(
+    (item) => item.href !== "/admin/branches" && item.href !== "/admin/settings" && item.href !== "/admin/staff"
+  ),
+})).filter((section) => section.items.length > 0);
+
+export function navSectionsForRole(role: Role): NavSection[] {
+  if (role === "MANAGER") return MANAGER_NAV_SECTIONS;
+  if (role === "CHEF") {
+    return [
+      {
+        title: "Operations",
+        items: [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }],
+      },
+    ];
+  }
+  if (role === "CASHIER") {
+    return [
+      {
+        title: "Operations",
+        items: [
+          { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+          { href: "/admin/pos", label: "POS", icon: Receipt },
+          { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+        ],
+      },
+      {
+        title: "People",
+        items: [{ href: "/admin/customers", label: "Customers", icon: Users }],
+      },
+    ];
+  }
+  return ADMIN_NAV_SECTIONS;
+}
+
+export const MOBILE_NAV_FOR_ROLE: Record<Role, NavItem[]> = {
+  ADMIN: ADMIN_MOBILE_NAV,
+  MANAGER: [
+    { href: "/admin", label: "Home", icon: LayoutDashboard },
+    { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+    { href: "/admin/pos", label: "POS", icon: Receipt },
+    { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+    { href: "/admin/customers", label: "Customers", icon: Users },
+  ],
+  CHEF: [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }],
+  CASHIER: [
+    { href: "/admin/pos", label: "POS", icon: Receipt },
+    { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+    { href: "/admin/orders", label: "Orders", icon: ClipboardList },
+    { href: "/admin/customers", label: "Customers", icon: Users },
+  ],
+  RIDER: [{ href: "/admin/orders", label: "Orders", icon: ClipboardList }],
+  CUSTOMER: [],
+};

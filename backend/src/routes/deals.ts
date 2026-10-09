@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { ADMIN_LIKE } from "../lib/roles";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 const DEAL_CATEGORY_PRESETS = [
@@ -73,7 +74,7 @@ dealsRouter.get("/:id", async (req, res) => {
   res.json(deal);
 });
 
-dealsRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+dealsRouter.post("/", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const { title, description, category, dealPrice, imageUrl, isActive, items } = req.body;
   if (!title || dealPrice == null) {
     return res.status(400).json({ error: "Title and deal price are required." });
@@ -104,7 +105,7 @@ dealsRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
   res.status(201).json(deal);
 });
 
-dealsRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+dealsRouter.put("/:id", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const { title, description, category, dealPrice, imageUrl, isActive, items } = req.body;
 
   try {
@@ -145,7 +146,7 @@ dealsRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) =
   }
 });
 
-dealsRouter.delete("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+dealsRouter.delete("/:id", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   try {
     await prisma.deal.delete({ where: { id: req.params.id } });
     res.json({ ok: true });

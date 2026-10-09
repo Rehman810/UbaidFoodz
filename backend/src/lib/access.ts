@@ -1,4 +1,4 @@
-export type AppRole = "ADMIN" | "CASHIER" | "CHEF" | "RIDER" | "CUSTOMER" | "ANONYMOUS";
+export type AppRole = "ADMIN" | "MANAGER" | "CASHIER" | "CHEF" | "RIDER" | "CUSTOMER" | "ANONYMOUS";
 
 export type AccessAction =
   | "dashboard"
@@ -17,17 +17,17 @@ export type AccessAction =
   | "rider.own";
 
 const MATRIX: Record<AccessAction, AppRole[]> = {
-  dashboard: ["ADMIN"],
-  analytics: ["ADMIN"],
-  kitchen: ["ADMIN", "CHEF", "CASHIER"],
-  pos: ["ADMIN", "CASHIER"],
-  "orders.read": ["ADMIN", "CHEF", "CASHIER"],
-  "orders.status": ["ADMIN", "CHEF", "CASHIER"],
-  "orders.assign": ["ADMIN"],
-  "customers.read": ["ADMIN", "CASHIER"],
+  dashboard: ["ADMIN", "MANAGER"],
+  analytics: ["ADMIN", "MANAGER"],
+  kitchen: ["ADMIN", "MANAGER", "CHEF", "CASHIER"],
+  pos: ["ADMIN", "MANAGER", "CASHIER"],
+  "orders.read": ["ADMIN", "MANAGER", "CHEF", "CASHIER"],
+  "orders.status": ["ADMIN", "MANAGER", "CHEF", "CASHIER"],
+  "orders.assign": ["ADMIN", "MANAGER"],
+  "customers.read": ["ADMIN", "MANAGER", "CASHIER"],
   "customers.block": ["ADMIN"],
-  "menu.write": ["ADMIN"],
-  "areas.write": ["ADMIN"],
+  "menu.write": ["ADMIN", "MANAGER"],
+  "areas.write": ["ADMIN", "MANAGER"],
   staff: ["ADMIN"],
   settings: ["ADMIN"],
   "rider.own": ["RIDER"],

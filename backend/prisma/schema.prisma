@@ -20,14 +20,46 @@ model Restaurant {
   banners      PromoBanner[]
   deals        Deal[]
   areas        DeliveryArea[]
+  branches     Branch[]
   orders       Order[]
   blocks       OrderBlock[]
   testimonials Testimonial[]
 }
 
+model Branch {
+  id           String     @id @default(uuid())
+  restaurantId String     @default("11111111-1111-4111-8111-111111111111")
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  name         String
+  code         String
+  address      String     @default("")
+  phone        String     @default("")
+  isActive     Boolean    @default(true)
+  isDefault    Boolean    @default(false)
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  orders       Order[]
+  members      BranchMember[]
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId, isActive])
+}
+
+model BranchMember {
+  id       String @id @default(uuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, userId])
+  @@index([userId])
+}
+
 enum Role {
   CUSTOMER
   ADMIN
+  MANAGER
   RIDER
   CHEF
   CASHIER
@@ -85,6 +117,7 @@ model User {
   orders         Order[] @relation("CustomerOrders")
   assignedOrders Order[] @relation("RiderOrders")
   posOrders      Order[] @relation("PosOrders")
+  branchMembers  BranchMember[]
 }
 
 model Category {
@@ -278,6 +311,8 @@ model Order {
   id               String          @id @default(uuid())
   restaurantId     String          @default("11111111-1111-4111-8111-111111111111")
   restaurant       Restaurant      @relation(fields: [restaurantId], references: [id])
+  branchId         String?
+  branch           Branch?         @relation(fields: [branchId], references: [id])
   orderNumber      String          @unique
   customerId       String?
   customer         User?           @relation("CustomerOrders", fields: [customerId], references: [id])

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { effectiveItemPrice } from "../lib/store-settings";
+import { ADMIN_LIKE } from "../lib/roles";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 export const menuRouter = Router();
@@ -192,7 +193,7 @@ async function syncAddons(menuItemId: string, addons?: { name: string; price: nu
   }
 }
 
-menuRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+menuRouter.post("/", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const { name, description, price, discountPrice, category, imageUrl, isAvailable, optionGroups, addons } =
     req.body;
   if (!name || price == null || !category) {
@@ -218,7 +219,7 @@ menuRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
   res.status(201).json(serializeMenuItem(full!));
 });
 
-menuRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+menuRouter.put("/:id", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const { name, description, price, discountPrice, category, imageUrl, isAvailable, optionGroups, addons, sizes } =
     req.body;
   try {
@@ -254,7 +255,7 @@ menuRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) =>
   }
 });
 
-menuRouter.delete("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+menuRouter.delete("/:id", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   try {
     await prisma.menuItem.delete({ where: { id: req.params.id } });
     res.json({ ok: true });

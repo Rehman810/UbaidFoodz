@@ -28,6 +28,7 @@ import { currencyForCode, currencyOptions, symbolForCode, timezoneOptions } from
 import { isStoreOpen, generatedClosedMessage } from "@/lib/store-hours";
 import { validateSettingsInput } from "@/lib/settings-validate";
 import { PromoBanner, StoreSettings } from "@/lib/types";
+import { AdminScopeBanner } from "@/components/admin/AdminScopeBanner";
 
 type SettingsPayload = { settings: StoreSettings; banners: PromoBanner[] };
 
@@ -228,6 +229,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-6 pb-24">
+      <AdminScopeBanner variant="chain" />
       {/* Header */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-stone-900 via-stone-900 to-brand-900 p-6 text-white shadow-xl sm:p-8">
         <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-brand-500/20 blur-3xl" />

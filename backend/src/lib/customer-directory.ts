@@ -41,7 +41,9 @@ type GuestAgg = {
 
 export type CustomerSort = "spent" | "orders" | "name" | "recent";
 
-export async function buildCustomerDirectory(): Promise<CustomerDirectoryRow[]> {
+export async function buildCustomerDirectory(branchId?: string | null): Promise<CustomerDirectoryRow[]> {
+  const branchFilter = branchId ? { branchId } : {};
+
   const [users, orderCounts, orderSpent, guestOrders] = await Promise.all([
     prisma.user.findMany({
       where: { role: Role.CUSTOMER },
@@ -49,16 +51,16 @@ export async function buildCustomerDirectory(): Promise<CustomerDirectoryRow[]> 
     }),
     prisma.order.groupBy({
       by: ["customerId"],
-      where: { customerId: { not: null } },
+      where: { customerId: { not: null }, ...branchFilter },
       _count: { _all: true },
     }),
     prisma.order.groupBy({
       by: ["customerId"],
-      where: { customerId: { not: null }, status: { not: OrderStatus.CANCELLED } },
+      where: { customerId: { not: null }, status: { not: OrderStatus.CANCELLED }, ...branchFilter },
       _sum: { total: true },
     }),
     prisma.order.findMany({
-      where: { customerId: null },
+      where: { customerId: null, ...branchFilter },
       select: {
         id: true,
         total: true,
@@ -83,7 +85,7 @@ export async function buildCustomerDirectory(): Promise<CustomerDirectoryRow[]> 
   const customerIds = users.map((u) => u.id);
   const lastOrders = customerIds.length
     ? await prisma.order.findMany({
-        where: { customerId: { in: customerIds } },
+        where: { customerId: { in: customerIds }, ...branchFilter },
         select: {
           id: true,
           total: true,
@@ -174,7 +176,11 @@ export async function buildCustomerDirectory(): Promise<CustomerDirectoryRow[]> 
     lastOrder: guest.lastOrder,
   }));
 
-  return [...registered, ...guests].filter((c) => c.orderCount > 0 || !c.isGuest);
+  const merged = [...registered, ...guests];
+  if (branchId) {
+    return merged.filter((c) => c.orderCount > 0);
+  }
+  return merged.filter((c) => c.orderCount > 0 || !c.isGuest);
 }
 
 export function filterCustomers(
@@ -225,11 +231,18 @@ export function customerDirectoryStats(customers: CustomerDirectoryRow[]) {
   };
 }
 
-export async function listCustomerOrders(customerId: string, limit: number, offset: number) {
+export async function listCustomerOrders(
+  customerId: string,
+  limit: number,
+  offset: number,
+  branchId?: string | null
+) {
+  const branchFilter = branchId ? { branchId } : {};
+
   if (customerId.startsWith("guest:")) {
     const contactKey = customerId.slice("guest:".length);
     const guestOrders = await prisma.order.findMany({
-      where: { customerId: null },
+      where: { customerId: null, ...branchFilter },
       select: {
         id: true,
         orderNumber: true,
@@ -269,10 +282,17 @@ export async function listCustomerOrders(customerId: string, limit: number, offs
   const phoneKey = normalizeBlockPhone(user.phone);
   const emailKey = normalizeBlockEmail(user.email);
   const where = {
-    OR: [
-      { customerId: user.id },
-      ...(phoneKey ? [{ customerId: null as null, customerPhone: { contains: phoneKey.slice(-10) } }] : []),
-      ...(emailKey ? [{ customerId: null as null, customerEmail: { equals: emailKey, mode: "insensitive" as const } }] : []),
+    AND: [
+      {
+        OR: [
+          { customerId: user.id },
+          ...(phoneKey ? [{ customerId: null as null, customerPhone: { contains: phoneKey.slice(-10) } }] : []),
+          ...(emailKey
+            ? [{ customerId: null as null, customerEmail: { equals: emailKey, mode: "insensitive" as const } }]
+            : []),
+        ],
+      },
+      branchFilter,
     ],
   };
 

@@ -13,7 +13,8 @@ import { loadCheckoutProfile, saveCheckoutProfile } from "@/lib/checkout-profile
 import { saveGuestOrderToken } from "@/lib/guest-order";
 import { useFulfillment } from "@/lib/fulfillment";
 import { pkr } from "@/lib/format";
-import { pickupLocation } from "@/lib/branding";
+import { storeDisplayName } from "@/lib/branding";
+import { branchPickupLabel } from "@/lib/storefront-branches";
 import { useStore } from "@/lib/store";
 import { useStoreOpen } from "@/lib/use-store-open";
 import { getCheckoutLocation } from "@/lib/geolocation";
@@ -35,6 +36,9 @@ export default function CheckoutPage() {
     areaId,
     areaName,
     deliveryCharge,
+    branchId,
+    branchName,
+    branchAddress,
     setOpenModal,
   } = useFulfillment();
   const [name, setName] = useState("");
@@ -50,7 +54,14 @@ export default function CheckoutPage() {
 
   const isDelivery = mode === "DELIVERY";
   const settings = store?.settings;
-  const pickupAddress = pickupLocation(settings);
+  const pickupAddress =
+    branchName && branchAddress
+      ? branchPickupLabel({ name: branchName, address: branchAddress })
+      : branchName
+        ? branchName
+        : settings?.address
+          ? `${storeDisplayName(settings)} — ${settings.address}`
+          : "Restaurant pickup";
   const minimumOrder = Number(settings?.minimumOrder ?? 0);
   const freeAbove = settings?.freeDeliveryAbove != null ? Number(settings.freeDeliveryAbove) : null;
   const qualifiesFreeDelivery = freeAbove != null && subtotal >= freeAbove;
@@ -137,6 +148,11 @@ export default function CheckoutPage() {
       setOpenModal(true);
       return;
     }
+    if (!branchId) {
+      setError("Please choose a pickup or delivery location.");
+      setOpenModal(true);
+      return;
+    }
     const digits = phone.replace(/\D/g, "");
     if (digits.length < 10) {
       setError("Enter a valid phone number with at least 10 digits (e.g. 0300 1234567).");
@@ -162,6 +178,7 @@ export default function CheckoutPage() {
           deliveryAddress: isDelivery ? address : pickupAddress,
           fulfillmentType: mode,
           deliveryAreaId: isDelivery ? areaId : undefined,
+          branchId,
           notes,
           items: payload.items,
           deals: payload.deals,
@@ -251,7 +268,9 @@ export default function CheckoutPage() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{isDelivery ? "Delivery" : "Takeaway"}</p>
               <p className="truncate text-xs text-stone-500">
-                {isDelivery ? areaName || "Select area" : pickupAddress}
+                {isDelivery
+                  ? [areaName, branchName].filter(Boolean).join(" · ") || "Select area"
+                  : pickupAddress}
               </p>
               <p className="text-xs text-brand-600">Est. {estimateMin} min</p>
             </div>

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Role } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { ADMIN_LIKE } from "../lib/roles";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 export const deliveryAreasRouter = Router();
@@ -16,14 +17,14 @@ deliveryAreasRouter.get("/", async (req, res) => {
 });
 
 /** Admin: all areas with delivery settings */
-deliveryAreasRouter.get("/all", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
+deliveryAreasRouter.get("/all", requireAuth, requireRole(...ADMIN_LIKE), async (_req, res) => {
   const areas = await prisma.deliveryArea.findMany({
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
   res.json(areas);
 });
 
-deliveryAreasRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+deliveryAreasRouter.post("/", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const name = String(req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "Area name is required." });
 
@@ -48,7 +49,7 @@ deliveryAreasRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, 
   res.status(201).json(area);
 });
 
-deliveryAreasRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+deliveryAreasRouter.patch("/:id", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const area = await prisma.deliveryArea.findUnique({ where: { id: req.params.id } });
   if (!area) return res.status(404).json({ error: "Area not found." });
 

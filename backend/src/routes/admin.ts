@@ -12,6 +12,15 @@ import {
   type CustomerSort,
 } from "../lib/customer-directory";
 import { prisma } from "../lib/prisma";
+import {
+  branchScopeError,
+  getDefaultBranchId,
+  orderBranchWhere,
+  resolveBranchScope,
+  riderWhereForScope,
+  syncUserBranches,
+} from "../lib/branch-scope";
+import { ADMIN_LIKE, ORDER_OPS } from "../lib/roles";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { sendStaffWelcomeEmail } from "../lib/email";
 
@@ -61,8 +70,13 @@ function periodRange(period: AnalyticsPeriod) {
   return { start, end, period };
 }
 
-async function buildChart(period: AnalyticsPeriod, start: Date, end: Date) {
-  const notCancelled = { status: { not: OrderStatus.CANCELLED } };
+async function buildChart(
+  period: AnalyticsPeriod,
+  start: Date,
+  end: Date,
+  branchWhere: { branchId?: string } = {}
+) {
+  const notCancelled = { status: { not: OrderStatus.CANCELLED }, ...branchWhere };
 
   if (period === "today") {
     const buckets = [];
@@ -168,7 +182,15 @@ async function buildChart(period: AnalyticsPeriod, start: Date, end: Date) {
   return buckets;
 }
 
-adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
+adminRouter.get("/stats", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const bw = scope.where;
+
   const start = dayStart();
   const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
 
@@ -194,47 +216,49 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     posTodayRevenueAgg,
   ] = await Promise.all([
     prisma.order.count({
-      where: { createdAt: { gte: start }, status: { not: OrderStatus.CANCELLED } },
+      where: { ...bw, createdAt: { gte: start }, status: { not: OrderStatus.CANCELLED } },
     }),
     prisma.order.aggregate({
       _sum: { total: true },
-      where: { createdAt: { gte: start }, status: { not: OrderStatus.CANCELLED } },
+      where: { ...bw, createdAt: { gte: start }, status: { not: OrderStatus.CANCELLED } },
     }),
     prisma.order.aggregate({
       _sum: { total: true },
-      where: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
+      where: { ...bw, createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
     }),
     prisma.order.count({
-      where: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
+      where: { ...bw, createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } },
     }),
-    prisma.order.count({ where: { status: OrderStatus.PENDING_CONFIRMATION } }),
-    prisma.order.count({ where: { status: OrderStatus.CONFIRMED } }),
-    prisma.order.count({ where: { status: OrderStatus.PREPARING } }),
-    prisma.order.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY } }),
-    prisma.order.count({ where: { createdAt: { gte: start }, status: OrderStatus.DELIVERED } }),
-    prisma.order.count({ where: { createdAt: { gte: start }, status: OrderStatus.CANCELLED } }),
+    prisma.order.count({ where: { ...bw, status: OrderStatus.PENDING_CONFIRMATION } }),
+    prisma.order.count({ where: { ...bw, status: OrderStatus.CONFIRMED } }),
+    prisma.order.count({ where: { ...bw, status: OrderStatus.PREPARING } }),
+    prisma.order.count({ where: { ...bw, status: OrderStatus.OUT_FOR_DELIVERY } }),
+    prisma.order.count({ where: { ...bw, createdAt: { gte: start }, status: OrderStatus.DELIVERED } }),
+    prisma.order.count({ where: { ...bw, createdAt: { gte: start }, status: OrderStatus.CANCELLED } }),
     prisma.menuItem.count(),
     prisma.user.count({ where: { role: Role.CUSTOMER } }),
-    prisma.order.count({ where: { status: { not: OrderStatus.CANCELLED } } }),
+    prisma.order.count({ where: { ...bw, status: { not: OrderStatus.CANCELLED } } }),
     prisma.order.aggregate({
       _sum: { total: true },
-      where: { status: { not: OrderStatus.CANCELLED } },
+      where: { ...bw, status: { not: OrderStatus.CANCELLED } },
     }),
     prisma.user.findMany({
       where: { role: Role.RIDER },
       select: { id: true, name: true, phone: true },
     }),
     prisma.orderItem.findMany({
-      where: { order: { createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } } },
+      where: { order: { ...bw, createdAt: { gte: monthStart }, status: { not: OrderStatus.CANCELLED } } },
       select: { nameAtOrder: true, quantity: true, priceAtOrder: true, menuItem: { select: { category: true } } },
     }),
     prisma.order.findMany({
+      where: bw,
       take: 8,
       orderBy: { createdAt: "desc" },
       include: orderInclude,
     }),
     prisma.order.count({
       where: {
+        ...bw,
         createdAt: { gte: start },
         status: { not: OrderStatus.CANCELLED },
         orderSource: OrderSource.POS,
@@ -243,6 +267,7 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     prisma.order.aggregate({
       _sum: { total: true },
       where: {
+        ...bw,
         createdAt: { gte: start },
         status: { not: OrderStatus.CANCELLED },
         orderSource: OrderSource.POS,
@@ -262,11 +287,11 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     to.setDate(to.getDate() + 1);
     const [count, sum] = await Promise.all([
       prisma.order.count({
-        where: { createdAt: { gte: from, lt: to }, status: { not: OrderStatus.CANCELLED } },
+        where: { ...bw, createdAt: { gte: from, lt: to }, status: { not: OrderStatus.CANCELLED } },
       }),
       prisma.order.aggregate({
         _sum: { total: true },
-        where: { createdAt: { gte: from, lt: to }, status: { not: OrderStatus.CANCELLED } },
+        where: { ...bw, createdAt: { gte: from, lt: to }, status: { not: OrderStatus.CANCELLED } },
       }),
     ]);
     days.push({
@@ -297,6 +322,7 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
 
   const statusCounts = await prisma.order.groupBy({
     by: ["status"],
+    where: bw,
     _count: { status: true },
   });
   const statusBreakdown = Object.fromEntries(
@@ -307,10 +333,10 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
     riders.map(async (r) => {
       const [active, completedToday] = await Promise.all([
         prisma.order.count({
-          where: { riderId: r.id, status: OrderStatus.OUT_FOR_DELIVERY },
+          where: { ...bw, riderId: r.id, status: OrderStatus.OUT_FOR_DELIVERY },
         }),
         prisma.order.count({
-          where: { riderId: r.id, status: OrderStatus.DELIVERED, createdAt: { gte: start } },
+          where: { ...bw, riderId: r.id, status: OrderStatus.DELIVERED, createdAt: { gte: start } },
         }),
       ]);
       return { ...r, activeDeliveries: active, completedToday };
@@ -345,10 +371,18 @@ adminRouter.get("/stats", requireAuth, requireRole(Role.ADMIN), async (_req, res
   });
 });
 
-adminRouter.get("/analytics", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+adminRouter.get("/analytics", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const bw = scope.where;
+
   const period = parsePeriod(req.query.period);
   const { start, end } = periodRange(period);
-  const rangeWhere = { createdAt: { gte: start, lte: end } };
+  const rangeWhere = { ...bw, createdAt: { gte: start, lte: end } };
   const orderWhere = { ...rangeWhere, status: { not: OrderStatus.CANCELLED } };
 
   const [orders, revenueAgg, delivered, orderItems, statusCounts, customersInPeriod] = await Promise.all([
@@ -377,7 +411,7 @@ adminRouter.get("/analytics", requireAuth, requireRole(Role.ADMIN), async (req, 
   ]);
 
   const revenue = Number(revenueAgg._sum.total || 0);
-  const chart = await buildChart(period, start, end);
+  const chart = await buildChart(period, start, end, bw);
 
   const itemMap = new Map<string, { name: string; qty: number; revenue: number }>();
   const catMap = new Map<string, { revenue: number; orders: number }>();
@@ -430,20 +464,42 @@ function customerContactKey(phone: string, email: string | null | undefined) {
   return null;
 }
 
-adminRouter.get("/customers/stats", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (_req, res) => {
-  const directory = await buildCustomerDirectory();
+adminRouter.get("/customers/stats", requireAuth, requireRole(...ORDER_OPS), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const branchId = scope.allBranches ? null : scope.branchId;
+  const directory = await buildCustomerDirectory(branchId);
   res.json(customerDirectoryStats(directory));
 });
 
-adminRouter.get("/customers/:customerId/orders", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (req, res) => {
+adminRouter.get("/customers/:customerId/orders", requireAuth, requireRole(...ORDER_OPS), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const branchId = scope.allBranches ? null : scope.branchId;
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   const offset = Math.max(0, Number(req.query.offset) || 0);
-  const result = await listCustomerOrders(req.params.customerId, limit, offset);
+  const result = await listCustomerOrders(req.params.customerId, limit, offset, branchId);
   if (!result) return res.status(404).json({ error: "Customer not found." });
   res.json(result);
 });
 
-adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN, Role.CASHIER), async (req, res) => {
+adminRouter.get("/customers", requireAuth, requireRole(...ORDER_OPS), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const branchId = scope.allBranches ? null : scope.branchId;
+
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   const offset = Math.max(0, Number(req.query.offset) || 0);
   const search = String(req.query.search || "").trim();
@@ -451,7 +507,7 @@ adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN, Role.CASHIER)
   const sort: CustomerSort =
     sortRaw === "orders" || sortRaw === "name" || sortRaw === "recent" ? sortRaw : "spent";
 
-  const directory = await buildCustomerDirectory();
+  const directory = await buildCustomerDirectory(branchId);
   const filtered = filterCustomers(directory, search, sort);
   const { customers, total } = paginateCustomers(filtered, limit, offset);
 
@@ -473,15 +529,24 @@ adminRouter.get("/customers", requireAuth, requireRole(Role.ADMIN, Role.CASHIER)
   });
 });
 
-adminRouter.get("/riders/summary", requireAuth, requireRole(Role.ADMIN, Role.CHEF, Role.CASHIER), async (_req, res) => {
+adminRouter.get("/riders/summary", requireAuth, requireRole(...ORDER_OPS), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const orderBranch = orderBranchWhere(scope);
+  const riderWhere = { ...riderWhereForScope(scope), isActive: true };
+
   const riders = await prisma.user.findMany({
-    where: { role: Role.RIDER, isActive: true },
+    where: riderWhere,
     select: { id: true, name: true, phone: true },
     orderBy: { name: "asc" },
   });
   const activeCounts = await prisma.order.groupBy({
     by: ["riderId"],
-    where: { riderId: { not: null }, status: OrderStatus.OUT_FOR_DELIVERY },
+    where: { riderId: { not: null }, status: OrderStatus.OUT_FOR_DELIVERY, ...orderBranch },
     _count: { _all: true },
   });
   const countMap = new Map(
@@ -496,6 +561,13 @@ adminRouter.get("/riders/summary", requireAuth, requireRole(Role.ADMIN, Role.CHE
 });
 
 adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+
   const { name, email, phone, password } = req.body as {
     name?: string;
     email?: string;
@@ -527,6 +599,16 @@ adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, re
     select: { id: true, name: true, email: true, phone: true },
   });
 
+  const branchId = scope.allBranches ? await getDefaultBranchId() : scope.branchId!;
+  try {
+    await syncUserBranches(rider.id, [branchId]);
+  } catch (err) {
+    await prisma.user.delete({ where: { id: rider.id } });
+    const status = typeof err === "object" && err && "status" in err ? Number((err as { status: number }).status) : 400;
+    const message = err instanceof Error ? err.message : "Invalid branches";
+    return res.status(status).json({ error: message });
+  }
+
   void sendStaffWelcomeEmail(rider.email, rider.name, Role.RIDER, password?.trim() ? undefined : plainPassword);
 
   res.status(201).json({
@@ -537,23 +619,36 @@ adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, re
   });
 });
 
-adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+adminRouter.get("/riders", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const orderBranch = orderBranchWhere(scope);
+  const riderScope = riderWhereForScope(scope);
+
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
   const offset = Math.max(0, Number(req.query.offset) || 0);
   const search = String(req.query.search || "").trim().toLowerCase();
 
   const riders = await prisma.user.findMany({
     where: {
-      role: Role.RIDER,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" as const } },
-              { email: { contains: search, mode: "insensitive" as const } },
-              { phone: { contains: search } },
-            ],
-          }
-        : {}),
+      AND: [
+        riderScope,
+        ...(search
+          ? [
+              {
+                OR: [
+                  { name: { contains: search, mode: "insensitive" as const } },
+                  { email: { contains: search, mode: "insensitive" as const } },
+                  { phone: { contains: search } },
+                ],
+              },
+            ]
+          : []),
+      ],
     },
     select: { id: true, name: true, email: true, phone: true },
     orderBy: { name: "asc" },
@@ -565,7 +660,7 @@ adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res
   const [activeOrders, deliveredCounts, totalCounts] = riderIds.length
     ? await Promise.all([
         prisma.order.findMany({
-          where: { riderId: { in: riderIds }, status: OrderStatus.OUT_FOR_DELIVERY },
+          where: { riderId: { in: riderIds }, status: OrderStatus.OUT_FOR_DELIVERY, ...orderBranch },
           select: {
             id: true,
             orderNumber: true,
@@ -581,12 +676,12 @@ adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res
         }),
         prisma.order.groupBy({
           by: ["riderId"],
-          where: { riderId: { in: riderIds }, status: OrderStatus.DELIVERED },
+          where: { riderId: { in: riderIds }, status: OrderStatus.DELIVERED, ...orderBranch },
           _count: { _all: true },
         }),
         prisma.order.groupBy({
           by: ["riderId"],
-          where: { riderId: { in: riderIds } },
+          where: { riderId: { in: riderIds }, ...orderBranch },
           _count: { _all: true },
         }),
       ])
@@ -607,14 +702,18 @@ adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res
   }
 
   const [fleetTotal, activeDrops, deliveredAll] = await Promise.all([
-    prisma.user.count({ where: { role: Role.RIDER } }),
-    prisma.order.count({ where: { status: OrderStatus.OUT_FOR_DELIVERY, riderId: { not: null } } }),
-    prisma.order.count({ where: { status: OrderStatus.DELIVERED, riderId: { not: null } } }),
+    prisma.user.count({ where: riderScope }),
+    prisma.order.count({
+      where: { status: OrderStatus.OUT_FOR_DELIVERY, riderId: { not: null }, ...orderBranch },
+    }),
+    prisma.order.count({
+      where: { status: OrderStatus.DELIVERED, riderId: { not: null }, ...orderBranch },
+    }),
   ]);
   const onRoad = await prisma.user.count({
     where: {
-      role: Role.RIDER,
-      assignedOrders: { some: { status: OrderStatus.OUT_FOR_DELIVERY } },
+      ...riderScope,
+      assignedOrders: { some: { status: OrderStatus.OUT_FOR_DELIVERY, ...orderBranch } },
     },
   });
 
@@ -639,4 +738,107 @@ adminRouter.get("/riders", requireAuth, requireRole(Role.ADMIN), async (req, res
       available: Math.max(0, fleetTotal - onRoad),
     },
   });
+});
+
+function normalizeBranchCode(raw: string) {
+  const code = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 24);
+  if (!code) throw Object.assign(new Error("Branch code is required."), { status: 400 });
+  return code;
+}
+
+adminRouter.get("/branches", requireAuth, requireRole(Role.ADMIN), async (_req, res) => {
+  const branches = await prisma.branch.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    include: { _count: { select: { orders: true, members: true } } },
+  });
+  res.json({ branches });
+});
+
+adminRouter.post("/branches", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const { name, code, address, phone, isDefault, sortOrder } = req.body as {
+    name?: string;
+    code?: string;
+    address?: string;
+    phone?: string;
+    isDefault?: boolean;
+    sortOrder?: number;
+  };
+  if (!name?.trim()) return res.status(400).json({ error: "Branch name is required." });
+  const branchCode = normalizeBranchCode(code || name);
+  try {
+    if (isDefault) {
+      await prisma.branch.updateMany({ data: { isDefault: false } });
+    }
+    const branch = await prisma.branch.create({
+      data: {
+        name: name.trim(),
+        code: branchCode,
+        address: address?.trim() || "",
+        phone: phone?.trim() || "",
+        isDefault: Boolean(isDefault),
+        sortOrder: Number(sortOrder) || 0,
+      },
+    });
+    res.status(201).json({ branch });
+  } catch {
+    res.status(409).json({ error: "A branch with this code already exists." });
+  }
+});
+
+adminRouter.patch("/branches/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const existing = await prisma.branch.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Branch not found." });
+
+  const { name, code, address, phone, isActive, isDefault, sortOrder } = req.body as {
+    name?: string;
+    code?: string;
+    address?: string;
+    phone?: string;
+    isActive?: boolean;
+    isDefault?: boolean;
+    sortOrder?: number;
+  };
+
+  if (isDefault) {
+    await prisma.branch.updateMany({ data: { isDefault: false } });
+  }
+  if (isActive === false && existing.isDefault) {
+    return res.status(400).json({ error: "Cannot deactivate the default branch. Set another default first." });
+  }
+
+  try {
+    const branch = await prisma.branch.update({
+      where: { id: existing.id },
+      data: {
+        ...(name !== undefined ? { name: name.trim() } : {}),
+        ...(code !== undefined ? { code: normalizeBranchCode(code) } : {}),
+        ...(address !== undefined ? { address: address.trim() } : {}),
+        ...(phone !== undefined ? { phone: phone.trim() } : {}),
+        ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {}),
+        ...(isDefault !== undefined ? { isDefault: Boolean(isDefault) } : {}),
+        ...(sortOrder !== undefined ? { sortOrder: Number(sortOrder) || 0 } : {}),
+      },
+    });
+    res.json({ branch });
+  } catch {
+    res.status(409).json({ error: "Could not update branch (code may be in use)." });
+  }
+});
+
+adminRouter.post("/branches/:id/members", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+  const branch = await prisma.branch.findUnique({ where: { id: req.params.id } });
+  if (!branch) return res.status(404).json({ error: "Branch not found." });
+  const userIds = Array.isArray(req.body?.userIds) ? (req.body.userIds as string[]) : [];
+  if (!userIds.length) return res.status(400).json({ error: "userIds array is required." });
+
+  await prisma.branchMember.createMany({
+    data: userIds.map((userId) => ({ userId, branchId: branch.id })),
+    skipDuplicates: true,
+  });
+  res.json({ ok: true });
 });

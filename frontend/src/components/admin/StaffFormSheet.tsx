@@ -9,8 +9,9 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Bike, ChefHat, Plus, Receipt, UserPlus, X } from "lucide-react";
+import { Bike, Briefcase, ChefHat, Plus, Receipt, UserPlus, X } from "lucide-react";
 import { Role } from "@/lib/types";
+import { BranchSelectField, type BranchSelectOption } from "@/components/admin/BranchSelectField";
 import { ASSIGNABLE_ROLES } from "./StaffTable";
 
 const CLOSE_MS = 340;
@@ -22,9 +23,11 @@ export type StaffFormData = {
   password: string;
   role: Role;
   autoGeneratePassword: boolean;
+  branchIds: string[];
 };
 
 const ROLE_ICONS = {
+  MANAGER: Briefcase,
   CHEF: ChefHat,
   RIDER: Bike,
   CASHIER: Receipt,
@@ -34,6 +37,7 @@ export function StaffFormSheet({
   open,
   form,
   setForm,
+  branches,
   saving,
   error,
   onClose,
@@ -42,6 +46,7 @@ export function StaffFormSheet({
   open: boolean;
   form: StaffFormData;
   setForm: Dispatch<SetStateAction<StaffFormData>>;
+  branches: BranchSelectOption[];
   saving: boolean;
   error: string;
   onClose: () => void;
@@ -145,8 +150,19 @@ export function StaffFormSheet({
               />
             </div>
             <div>
+              <p className="mb-1.5 text-xs font-medium text-stone-500">Branch</p>
+              <BranchSelectField
+                value={form.branchIds[0] ?? ""}
+                branches={branches}
+                onChange={(id) => setForm((f) => ({ ...f, branchIds: [id] }))}
+              />
+              <p className="mt-1.5 text-xs text-stone-400">
+                Staff only see data for this outlet. Set role when creating the account; branches are shown as text in the staff list.
+              </p>
+            </div>
+            <div>
               <p className="mb-1.5 text-xs font-medium text-stone-500">Role</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {ASSIGNABLE_ROLES.map((role) => {
                   const Icon = ROLE_ICONS[role.value as keyof typeof ROLE_ICONS] ?? ChefHat;
                   const active = form.role === role.value;

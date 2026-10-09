@@ -3,27 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  BarChart3,
-  Bike,
-  ClipboardList,
-  Flame,
-  LayoutDashboard,
-  LogOut,
-  Map,
-  MapPinned,
-  PanelLeft,
-  PanelLeftClose,
-  Receipt,
-  Settings,
-  UserCog,
-  Users,
-  UtensilsCrossed,
-} from "lucide-react";
-import { Role } from "@/lib/types";
+import { LogOut, PanelLeft, PanelLeftClose } from "lucide-react";
 import { PoweredBy } from "@/components/PoweredBy";
 import { StoreLogo } from "@/components/StoreLogo";
 import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
+import { BranchSwitcher } from "@/components/admin/BranchSwitcher";
+import { MOBILE_NAV_FOR_ROLE, navSectionsForRole } from "@/modules/admin/navigation";
+import { BranchProvider } from "@/modules/branches/BranchContext";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useAdminTheme } from "@/hooks/useAdminTheme";
@@ -31,97 +17,7 @@ import { PRODUCT_NAME, storeDisplayName } from "@/lib/branding";
 import { useStore } from "@/lib/store";
 import { PublicStore } from "@/lib/types";
 
-type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
-type NavSection = { title: string; items: NavItem[] };
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    title: "Overview",
-    items: [
-      { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-    ],
-  },
-  {
-    title: "Operations",
-    items: [
-      { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
-      { href: "/admin/pos", label: "POS", icon: Receipt },
-      { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-      { href: "/admin/tracking", label: "Live tracking", icon: Map },
-    ],
-  },
-  {
-    title: "Catalog",
-    items: [
-      { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
-      { href: "/admin/areas", label: "Areas", icon: MapPinned },
-    ],
-  },
-  {
-    title: "People",
-    items: [
-      { href: "/admin/customers", label: "Customers", icon: Users },
-      { href: "/admin/riders", label: "Riders", icon: Bike },
-      { href: "/admin/staff", label: "Staff", icon: UserCog },
-    ],
-  },
-  {
-    title: "System",
-    items: [{ href: "/admin/settings", label: "Settings", icon: Settings }],
-  },
-];
-
-const MOBILE_NAV = [
-  { href: "/admin", label: "Home", icon: LayoutDashboard },
-  { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
-  { href: "/admin/pos", label: "POS", icon: Receipt },
-  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
-];
-
 const SIDEBAR_KEY = "uff-admin-sidebar-collapsed";
-
-function navSectionsForRole(role: Role): NavSection[] {
-  if (role === "CHEF") {
-    return [
-      {
-        title: "Operations",
-        items: [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }],
-      },
-    ];
-  }
-  if (role === "CASHIER") {
-    return [
-      {
-        title: "Operations",
-        items: [
-          { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
-          { href: "/admin/pos", label: "POS", icon: Receipt },
-          { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-        ],
-      },
-      {
-        title: "People",
-        items: [{ href: "/admin/customers", label: "Customers", icon: Users }],
-      },
-    ];
-  }
-  return NAV_SECTIONS;
-}
-
-const MOBILE_FOR_ROLE: Record<Role, typeof MOBILE_NAV> = {
-  ADMIN: MOBILE_NAV,
-  CHEF: [{ href: "/admin/kitchen", label: "Kitchen", icon: Flame }],
-  CASHIER: [
-    { href: "/admin/pos", label: "POS", icon: Receipt },
-    { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
-    { href: "/admin/orders", label: "Orders", icon: ClipboardList },
-    { href: "/admin/customers", label: "Customers", icon: Users },
-  ],
-  RIDER: MOBILE_NAV,
-  CUSTOMER: MOBILE_NAV,
-};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout, logoutEverywhere } = useAuth();
@@ -176,6 +72,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (!allowedPath) router.replace("/admin/pos");
       return;
     }
+    if (user.role === "MANAGER") {
+      const allowedPath = [
+        "/admin",
+        "/admin/analytics",
+        "/admin/kitchen",
+        "/admin/pos",
+        "/admin/orders",
+        "/admin/tracking",
+        "/admin/menu",
+        "/admin/areas",
+        "/admin/customers",
+        "/admin/riders",
+      ].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+      if (!allowedPath) router.replace("/admin");
+      return;
+    }
     if (user.role !== "ADMIN") {
       router.replace("/login?next=/admin");
     }
@@ -195,7 +107,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const allowed =
-    user?.role === "ADMIN" || user?.role === "CHEF" || user?.role === "CASHIER";
+    user?.role === "ADMIN" ||
+    user?.role === "MANAGER" ||
+    user?.role === "CHEF" ||
+    user?.role === "CASHIER";
 
   if (loading || !user || !allowed) {
     return (
@@ -212,11 +127,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const sidebarSections = navSectionsForRole(user.role);
-  const mobileNav = MOBILE_FOR_ROLE[user.role];
+  const mobileNav = MOBILE_NAV_FOR_ROLE[user.role];
   const isPos = path.startsWith("/admin/pos");
   const isKitchen = path.startsWith("/admin/kitchen");
 
   return (
+    <BranchProvider>
     <div
       data-admin-theme={theme}
       className="min-h-screen bg-[#fffaf5] dark:bg-stone-950 lg:flex"
@@ -354,6 +270,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <BranchSwitcher />
             <AdminThemeToggle theme={theme} onToggle={toggleTheme} showLabel className="hidden sm:inline-flex" />
             <span
               className={`hidden items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold sm:flex ${
@@ -446,5 +363,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
       </div>
     </div>
+    </BranchProvider>
   );
 }

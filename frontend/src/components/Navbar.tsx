@@ -20,7 +20,7 @@ export function Navbar() {
   const items = useCart((s) => s.items);
   const bounce = useCart((s) => s.bounce);
   const count = cartCount(items);
-  const { mode, areaName, setOpenModal } = useFulfillment();
+  const { mode, areaName, branchName, setOpenModal } = useFulfillment();
   const [open, setOpen] = useState(false);
 
   const isCustomer = !user || user.role === "CUSTOMER";
@@ -83,7 +83,9 @@ export function Navbar() {
                 title="Change delivery or takeaway"
               >
                 <MapPin size={14} className="shrink-0 text-brand-600" />
-                <span className="truncate">{mode === "PICKUP" ? "Takeaway" : areaName || "Delivery"}</span>
+                <span className="truncate">
+                  {mode === "PICKUP" ? branchName || "Takeaway" : areaName || "Delivery"}
+                </span>
               </button>
             )}
             {isCustomer && (

@@ -589,6 +589,8 @@ async function main() {
   }
 
   const coords = CITY_COORDS[CITY.trim().toLowerCase()];
+  const RESTAURANT_ID = "11111111-1111-4111-8111-111111111111";
+
   await prisma.storeSettings.upsert({
     where: { id: "default" },
     create: { id: "default" },
@@ -611,6 +613,40 @@ async function main() {
       closedMessage: "",
     },
   });
+
+  const mainBranch = await prisma.branch.upsert({
+    where: { restaurantId_code: { restaurantId: RESTAURANT_ID, code: "main" } },
+    create: {
+      restaurantId: RESTAURANT_ID,
+      name: `${BRAND_NAME} — Main`,
+      code: "main",
+      address: `Main branch, ${CITY}`,
+      phone: "0300-1002003",
+      isDefault: true,
+      isActive: true,
+      sortOrder: 0,
+    },
+    update: {
+      name: `${BRAND_NAME} — Main`,
+      address: `Main branch, ${CITY}`,
+      phone: "0300-1002003",
+      isDefault: true,
+      isActive: true,
+    },
+  });
+
+  await prisma.order.updateMany({ where: { branchId: null }, data: { branchId: mainBranch.id } });
+
+  const staffForBranches = await prisma.user.findMany({
+    where: { role: { in: [Role.CHEF, Role.RIDER, Role.CASHIER] } },
+    select: { id: true },
+  });
+  if (staffForBranches.length) {
+    await prisma.branchMember.createMany({
+      data: staffForBranches.map((u) => ({ branchId: mainBranch.id, userId: u.id })),
+      skipDuplicates: true,
+    });
+  }
 
   await prisma.promoBanner.createMany({
     data: [

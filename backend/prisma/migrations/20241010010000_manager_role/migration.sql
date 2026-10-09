@@ -1,0 +1,2 @@
+-- Add Manager staff role
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'MANAGER';

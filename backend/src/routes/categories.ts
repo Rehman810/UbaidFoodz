@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Role } from "@prisma/client";
 import { defaultsForCategory, enrichCategory } from "../lib/category-meta";
 import { prisma } from "../lib/prisma";
+import { ADMIN_LIKE } from "../lib/roles";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 export const categoriesRouter = Router();
@@ -33,7 +34,7 @@ categoriesRouter.get("/", async (req, res) => {
   res.json({ categories: categories.map(enrichCategory), total, limit, offset });
 });
 
-categoriesRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+categoriesRouter.post("/", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const name = String(req.body.name || "").trim();
   if (!name) return res.status(400).json({ error: "Category name is required." });
 
@@ -53,7 +54,7 @@ categoriesRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res
   res.status(201).json(enrichCategory(category));
 });
 
-categoriesRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+categoriesRouter.put("/:id", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const category = await prisma.category.findUnique({ where: { id: req.params.id } });
   if (!category) return res.status(404).json({ error: "Category not found." });
 
@@ -85,7 +86,7 @@ categoriesRouter.put("/:id", requireAuth, requireRole(Role.ADMIN), async (req, r
   res.json(enrichCategory(updated));
 });
 
-categoriesRouter.delete("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+categoriesRouter.delete("/:id", requireAuth, requireRole(...ADMIN_LIKE), async (req, res) => {
   const category = await prisma.category.findUnique({ where: { id: req.params.id } });
   if (!category) return res.status(404).json({ error: "Category not found." });
 

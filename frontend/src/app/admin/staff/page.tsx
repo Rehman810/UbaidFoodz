@@ -20,6 +20,8 @@ import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
 import { StaffRow, StaffTable } from "@/components/admin/StaffTable";
 import { StaffFormData, StaffFormSheet } from "@/components/admin/StaffFormSheet";
 import { usePoll } from "@/hooks/usePoll";
+import { AdminScopeBanner } from "@/components/admin/AdminScopeBanner";
+import { useBranch } from "@/modules/branches/BranchContext";
 
 function KpiCard({
   label,
@@ -53,8 +55,16 @@ function KpiCard({
   );
 }
 
+function defaultBranchIds(selection: string, branches: { id: string; isDefault?: boolean }[]) {
+  if (selection !== "all") return [selection];
+  const pick = branches.find((b) => b.isDefault) ?? branches[0];
+  return pick ? [pick.id] : [];
+}
+
 export default function StaffPage() {
   const { user } = useAuth();
+  const { selection, branches } = useBranch();
+  const branchOptions = branches.map((b) => ({ id: b.id, name: b.name, address: b.address }));
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -71,6 +81,7 @@ export default function StaffPage() {
     password: "",
     role: "CHEF",
     autoGeneratePassword: true,
+    branchIds: [],
   };
   const [form, setForm] = useState<StaffFormData>(emptyForm);
 
@@ -115,6 +126,7 @@ export default function StaffPage() {
           role: form.role,
           autoGeneratePassword: form.autoGeneratePassword,
           password: form.autoGeneratePassword ? undefined : form.password.trim() || undefined,
+          branchIds: form.branchIds,
         }),
       });
       closeForm();
@@ -133,7 +145,7 @@ export default function StaffPage() {
     }
   }
 
-  async function patch(id: string, data: Partial<StaffRow>) {
+  async function patch(id: string, data: Partial<StaffRow> & { branchIds?: string[] }) {
     setBusyId(id);
     setMsg("");
     try {
@@ -166,6 +178,7 @@ export default function StaffPage() {
 
   return (
     <div className="w-full space-y-6">
+      <AdminScopeBanner variant="branch" />
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
@@ -175,7 +188,7 @@ export default function StaffPage() {
             <div>
               <h1 className="text-xl font-bold text-stone-900 sm:text-2xl">Staff</h1>
               <p className="mt-0.5 text-sm text-stone-500">
-                Create chefs, riders, and cashiers. Admin role stays on your account.
+                Create chefs, riders, and cashiers. Assign branches in the table or when adding staff.
               </p>
             </div>
           </div>
@@ -184,7 +197,7 @@ export default function StaffPage() {
             <button
               type="button"
               onClick={() => {
-                setForm(emptyForm);
+                setForm({ ...emptyForm, branchIds: defaultBranchIds(selection, branches) });
                 setFormOpen(true);
               }}
               className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500"
@@ -248,9 +261,9 @@ export default function StaffPage() {
         <>
           <StaffTable
             staff={staff}
+            branches={branchOptions}
             currentUserId={user?.id}
             busyId={busyId}
-            onRoleChange={(id, role) => patch(id, { role })}
             onToggleActive={toggleActive}
           />
           <Pagination
@@ -269,6 +282,7 @@ export default function StaffPage() {
           open={formOpen}
           form={form}
           setForm={setForm}
+          branches={branchOptions}
           saving={saving}
           error={msgTone === "err" ? msg : ""}
           onClose={closeForm}

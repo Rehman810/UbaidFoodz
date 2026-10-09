@@ -41,7 +41,12 @@ export function usePoll<T>(fetcher: () => Promise<T>, intervalMs = 15000, enable
     }
     void run();
     const id = setInterval(() => void run({ background: true }), intervalMs);
-    return () => clearInterval(id);
+    const onBranch = () => void run();
+    window.addEventListener("branch-change", onBranch);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("branch-change", onBranch);
+    };
   }, [run, intervalMs, enabled]);
 
   const refresh = useCallback(() => run(), [run]);

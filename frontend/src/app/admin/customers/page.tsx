@@ -21,6 +21,7 @@ import { CustomerTable } from "@/components/admin/CustomerTable";
 import { BlockCustomerSheet } from "@/components/admin/BlockCustomerSheet";
 import { CustomerHistorySheet } from "@/components/admin/CustomerHistorySheet";
 import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
+import { AdminScopeBanner } from "@/components/admin/AdminScopeBanner";
 
 type SortKey = CustomerSort;
 
@@ -196,6 +197,7 @@ export default function CustomersPage() {
 
   return (
     <div className="w-full space-y-5">
+      <AdminScopeBanner variant="branch" />
       <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
