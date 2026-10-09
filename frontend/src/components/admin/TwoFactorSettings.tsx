@@ -166,11 +166,11 @@ export function TwoFactorSettings() {
           </div>
         </div>
       ) : !qr ? (
-        <div className="overflow-hidden rounded-2xl border border-brand-100 bg-gradient-to-br from-[#fffaf5] via-white to-brand-50/40">
+        <div className="overflow-hidden rounded-2xl border border-brand-100 bg-gradient-to-br from-[#fffaf5] via-white to-brand-50/40 dark:border-stone-700 dark:from-stone-900 dark:via-stone-900 dark:to-stone-800">
           <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
-              <p className="text-sm font-semibold text-stone-900">Secure your admin account</p>
-              <p className="mt-1 max-w-lg text-sm leading-relaxed text-stone-600">
+              <p className="text-sm font-semibold text-stone-900 dark:text-stone-50">Secure your admin account</p>
+              <p className="mt-1 max-w-lg text-sm leading-relaxed text-stone-600 dark:text-stone-300">
                 Use Google Authenticator, Authy, or any TOTP app. Setup takes about a minute.
               </p>
               <ol className="mt-4 space-y-2.5">
@@ -179,8 +179,8 @@ export function TwoFactorSettings() {
                   { step: "2", text: "Enter the 6-digit code to confirm" },
                   { step: "3", text: "Save the one-time recovery codes" },
                 ].map(({ step, text }) => (
-                  <li key={step} className="flex items-center gap-3 text-sm text-stone-700">
-                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-800">
+                  <li key={step} className="flex items-center gap-3 text-sm text-stone-700 dark:text-stone-300">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-800 dark:bg-brand-900/50 dark:text-brand-300">
                       {step}
                     </span>
                     {text}
@@ -196,9 +196,9 @@ export function TwoFactorSettings() {
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
-          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-800">
             <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-stone-500">Scan QR code</p>
-            <div className="mx-auto grid place-items-center rounded-xl bg-white p-2 ring-1 ring-stone-100">
+            <div className="mx-auto grid place-items-center rounded-xl bg-white p-2 ring-1 ring-stone-100 dark:bg-stone-900 dark:ring-stone-600">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qr} alt="Authenticator QR code" className="h-40 w-40 sm:h-44 sm:w-44" />
             </div>

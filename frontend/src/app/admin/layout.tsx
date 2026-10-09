@@ -23,8 +23,10 @@ import {
 import { Role } from "@/lib/types";
 import { PoweredBy } from "@/components/PoweredBy";
 import { StoreLogo } from "@/components/StoreLogo";
+import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useAdminTheme } from "@/hooks/useAdminTheme";
 import { PRODUCT_NAME, storeDisplayName } from "@/lib/branding";
 import { useStore } from "@/lib/store";
 import { PublicStore } from "@/lib/types";
@@ -130,6 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [kitchenOpen, setKitchenOpen] = useState<boolean | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { theme, toggle: toggleTheme } = useAdminTheme();
 
   useEffect(() => {
     setCollapsed(localStorage.getItem(SIDEBAR_KEY) === "1");
@@ -178,14 +181,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [user, loading, router, path, isStaffLogin]);
 
-  if (isStaffLogin) return <>{children}</>;
+  if (isStaffLogin) {
+    return (
+      <div data-admin-theme={theme} className="relative min-h-screen">
+        <div className="pointer-events-none fixed right-4 top-4 z-50 sm:right-6">
+          <div className="pointer-events-auto">
+            <AdminThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
+        </div>
+        {children}
+      </div>
+    );
+  }
 
   const allowed =
     user?.role === "ADMIN" || user?.role === "CHEF" || user?.role === "CASHIER";
 
   if (loading || !user || !allowed) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#fffaf5] text-stone-400">
+      <div
+        data-admin-theme={theme}
+        className="grid min-h-screen place-items-center bg-[#fffaf5] text-stone-400 dark:bg-stone-950 dark:text-stone-500"
+      >
         <div className="flex items-center gap-3">
           <span className="h-2 w-2 animate-ping rounded-full bg-brand-500" />
           Opening staff dashboard…
@@ -200,13 +217,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isKitchen = path.startsWith("/admin/kitchen");
 
   return (
-    <div className="min-h-screen bg-[#fffaf5] lg:flex">
+    <div
+      data-admin-theme={theme}
+      className="min-h-screen bg-[#fffaf5] dark:bg-stone-950 lg:flex"
+    >
       <aside
         className={`${isPos ? "hidden lg:flex" : ""} lg:fixed lg:inset-y-0 lg:z-30 lg:flex-col lg:transition-[width] lg:duration-300 ${
           collapsed ? "lg:w-[4.75rem]" : "lg:w-72"
         }`}
       >
-        <div className="flex h-full flex-col border-b border-orange-100/80 bg-white shadow-sm lg:border-b-0 lg:border-r">
+        <div className="flex h-full flex-col border-b border-orange-100/80 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-900 lg:border-b-0 lg:border-r">
           <div className={`flex items-center gap-3 py-4 ${collapsed ? "lg:justify-center lg:px-2" : "px-4"}`}>
             <StoreLogo
               logoUrl={store?.settings.logoUrl}
@@ -214,8 +234,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               fallbackClassName="bg-gradient-to-br from-brand-500 to-orange-600 text-white shadow-md shadow-brand-500/20"
             />
             <div className={collapsed ? "lg:hidden" : ""}>
-              <p className="font-display text-lg leading-tight text-stone-900">{storeName || PRODUCT_NAME}</p>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400">{PRODUCT_NAME}</p>
+              <p className="font-display text-lg leading-tight text-stone-900 dark:text-stone-100">{storeName || PRODUCT_NAME}</p>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-stone-400 dark:text-stone-500">{PRODUCT_NAME}</p>
             </div>
           </div>
 
@@ -224,7 +244,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div
                 key={section.title}
                 className={`flex shrink-0 gap-1 lg:mb-3 lg:w-full lg:flex-col lg:last:mb-0 ${
-                  sectionIdx > 0 ? "lg:border-t lg:border-orange-100/80 lg:pt-3" : ""
+                  sectionIdx > 0 ? "lg:border-t lg:border-orange-100/80 lg:pt-3 dark:lg:border-stone-700" : ""
                 }`}
               >
                 <p
@@ -246,8 +266,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         collapsed ? "lg:justify-center lg:px-0 lg:py-3" : "gap-2.5 px-3 py-2.5"
                       } ${
                         active
-                          ? "bg-brand-50 text-brand-800 ring-1 ring-brand-100"
-                          : "text-stone-500 hover:bg-stone-50 hover:text-stone-900"
+                          ? "bg-brand-50 text-brand-800 ring-1 ring-brand-100 dark:bg-brand-950/50 dark:text-brand-200 dark:ring-brand-800"
+                          : "text-stone-500 hover:bg-stone-50 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                       }`}
                     >
                       <Icon size={18} className={active ? "text-brand-600" : ""} />
@@ -259,11 +279,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             ))}
           </nav>
 
-          <div className={`relative hidden border-t border-orange-100/80 p-3 lg:block ${collapsed ? "px-2" : ""}`}>
+          <div className={`relative hidden border-t border-orange-100/80 p-3 dark:border-stone-700 lg:block ${collapsed ? "px-2" : ""}`}>
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
-              className={`flex w-full items-center rounded-xl px-2 py-2 text-left hover:bg-stone-50 ${collapsed ? "justify-center" : "gap-2"}`}
+              className={`flex w-full items-center rounded-xl px-2 py-2 text-left hover:bg-stone-50 dark:hover:bg-stone-800 ${collapsed ? "justify-center" : "gap-2"}`}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
             >
@@ -272,17 +292,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </span>
               {!collapsed && (
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-stone-900">{user.name}</span>
-                  <span className="block truncate text-xs text-stone-400">{user.email}</span>
+                  <span className="block truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{user.name}</span>
+                  <span className="block truncate text-xs text-stone-400 dark:text-stone-500">{user.email}</span>
                 </span>
               )}
             </button>
             {menuOpen && (
-              <div role="menu" className="absolute bottom-16 left-3 z-40 w-52 rounded-xl border border-stone-200 bg-white p-1 shadow-lg">
+              <div role="menu" className="absolute bottom-16 left-3 z-40 w-52 rounded-xl border border-stone-200 bg-white p-1 shadow-lg dark:border-stone-600 dark:bg-stone-800">
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-700"
                   onClick={() => { setMenuOpen(false); logout(); router.push("/"); }}
                 >
                   <LogOut size={14} /> Sign out
@@ -290,14 +310,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <button
                   type="button"
                   role="menuitem"
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-700"
                   onClick={() => { setMenuOpen(false); void logoutEverywhere().then(() => router.push("/")); }}
                 >
                   Sign out everywhere
                 </button>
               </div>
             )}
-            <div className={collapsed ? "mt-2 text-center" : "mt-3 border-t border-orange-100/80 pt-3 px-1"}>
+            <div className={collapsed ? "mt-2 text-center" : "mt-3 border-t border-orange-100/80 pt-3 px-1 dark:border-stone-700"}>
               <PoweredBy
                 variant={collapsed ? "minimal" : "inline"}
                 className="[&_a]:text-brand-600 [&_a:hover]:text-brand-800"
@@ -313,7 +333,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }`}
       >
         <header
-          className={`sticky top-0 z-20 flex items-center justify-between border-b border-orange-100/80 bg-[#fffaf5]/90 px-4 py-3 backdrop-blur-md sm:px-6 lg:px-8 ${
+          className={`sticky top-0 z-20 flex items-center justify-between border-b border-orange-100/80 bg-[#fffaf5]/90 px-4 py-3 backdrop-blur-md dark:border-stone-700 dark:bg-stone-950/90 sm:px-6 lg:px-8 ${
             isPos ? "hidden lg:flex" : ""
           }`}
         >
@@ -321,19 +341,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               type="button"
               onClick={toggleSidebar}
-              className="hidden h-9 w-9 place-items-center rounded-xl border border-stone-200 bg-white text-stone-500 shadow-sm transition hover:border-brand-200 hover:text-brand-700 lg:grid"
+              className="hidden h-9 w-9 place-items-center rounded-xl border border-stone-200 bg-white text-stone-500 shadow-sm transition hover:border-brand-200 hover:text-brand-700 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-300 dark:hover:border-brand-500 dark:hover:text-brand-300 lg:grid"
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
             </button>
-            <p className="text-sm font-bold text-stone-900">
+            <p className="text-sm font-bold text-stone-900 dark:text-stone-100">
               <span className="mr-2">{storeName}</span>
-              <span className="font-medium text-stone-500">
+              <span className="font-medium text-stone-500 dark:text-stone-400">
                 {new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })}
               </span>
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <AdminThemeToggle theme={theme} onToggle={toggleTheme} showLabel className="hidden sm:inline-flex" />
             <span
               className={`hidden items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold sm:flex ${
                 kitchenOpen === false
@@ -350,7 +371,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </span>
             <Link
               href="/"
-              className="hidden rounded-full border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-50 sm:inline"
+              className="hidden rounded-full border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-50 dark:border-brand-800 dark:bg-stone-800 dark:text-brand-300 dark:hover:bg-stone-700 sm:inline"
             >
               View storefront →
             </Link>
@@ -364,11 +385,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {user.name.slice(0, 1).toUpperCase()}
               </button>
               {menuOpen && (
-                <div role="menu" className="absolute right-0 z-40 mt-2 w-52 rounded-xl border border-stone-200 bg-white p-1 shadow-lg lg:hidden">
+                <div role="menu" className="absolute right-0 z-40 mt-2 w-52 rounded-xl border border-stone-200 bg-white p-1 shadow-lg dark:border-stone-600 dark:bg-stone-800 lg:hidden">
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-700"
                     onClick={() => { setMenuOpen(false); logout(); router.push("/"); }}
                   >
                     <LogOut size={14} /> Sign out
@@ -376,7 +397,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <button
                     type="button"
                     role="menuitem"
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:text-stone-200 dark:hover:bg-stone-700"
                     onClick={() => { setMenuOpen(false); void logoutEverywhere().then(() => router.push("/")); }}
                   >
                     Sign out everywhere
@@ -399,7 +420,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </main>
 
         <nav
-          className={`fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md lg:hidden ${
+          className={`fixed bottom-0 left-0 right-0 z-30 border-t border-orange-100 bg-white/95 backdrop-blur-md dark:border-stone-700 dark:bg-stone-900/95 lg:hidden ${
             isPos ? "hidden" : ""
           }`}
         >
@@ -412,7 +433,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   key={n.href}
                   href={n.href}
                   className={`flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold ${
-                    active ? "text-brand-700" : "text-stone-400"
+                    active ? "text-brand-700 dark:text-brand-400" : "text-stone-400 dark:text-stone-500"
                   }`}
                 >
                   <Icon size={18} strokeWidth={active ? 2.5 : 2} />

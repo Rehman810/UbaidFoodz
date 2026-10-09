@@ -200,3 +200,299 @@ h4 {
   background: #fdba74;
   border-radius: 99px;
 }
+
+/* Admin panel dark theme (scoped — storefront unchanged) */
+[data-admin-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-admin-theme="dark"] .input {
+  @apply border-stone-600 bg-stone-800/95 text-stone-100 placeholder:text-stone-500 focus:border-brand-500 focus:ring-brand-900/50;
+}
+
+[data-admin-theme="dark"] .btn-ghost {
+  @apply border-stone-600 bg-stone-800 text-stone-100 hover:border-stone-500 hover:bg-stone-700;
+}
+
+[data-admin-theme="dark"] .skeleton {
+  @apply bg-stone-700/80;
+}
+
+[data-admin-theme="dark"] .card {
+  @apply border-stone-700 bg-stone-900;
+}
+
+[data-admin-theme="dark"] .admin-select option {
+  color: #fafaf9;
+  background: #1c1917;
+}
+
+[data-admin-theme="dark"] .kanban-scroll {
+  scrollbar-color: #ea580c #292524;
+}
+[data-admin-theme="dark"] .kanban-scroll::-webkit-scrollbar-track {
+  background: #292524;
+}
+[data-admin-theme="dark"] .kanban-scroll::-webkit-scrollbar-thumb {
+  background: #c2410c;
+}
+
+[data-admin-theme="dark"] .drawer-backdrop {
+  @apply bg-stone-950/75;
+}
+
+[data-admin-theme="dark"] :is(.bg-white, .bg-white\/95, .bg-white\/90, .bg-white\/80) {
+  background-color: rgb(28 25 23) !important;
+}
+
+[data-admin-theme="dark"] :is(.bg-\[\#fffaf5\], .bg-\[\#fffaf5\]\/90) {
+  background-color: rgb(12 10 9) !important;
+}
+
+[data-admin-theme="dark"] :is(.bg-stone-50, .bg-stone-50\/50, .bg-stone-50\/80, .bg-stone-100, .bg-stone-100\/80) {
+  background-color: rgb(41 37 36) !important;
+}
+
+[data-admin-theme="dark"] .text-stone-900 {
+  color: rgb(250 250 249) !important;
+}
+[data-admin-theme="dark"] .text-stone-800 {
+  color: rgb(231 229 228) !important;
+}
+[data-admin-theme="dark"] .text-stone-700 {
+  color: rgb(214 211 209) !important;
+}
+[data-admin-theme="dark"] :is(.border-stone-100, .border-stone-200, .border-stone-200\/80, .border-orange-100, .border-orange-100\/80) {
+  border-color: rgb(68 64 60) !important;
+}
+
+[data-admin-theme="dark"] :is(.ring-stone-100, .ring-stone-200, .ring-orange-100) {
+  --tw-ring-color: rgb(68 64 60) !important;
+}
+
+[data-admin-theme="dark"] .hover\:bg-stone-50:hover {
+  background-color: rgb(41 37 36) !important;
+}
+[data-admin-theme="dark"] .hover\:bg-white:hover {
+  background-color: rgb(41 37 36) !important;
+}
+
+[data-admin-theme="dark"] .border-dashed {
+  border-color: rgb(87 83 78) !important;
+}
+
+[data-admin-theme="dark"] .shadow-sm,
+[data-admin-theme="dark"] .shadow-md,
+[data-admin-theme="dark"] .shadow-lg,
+[data-admin-theme="dark"] .shadow-card {
+  --tw-shadow-color: rgb(0 0 0 / 0.45);
+}
+
+/* Pastel / tinted surfaces → dark panels */
+[data-admin-theme="dark"] :is(
+    .bg-orange-50,
+    .bg-orange-50\/40,
+    .bg-orange-50\/50,
+    .bg-orange-50\/60,
+    .bg-orange-50\/80,
+    .bg-amber-50,
+    .bg-amber-50\/20,
+    .bg-amber-50\/40,
+    .bg-amber-50\/80,
+    .bg-amber-50\/95,
+    .bg-yellow-50,
+    .bg-blue-50,
+    .bg-blue-50\/80,
+    .bg-sky-50,
+    .bg-violet-50,
+    .bg-violet-50\/80,
+    .bg-emerald-50,
+    .bg-emerald-50\/40,
+    .bg-emerald-50\/50,
+    .bg-emerald-50\/80,
+    .bg-red-50,
+    .bg-red-50\/30,
+    .bg-brand-50,
+    .bg-brand-50\/40
+  ) {
+  background-color: rgb(41 37 36) !important;
+}
+
+[data-admin-theme="dark"] :is(
+    .bg-emerald-100,
+    .bg-amber-100,
+    .bg-blue-100,
+    .bg-violet-100,
+    .bg-orange-100,
+    .bg-sky-100,
+    .bg-brand-100
+  ) {
+  background-color: rgb(28 25 23) !important;
+}
+
+[data-admin-theme="dark"] .text-stone-500 {
+  color: rgb(214 211 209) !important;
+}
+[data-admin-theme="dark"] .text-stone-400 {
+  color: rgb(168 162 158) !important;
+}
+[data-admin-theme="dark"] .text-stone-600 {
+  color: rgb(231 229 228) !important;
+}
+[data-admin-theme="dark"] .text-stone-300 {
+  color: rgb(168 162 158) !important;
+}
+
+[data-admin-theme="dark"] :is(.text-amber-950, .text-orange-950) {
+  color: rgb(254 243 199) !important;
+}
+[data-admin-theme="dark"] .text-amber-800 {
+  color: rgb(253 230 138) !important;
+}
+[data-admin-theme="dark"] .text-orange-800 {
+  color: rgb(254 215 170) !important;
+}
+
+[data-admin-theme="dark"] :is(
+    .text-brand-700,
+    .text-brand-800,
+    .text-emerald-700,
+    .text-emerald-800,
+    .text-sky-700,
+    .text-sky-800,
+    .text-violet-700,
+    .text-violet-800,
+    .text-blue-700,
+    .text-orange-700,
+    .text-amber-700
+  ) {
+  color: rgb(253 186 116) !important;
+}
+[data-admin-theme="dark"] .text-emerald-700,
+[data-admin-theme="dark"] .text-emerald-800 {
+  color: rgb(110 231 183) !important;
+}
+[data-admin-theme="dark"] .text-sky-700,
+[data-admin-theme="dark"] .text-sky-800 {
+  color: rgb(125 211 252) !important;
+}
+[data-admin-theme="dark"] .text-violet-700,
+[data-admin-theme="dark"] .text-violet-800 {
+  color: rgb(196 181 253) !important;
+}
+[data-admin-theme="dark"] .text-blue-700 {
+  color: rgb(147 197 253) !important;
+}
+[data-admin-theme="dark"] .text-brand-700,
+[data-admin-theme="dark"] .text-brand-800 {
+  color: rgb(253 186 116) !important;
+}
+[data-admin-theme="dark"] .text-orange-700 {
+  color: rgb(253 186 116) !important;
+}
+[data-admin-theme="dark"] .text-amber-700 {
+  color: rgb(252 211 77) !important;
+}
+
+[data-admin-theme="dark"] :is(
+    .border-amber-200,
+    .border-amber-300,
+    .border-orange-200,
+    .border-orange-100,
+    .border-emerald-100,
+    .border-emerald-200,
+    .border-emerald-300,
+    .border-brand-200,
+    .border-violet-100,
+    .border-sky-100,
+    .border-blue-100
+  ) {
+  border-color: rgb(68 64 60) !important;
+}
+
+[data-admin-theme="dark"] :is(
+    .ring-emerald-100,
+    .ring-amber-100,
+    .ring-amber-200,
+    .ring-orange-100,
+    .ring-sky-100,
+    .ring-violet-100,
+    .ring-brand-100,
+    .ring-orange-200\/60,
+    .ring-amber-200\/60,
+    .ring-blue-200\/60,
+    .ring-violet-200\/60,
+    .ring-emerald-200\/60
+  ) {
+  --tw-ring-color: rgb(68 64 60) !important;
+}
+
+[data-admin-theme="dark"] .divide-stone-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(68 64 60) !important;
+}
+
+[data-admin-theme="dark"] :is(
+    .hover\:bg-orange-50\/30:hover,
+    .hover\:bg-sky-50\/40:hover,
+    .hover\:bg-emerald-100:hover,
+    .hover\:bg-brand-50\/40:hover,
+    .hover\:bg-brand-50:hover,
+    .hover\:bg-stone-50\/80:hover
+  ) {
+  background-color: rgb(57 53 50) !important;
+}
+
+[data-admin-theme="dark"] .text-ink {
+  color: rgb(250 250 249) !important;
+}
+
+[data-admin-theme="dark"] :is(.bg-teal-50, .bg-teal-50\/80) {
+  background-color: rgb(19 78 74 / 0.35) !important;
+}
+
+[data-admin-theme="dark"] :is(.text-teal-800, .text-teal-900) {
+  color: rgb(153 246 228) !important;
+}
+
+[data-admin-theme="dark"] :is(.bg-violet-100, .text-violet-700) {
+  color: rgb(196 181 253) !important;
+}
+[data-admin-theme="dark"] .bg-violet-100 {
+  background-color: rgb(46 16 101 / 0.45) !important;
+}
+
+[data-admin-theme="dark"] :is(.text-red-700, .text-red-800) {
+  color: rgb(252 165 165) !important;
+}
+
+[data-admin-theme="dark"] .text-violet-900 {
+  color: rgb(221 214 254) !important;
+}
+
+[data-admin-theme="dark"] :is(
+    .bg-gradient-to-r.from-amber-50.to-orange-50,
+    .bg-gradient-to-br.from-violet-50\/80.to-white,
+    .bg-gradient-to-br.from-emerald-50.to-white
+  ) {
+  background-image: none !important;
+  background-color: rgb(41 37 36) !important;
+}
+
+[data-admin-theme="dark"] .drawer-panel {
+  background-color: rgb(28 25 23) !important;
+  color: rgb(250 250 249);
+  border: 1px solid rgb(68 64 60);
+  box-shadow: -12px 0 48px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-admin-theme="dark"] .drawer-panel .hover\:bg-stone-100:hover {
+  background-color: rgb(57 53 50) !important;
+}
+
+[data-admin-theme="dark"] .drawer-panel header {
+  border-color: rgb(68 64 60) !important;
+}
+
+[data-admin-theme="dark"] .drawer-panel footer {
+  border-color: rgb(68 64 60) !important;
+}

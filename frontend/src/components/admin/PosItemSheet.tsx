@@ -84,7 +84,7 @@ export function PosItemSheet({
   return (
     <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4">
       <button type="button" className="absolute inset-0 bg-stone-950/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+      <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl dark:bg-stone-900 dark:text-stone-100 sm:rounded-3xl">
         {item.imageUrl && (
           <div className="relative h-36 shrink-0 overflow-hidden bg-stone-100">
             <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />

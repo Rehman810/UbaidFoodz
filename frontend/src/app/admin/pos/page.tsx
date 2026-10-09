@@ -46,7 +46,7 @@ function PosProductCard({ item, onTap }: { item: MenuItem; onTap: () => void }) 
     <button
       type="button"
       onClick={onTap}
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-stone-200/80 bg-white text-left shadow-sm transition active:scale-[0.98] sm:rounded-2xl sm:hover:-translate-y-0.5 sm:hover:border-brand-300 sm:hover:shadow-lg"
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-stone-200/80 bg-white text-left shadow-sm transition active:scale-[0.98] dark:border-stone-600 dark:bg-stone-800 sm:rounded-2xl sm:hover:-translate-y-0.5 sm:hover:border-brand-300 sm:hover:shadow-lg dark:sm:hover:border-brand-500"
     >
       <div className="relative h-24 w-full shrink-0 overflow-hidden bg-gradient-to-br from-stone-100 to-stone-200 sm:h-28">
         {item.imageUrl ? (
@@ -66,8 +66,8 @@ function PosProductCard({ item, onTap }: { item: MenuItem; onTap: () => void }) 
         )}
       </div>
       <div className="flex flex-1 flex-col p-2 sm:p-2.5">
-        <p className="line-clamp-2 text-xs font-bold leading-snug text-stone-900 sm:text-[13px]">{item.name}</p>
-        <p className="mt-0.5 hidden text-[10px] font-medium uppercase tracking-wide text-stone-400 sm:block">{item.category}</p>
+        <p className="line-clamp-2 text-xs font-bold leading-snug text-stone-900 dark:text-stone-50 sm:text-[13px]">{item.name}</p>
+        <p className="mt-0.5 hidden text-[10px] font-medium uppercase tracking-wide text-stone-400 dark:text-stone-400 sm:block">{item.category}</p>
       </div>
     </button>
   );
@@ -227,7 +227,7 @@ export default function PosPage() {
 
   const cartPanel = (
     <>
-      <div className="flex shrink-0 items-center justify-between border-b border-orange-100/80 bg-orange-50/50 px-3 py-2.5 sm:px-4 sm:py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-orange-100/80 bg-orange-50/50 px-3 py-2.5 dark:border-stone-700 dark:bg-stone-800/80 sm:px-4 sm:py-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -237,8 +237,8 @@ export default function PosPage() {
             <ArrowLeft size={16} />
           </button>
           <div>
-            <p className="text-sm font-bold text-stone-900">Current order</p>
-            <p className="text-[11px] text-stone-500">
+            <p className="text-sm font-bold text-stone-900 dark:text-stone-50">Current order</p>
+            <p className="text-[11px] text-stone-500 dark:text-stone-400">
               {itemCount} item{itemCount !== 1 ? "s" : ""} · {MODES.find((m) => m.id === mode)?.label}
             </p>
           </div>
@@ -314,10 +314,10 @@ export default function PosPage() {
         )}
       </ul>
 
-      <div className="shrink-0 border-t border-orange-100/80 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
-        <div className="rounded-2xl bg-orange-50/60 p-3 ring-1 ring-orange-100">
+      <div className="shrink-0 border-t border-orange-100/80 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-stone-700 dark:bg-stone-900 sm:p-4">
+        <div className="rounded-2xl bg-orange-50/60 p-3 ring-1 ring-orange-100 dark:bg-stone-800/80 dark:ring-stone-600">
           <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between text-stone-600">
+            <div className="flex justify-between text-stone-600 dark:text-stone-300">
               <span>Subtotal</span>
               <span className="font-medium tabular-nums">{pkr(subtotal)}</span>
             </div>
@@ -333,9 +333,9 @@ export default function PosPage() {
                 <span className="font-medium tabular-nums">{pkr(deliveryFee)}</span>
               </div>
             )}
-            <div className="flex items-end justify-between border-t border-orange-100 pt-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Total due</span>
-              <span className="text-2xl font-black tabular-nums text-brand-700">{pkr(total)}</span>
+            <div className="flex items-end justify-between border-t border-orange-100 pt-2 dark:border-stone-600">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 dark:text-stone-300">Total due</span>
+              <span className="text-2xl font-black tabular-nums text-brand-700 dark:text-brand-300">{pkr(total)}</span>
             </div>
           </div>
         </div>
@@ -389,21 +389,21 @@ export default function PosPage() {
   );
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#fffaf5] lg:-m-4 lg:h-[calc(100dvh-4.5rem)] lg:rounded-2xl lg:border lg:border-orange-100/80 lg:shadow-sm">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#fffaf5] dark:bg-stone-950 lg:-m-4 lg:h-[calc(100dvh-4.5rem)] lg:rounded-2xl lg:border lg:border-orange-100/80 lg:shadow-sm dark:lg:border-stone-700">
       {/* Header */}
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-orange-100/80 bg-white px-3 py-2.5 sm:px-4 sm:py-3">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-orange-100/80 bg-white px-3 py-2.5 dark:border-stone-700 dark:bg-stone-900 sm:px-4 sm:py-3">
         <div className="flex min-w-0 items-center gap-2">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-orange-600 text-white shadow-md sm:h-10 sm:w-10">
             <UtensilsCrossed size={16} className="sm:hidden" />
             <UtensilsCrossed size={18} className="hidden sm:block" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-stone-900">Point of Sale</p>
-            <p className="hidden text-[11px] text-stone-500 sm:block">{store.name} · Counter</p>
+            <p className="truncate text-sm font-bold text-stone-900 dark:text-stone-50">Point of Sale</p>
+            <p className="hidden text-[11px] text-stone-500 dark:text-stone-400 sm:block">{store.name} · Counter</p>
           </div>
         </div>
 
-        <div className="hidden items-center gap-1 rounded-xl bg-orange-50 p-1 ring-1 ring-orange-100 md:flex">
+        <div className="hidden items-center gap-1 rounded-xl bg-orange-50 p-1 ring-1 ring-orange-100 dark:bg-stone-800 dark:ring-stone-600 md:flex">
           {MODES.map((m) => {
             const Icon = m.icon;
             const active = mode === m.id;
@@ -413,7 +413,7 @@ export default function PosPage() {
                 type="button"
                 onClick={() => setMode(m.id)}
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold ${
-                  active ? "bg-white text-brand-800 shadow-sm ring-1 ring-orange-100" : "text-stone-500"
+                  active ? "bg-white text-brand-800 shadow-sm ring-1 ring-orange-100 dark:bg-stone-700 dark:text-brand-200 dark:ring-stone-600" : "text-stone-500 dark:text-stone-400"
                 }`}
               >
                 <Icon size={14} />
@@ -453,7 +453,7 @@ export default function PosPage() {
       </header>
 
       {/* Mobile mode + view tabs */}
-      <div className="flex shrink-0 flex-col gap-1.5 border-b border-orange-100/80 bg-white px-2 py-2 md:hidden">
+      <div className="flex shrink-0 flex-col gap-1.5 border-b border-orange-100/80 bg-white px-2 py-2 dark:border-stone-700 dark:bg-stone-900 md:hidden">
         <div className="flex gap-1">
           {MODES.map((m) => {
             const Icon = m.icon;
@@ -501,11 +501,11 @@ export default function PosPage() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Menu */}
         <section
-          className={`min-h-0 min-w-0 flex-1 flex-col bg-[#fffaf5] ${
+          className={`min-h-0 min-w-0 flex-1 flex-col bg-[#fffaf5] dark:bg-stone-950 ${
             mobileView === "cart" ? "hidden lg:flex" : "flex"
           }`}
         >
-          <div className="shrink-0 border-b border-stone-200 bg-white px-3 py-2.5">
+          <div className="shrink-0 border-b border-stone-200 bg-white px-3 py-2.5 dark:border-stone-700 dark:bg-stone-900">
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
               <input
@@ -532,8 +532,8 @@ export default function PosPage() {
           </div>
 
           {deals.length > 0 && (
-            <div className="shrink-0 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">Deals</p>
+            <div className="shrink-0 border-b border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50 px-3 py-2 dark:border-stone-700 dark:from-stone-900 dark:to-stone-800">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">Deals</p>
               <div className="flex gap-2 overflow-x-auto pb-0.5">
                 {deals.map((d) => (
                   <button
@@ -567,7 +567,7 @@ export default function PosPage() {
 
         {/* Cart — side panel on desktop, full screen tab on mobile */}
         <aside
-          className={`w-full shrink-0 flex-col border-orange-100/80 bg-white lg:flex lg:w-[380px] lg:border-l ${
+          className={`w-full shrink-0 flex-col border-orange-100/80 bg-white dark:border-stone-700 dark:bg-stone-900 lg:flex lg:w-[380px] lg:border-l ${
             mobileView === "menu" ? "hidden lg:flex" : "flex min-h-0 flex-1"
           }`}
         >

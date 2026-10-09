@@ -143,7 +143,7 @@ export function MenuFormSheet({
       >
         <div className="h-1 shrink-0 rounded-tl-2xl bg-brand-500" />
 
-        <header className="shrink-0 border-b border-stone-100 px-6 py-4">
+        <header className="shrink-0 border-b border-stone-100 px-6 py-4 dark:border-stone-700">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-medium text-stone-500">
@@ -164,7 +164,7 @@ export function MenuFormSheet({
             <button
               type="button"
               onClick={close}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-stone-200 text-stone-500 transition hover:bg-stone-100 hover:text-stone-800"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-stone-200 text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 dark:border-stone-600 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
             >
               <X size={18} />
             </button>

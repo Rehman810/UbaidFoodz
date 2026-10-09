@@ -26,6 +26,7 @@ import { pkr } from "@/lib/format";
 import { AdminStats } from "@/lib/admin-types";
 import { usePoll } from "@/hooks/usePoll";
 import { useLiveOrders } from "@/hooks/useLiveOrders";
+import { useAdminTheme } from "@/hooks/useAdminTheme";
 import { StatCard } from "@/components/admin/StatCard";
 import { RefreshButton } from "@/components/admin/RefreshButton";
 import { PipelineFlow } from "@/components/admin/PipelineFlow";
@@ -35,10 +36,10 @@ import { OrderStatus } from "@/lib/types";
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; dataKey: string }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-lg">
-      <p className="font-bold text-stone-900">{label}</p>
+    <div className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-stone-600 dark:bg-stone-800">
+      <p className="font-bold text-stone-900 dark:text-stone-100">{label}</p>
       {payload.map((p) => (
-        <p key={p.dataKey} className="text-brand-700">
+        <p key={p.dataKey} className="text-brand-700 dark:text-brand-300">
           {p.dataKey === "revenue" ? pkr(p.value) : `${p.value} orders`}
         </p>
       ))}
@@ -49,6 +50,9 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const store = useStore();
+  const { theme } = useAdminTheme();
+  const chartGrid = theme === "dark" ? "#44403c" : "#e7e5e4";
+  const chartTick = theme === "dark" ? "#a8a29e" : "#57534e";
   const [twoFaHidden, setTwoFaHidden] = useState(false);
   useEffect(() => {
     setTwoFaHidden(sessionStorage.getItem("ros-2fa-dismiss") === "1");
@@ -96,13 +100,13 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {needsName && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
           Set your restaurant name before you open the storefront.{" "}
           <Link href="/admin/settings" className="font-bold underline">Open settings</Link>
         </div>
       )}
       {showTwoFa && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-950">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-950 dark:border-orange-800/60 dark:bg-orange-950/35 dark:text-orange-100">
           <p>Two-factor sign-in is off for this admin account.</p>
           <div className="flex gap-2">
             <Link href="/admin/settings" className="font-bold underline">Set up authenticator</Link>
@@ -168,17 +172,17 @@ export default function AdminDashboard() {
       />
 
       {/* Charts — single rich panel */}
-      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm sm:p-6">
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-700 dark:bg-stone-900 sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-display text-xl text-stone-900">Performance</h2>
-            <p className="text-sm text-stone-500">Last 7 days · orders & revenue</p>
+            <h2 className="font-display text-xl text-stone-900 dark:text-stone-50">Performance</h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Last 7 days · orders & revenue</p>
           </div>
           <div className="flex gap-4 text-xs font-semibold">
-            <span className="flex items-center gap-1.5 text-stone-600">
+            <span className="flex items-center gap-1.5 text-stone-600 dark:text-stone-400">
               <span className="h-2.5 w-2.5 rounded-sm bg-brand-500" /> Orders
             </span>
-            <span className="flex items-center gap-1.5 text-stone-600">
+            <span className="flex items-center gap-1.5 text-stone-600 dark:text-stone-400">
               <span className="h-2.5 w-2.5 rounded-full bg-brand-300" /> Revenue
             </span>
           </div>
@@ -192,12 +196,12 @@ export default function AdminDashboard() {
                   <stop offset="100%" stopColor="#fdba74" stopOpacity={0.05} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartGrid} />
               <XAxis
                 dataKey="label"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: "#57534e", fontWeight: 600 }}
+                tick={{ fontSize: 12, fill: chartTick, fontWeight: 600 }}
                 dy={8}
               />
               <YAxis
@@ -206,7 +210,7 @@ export default function AdminDashboard() {
                 domain={[0, (max: number) => Math.max(max, 4)]}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: "#57534e" }}
+                tick={{ fontSize: 12, fill: chartTick }}
                 width={32}
               />
               <YAxis
@@ -215,7 +219,7 @@ export default function AdminDashboard() {
                 domain={[0, "auto"]}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 12, fill: "#57534e" }}
+                tick={{ fontSize: 12, fill: chartTick }}
                 tickFormatter={(v) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
                 width={40}
               />
@@ -232,8 +236,8 @@ export default function AdminDashboard() {
         <div className="xl:col-span-3">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="font-display text-xl text-stone-900">Incoming orders</h2>
-              <p className="text-sm text-stone-500">Update status inline</p>
+              <h2 className="font-display text-xl text-stone-900 dark:text-stone-50">Incoming orders</h2>
+              <p className="text-sm text-stone-500 dark:text-stone-400">Update status inline</p>
             </div>
             <Link href="/admin/orders" className="text-sm font-bold text-brand-700 hover:underline">
               All orders →
@@ -248,8 +252,8 @@ export default function AdminDashboard() {
 
         {/* Sidebar widgets */}
         <div className="space-y-5 xl:col-span-2">
-          <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
-            <h2 className="font-display text-lg text-stone-900">Top sellers</h2>
+          <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-700 dark:bg-stone-900">
+            <h2 className="font-display text-lg text-stone-900 dark:text-stone-50">Top sellers</h2>
             <ul className="mt-4 space-y-4">
               {stats.topItems.map((item, i) => (
                 <li key={item.name}>
@@ -257,7 +261,7 @@ export default function AdminDashboard() {
                     <span className="truncate font-semibold text-stone-800">{item.name}</span>
                     <span className="shrink-0 font-bold text-brand-700">{item.qty}</span>
                   </div>
-                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-stone-100">
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-800">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-brand-600 to-orange-400 transition-all duration-700"
                       style={{ width: `${(item.qty / maxTop) * 100}%` }}
@@ -276,7 +280,7 @@ export default function AdminDashboard() {
               { label: "Total orders", value: stats.totalOrders },
               { label: "Preparing", value: stats.preparing },
             ].map((s) => (
-              <div key={s.label} className="rounded-2xl border border-stone-200 bg-white p-4 text-center shadow-sm">
+              <div key={s.label} className="rounded-2xl border border-stone-200 bg-white p-4 text-center shadow-sm dark:border-stone-700 dark:bg-stone-900">
                 <p className="text-2xl font-bold text-stone-900">{s.value}</p>
                 <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{s.label}</p>
               </div>

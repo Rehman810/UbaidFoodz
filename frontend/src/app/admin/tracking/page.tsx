@@ -47,15 +47,15 @@ export default function TrackingPage() {
   return (
     <div className="flex h-[calc(100dvh-7.25rem)] flex-col gap-3 overflow-hidden">
       {/* Header card */}
-      <div className="shrink-0 rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5">
+      <div className="shrink-0 rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-900 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100 dark:bg-brand-950/50 dark:text-brand-400 dark:ring-brand-900">
               <Map size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-stone-900 sm:text-2xl">Live tracking</h1>
-              <p className="mt-0.5 text-sm text-stone-500">
+              <h1 className="text-xl font-semibold text-stone-900 dark:text-stone-50 sm:text-2xl">Live tracking</h1>
+              <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
                 Drag orders forward · auto-refresh every 8s
               </p>
             </div>
@@ -69,14 +69,14 @@ export default function TrackingPage() {
               { label: "Total orders", value: stats.total, accent: "text-stone-700 bg-stone-50 ring-stone-200" },
             ].map((s) => (
               <div key={s.label} className={`rounded-xl px-3 py-2 ring-1 ${s.accent}`}>
-                <p className="text-[11px] font-medium text-stone-500">{s.label}</p>
-                <p className="mt-0.5 text-lg font-semibold leading-none">{s.value}</p>
+                <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400">{s.label}</p>
+                <p className="mt-0.5 text-lg font-semibold leading-none dark:text-stone-100">{s.value}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-4">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-4 dark:border-stone-700">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-xs text-stone-500">
               <Timer size={13} className="text-emerald-500" />

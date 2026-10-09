@@ -48,7 +48,7 @@ export function CustomerTable({
   onViewHistory: (customer: AdminCustomer) => void;
 }) {
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
+    <div className="w-full overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-900">
       <div className="w-full overflow-x-auto">
         <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-sm">
           <colgroup>

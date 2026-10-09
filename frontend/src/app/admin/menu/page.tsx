@@ -583,9 +583,9 @@ export default function AdminMenu() {
                       <h3 className="font-semibold text-stone-900">{item.name}</h3>
                       {item.description && <p className="mt-1 line-clamp-2 text-xs text-stone-500">{item.description}</p>}
                       <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-stone-100 pt-3">
-                        <button type="button" onClick={() => toggleDish(item)} className="rounded-lg bg-stone-100 py-2 text-[10px] font-semibold sm:text-xs">{item.isAvailable ? "Out of stock" : "Enable"}</button>
-                        <button type="button" onClick={() => startEditDish(item)} className="rounded-lg bg-stone-100 py-2 text-[10px] font-semibold sm:text-xs"><Pencil size={12} className="mx-auto" /></button>
-                        <button type="button" onClick={() => removeDish(item.id)} className="rounded-lg py-2 text-red-600 hover:bg-red-50"><Trash2 size={12} className="mx-auto" /></button>
+                        <button type="button" onClick={() => toggleDish(item)} className="rounded-lg bg-stone-100 py-2 text-[10px] font-semibold text-stone-700 dark:bg-stone-800 dark:text-stone-200 sm:text-xs">{item.isAvailable ? "Out of stock" : "Enable"}</button>
+                        <button type="button" onClick={() => startEditDish(item)} className="rounded-lg bg-stone-100 py-2 text-[10px] font-semibold text-stone-700 dark:bg-stone-800 dark:text-stone-200 sm:text-xs"><Pencil size={12} className="mx-auto" /></button>
+                        <button type="button" onClick={() => removeDish(item.id)} className="rounded-lg py-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"><Trash2 size={12} className="mx-auto" /></button>
                       </div>
                     </div>
                   </article>

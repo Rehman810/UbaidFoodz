@@ -132,7 +132,7 @@ export default function RidersPage() {
         </div>
       </div>
 
-      <p className="rounded-xl border border-violet-100 bg-violet-50/80 px-4 py-3 text-sm text-violet-900">
+      <p className="rounded-xl border border-violet-100 bg-violet-50/80 px-4 py-3 text-sm text-violet-900 dark:border-violet-800/50 dark:bg-violet-950/35 dark:text-violet-200">
         New rider accounts are created on{" "}
         <Link href="/admin/staff" className="font-semibold underline hover:text-violet-700">
           Staff → Add staff member (Rider role)
@@ -261,7 +261,7 @@ export default function RidersPage() {
                         {r.activeOrders.map((o) => (
                           <li
                             key={o.id}
-                            className="rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white p-3.5"
+                            className="rounded-xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white p-3.5 dark:border-violet-800/50 dark:from-stone-800 dark:to-stone-900"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>

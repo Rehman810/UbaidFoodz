@@ -141,7 +141,9 @@ export function KanbanBoard({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${theme.dot}`} />
-                    <h2 className="truncate text-sm font-semibold text-stone-800">{STATUS_LABEL[status]}</h2>
+                    <h2 className="truncate text-sm font-semibold text-stone-800 dark:text-stone-100">
+                      {STATUS_LABEL[status]}
+                    </h2>
                   </div>
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${theme.bg} ${theme.text} ${theme.ring}`}
@@ -150,7 +152,7 @@ export function KanbanBoard({
                   </span>
                 </div>
                 {list.length > 0 && (
-                  <p className="mt-1 text-xs text-stone-500">{pkr(columnValue)} in column</p>
+                  <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">{pkr(columnValue)} in column</p>
                 )}
               </div>
 
@@ -159,16 +161,16 @@ export function KanbanBoard({
                 className={`kanban-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain rounded-b-2xl border border-t-0 p-2 transition ${
                   isOver && canDropHere
                     ? `border-2 border-dashed ${theme.border} ${theme.bg} ring-2 ${theme.ring}`
-                    : "border-stone-200/80 bg-white shadow-inner"
+                    : "border-stone-200/80 bg-white shadow-inner dark:border-stone-700 dark:bg-stone-900/60 dark:shadow-none"
                 }`}
               >
                 {list.length === 0 && (
-                  <div className="flex min-h-[140px] flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/80 px-4 py-10 text-center">
+                  <div className="flex min-h-[140px] flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-stone-200 bg-stone-50/80 px-4 py-10 text-center dark:border-stone-600 dark:bg-stone-800/50">
                     <div className={`mb-3 grid h-10 w-10 place-items-center rounded-full ${theme.bg}`}>
                       <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
                     </div>
-                    <p className="text-sm font-medium text-stone-500">No orders</p>
-                    <p className="mt-1 text-xs text-stone-400">
+                    <p className="text-sm font-medium text-stone-500 dark:text-stone-300">No orders</p>
+                    <p className="mt-1 text-xs text-stone-400 dark:text-stone-500">
                       {canDropHere ? "Drop a card here" : ""}
                     </p>
                   </div>
