@@ -1,13 +1,56 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Building2, Plus, Star } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Building2,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  Star,
+  Users,
+} from "lucide-react";
 import { createBranch, fetchAdminBranches, updateBranch } from "@/modules/branches/api";
 import type { Branch } from "@/modules/branches/types";
 import { useBranch } from "@/modules/branches/BranchContext";
 import { RefreshButton } from "@/components/admin/RefreshButton";
+import { BranchFormSheet, type BranchFormData } from "@/components/admin/BranchFormSheet";
+import { ConfirmSheet } from "@/components/admin/ConfirmSheet";
 
-const emptyForm = { name: "", code: "", address: "", phone: "", isDefault: false };
+const emptyForm: BranchFormData = { name: "", code: "", address: "", phone: "", isDefault: false };
+
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string | number;
+  icon: typeof Building2;
+}) {
+  return (
+    <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm dark:border-stone-700 dark:bg-stone-900">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">{label}</p>
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-400">
+          <Icon size={18} />
+        </span>
+      </div>
+      <p className="mt-2 text-2xl font-bold text-stone-900 dark:text-stone-50">{value}</p>
+    </div>
+  );
+}
+
+function branchToForm(b: Branch): BranchFormData {
+  return {
+    name: b.name,
+    code: b.code,
+    address: b.address || "",
+    phone: b.phone || "",
+    isDefault: b.isDefault,
+  };
+}
 
 export default function BranchesPage() {
   const { refresh: refreshContext } = useBranch();
@@ -15,8 +58,20 @@ export default function BranchesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [form, setForm] = useState(emptyForm);
+  const [msg, setMsg] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Branch | null>(null);
+  const [form, setForm] = useState<BranchFormData>(emptyForm);
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState<Branch | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+
+  const stats = useMemo(() => {
+    const active = branches.filter((b) => b.isActive).length;
+    const staff = branches.reduce((sum, b) => sum + (b._count?.members ?? 0), 0);
+    return { total: branches.length, active, staff };
+  }, [branches]);
 
   const load = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true);
@@ -37,32 +92,67 @@ export default function BranchesPage() {
     void load();
   }, [load]);
 
+  function openCreate() {
+    setEditTarget(null);
+    setForm(emptyForm);
+    setFormError("");
+    setFormOpen(true);
+  }
+
+  function openEdit(branch: Branch) {
+    setEditTarget(branch);
+    setForm(branchToForm(branch));
+    setFormError("");
+    setFormOpen(true);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditTarget(null);
+    setForm(emptyForm);
+    setFormError("");
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) return;
     setSaving(true);
-    setError("");
+    setFormError("");
     try {
-      await createBranch({
-        name: form.name.trim(),
-        code: form.code.trim() || undefined,
-        address: form.address.trim(),
-        phone: form.phone.trim(),
-        isDefault: form.isDefault,
-      });
-      setForm(emptyForm);
+      if (editTarget) {
+        await updateBranch(editTarget.id, {
+          name: form.name.trim(),
+          code: form.code.trim() || undefined,
+          address: form.address.trim(),
+          phone: form.phone.trim(),
+          isDefault: form.isDefault,
+        });
+        setMsg("Branch updated.");
+      } else {
+        await createBranch({
+          name: form.name.trim(),
+          code: form.code.trim() || undefined,
+          address: form.address.trim(),
+          phone: form.phone.trim(),
+          isDefault: form.isDefault,
+        });
+        setMsg("Branch created.");
+      }
+      closeForm();
       await load(true);
       await refreshContext();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create branch");
+      setFormError(err instanceof Error ? err.message : "Could not save branch");
     } finally {
       setSaving(false);
     }
   }
 
   async function setDefault(branch: Branch) {
+    setError("");
     try {
       await updateBranch(branch.id, { isDefault: true });
+      setMsg(`${branch.name} is now the default branch.`);
       await load(true);
       await refreshContext();
     } catch (err) {
@@ -70,106 +160,227 @@ export default function BranchesPage() {
     }
   }
 
-  async function toggleActive(branch: Branch) {
+  async function confirmDeactivate() {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    setError("");
     try {
-      await updateBranch(branch.id, { isActive: !branch.isActive });
+      await updateBranch(deactivateTarget.id, { isActive: false });
+      setMsg(`${deactivateTarget.name} deactivated.`);
+      setDeactivateTarget(null);
       await load(true);
       await refreshContext();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update branch");
+      setError(err instanceof Error ? err.message : "Could not deactivate branch");
+    } finally {
+      setDeactivating(false);
+    }
+  }
+
+  async function activate(branch: Branch) {
+    setError("");
+    try {
+      await updateBranch(branch.id, { isActive: true });
+      setMsg(`${branch.name} is active again.`);
+      await load(true);
+      await refreshContext();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not activate branch");
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl text-stone-900 dark:text-stone-50">Branches</h1>
-          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
-            Outlets for kitchen, POS, and orders. Use the header switcher to filter operations by branch.
-          </p>
+    <div className="w-full space-y-6">
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm sm:p-5 dark:border-stone-700 dark:bg-stone-900">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand-500 to-orange-600 text-white shadow-md">
+              <Building2 size={22} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-stone-900 sm:text-2xl dark:text-stone-50">Branches</h1>
+              <p className="mt-0.5 max-w-xl text-sm text-stone-500 dark:text-stone-400">
+                Each outlet has its own kitchen queue, POS, and orders. Use the header switcher to filter the admin
+                panel. Per-outlet contact details live here—not in global Settings.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <RefreshButton busy={loading || refreshing} onClick={() => load(true)} />
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-500"
+            >
+              <Plus size={16} /> Add branch
+            </button>
+          </div>
         </div>
-        <RefreshButton busy={loading || refreshing} onClick={() => load(true)} />
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        <KpiCard label="Outlets" value={stats.total} icon={Building2} />
+        <KpiCard label="Active" value={stats.active} icon={Star} />
+        <KpiCard label="Staff assigned" value={stats.staff} icon={Users} />
+      </div>
+
+      {msg && (
+        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+          {msg}
+        </p>
+      )}
+
       {error && (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </p>
       )}
 
-      <form
-        onSubmit={onSubmit}
-        className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm dark:border-stone-700 dark:bg-stone-900"
-      >
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-stone-900 dark:text-stone-50">
-          <Plus size={18} className="text-brand-600" /> Add branch
-        </h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <input className="input" placeholder="Branch name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <input className="input" placeholder="Code (optional, e.g. gulberg)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-          <input className="input sm:col-span-2" placeholder="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <input className="input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
-            <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm({ ...form, isDefault: e.target.checked })} />
-            Set as default (online orders &amp; fallback POS)
-          </label>
-        </div>
-        <button type="submit" disabled={saving} className="btn-primary mt-4">
-          {saving ? "Saving…" : "Create branch"}
-        </button>
-      </form>
-
       {loading ? (
-        <div className="skeleton h-40 rounded-2xl" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="skeleton h-44 rounded-2xl" />
+          <div className="skeleton h-44 rounded-2xl" />
+        </div>
+      ) : branches.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-stone-200 bg-white py-16 text-center dark:border-stone-700 dark:bg-stone-900">
+          <Building2 size={40} className="mx-auto text-stone-300 dark:text-stone-600" />
+          <p className="mt-3 font-medium text-stone-600 dark:text-stone-300">No branches yet</p>
+          <p className="mt-1 text-sm text-stone-500">Add your first outlet to run multi-location kitchen and POS.</p>
+          <button type="button" onClick={openCreate} className="btn-primary mt-5">
+            <Plus size={16} /> Add branch
+          </button>
+        </div>
       ) : (
-        <ul className="grid gap-3">
+        <ul className="grid gap-4 lg:grid-cols-2">
           {branches.map((b) => (
             <li
               key={b.id}
-              className={`rounded-2xl border bg-white p-4 shadow-sm dark:bg-stone-900 ${
-                b.isActive ? "border-stone-200/80 dark:border-stone-700" : "border-stone-200 opacity-60 dark:border-stone-700"
-              }`}
+              className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition dark:bg-stone-900 ${
+                b.isDefault && b.isActive
+                  ? "border-brand-200 ring-1 ring-brand-100 dark:border-brand-800 dark:ring-brand-900/50"
+                  : "border-stone-200/80 dark:border-stone-700"
+              } ${!b.isActive ? "opacity-75" : ""}`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex gap-3">
-                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-400">
-                    <Building2 size={20} />
-                  </span>
-                  <div>
-                    <p className="flex flex-wrap items-center gap-2 font-semibold text-stone-900 dark:text-stone-50">
-                      {b.name}
-                      {b.isDefault && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                          <Star size={10} /> Default
-                        </span>
-                      )}
-                      {!b.isActive && (
-                        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase text-stone-500">Inactive</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-stone-500 dark:text-stone-400">
-                      Code: {b.code} · {b._count?.orders ?? 0} orders · {b._count?.members ?? 0} staff
-                    </p>
-                    {b.address && <p className="mt-1 text-sm text-stone-600 dark:text-stone-300">{b.address}</p>}
-                    {b.phone && <p className="text-sm text-stone-500">{b.phone}</p>}
+              <div className="border-b border-stone-100 bg-gradient-to-r from-stone-50/80 to-white px-4 py-3 dark:border-stone-800 dark:from-stone-800/40 dark:to-stone-900">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-md">
+                      <Building2 size={20} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 font-semibold text-stone-900 dark:text-stone-50">
+                        <span className="truncate">{b.name}</span>
+                        {b.isDefault && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                            <Star size={10} /> Default
+                          </span>
+                        )}
+                        {!b.isActive && (
+                          <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-bold uppercase text-stone-600 dark:bg-stone-700 dark:text-stone-300">
+                            Inactive
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs font-medium text-stone-500 dark:text-stone-400">Code: {b.code}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {!b.isDefault && b.isActive && (
-                    <button type="button" className="btn-ghost text-xs" onClick={() => setDefault(b)}>
-                      Make default
-                    </button>
-                  )}
-                  <button type="button" className="btn-ghost text-xs" onClick={() => toggleActive(b)}>
-                    {b.isActive ? "Deactivate" : "Activate"}
+                  <button
+                    type="button"
+                    onClick={() => openEdit(b)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-stone-200 px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 dark:border-stone-600 dark:text-stone-300 dark:hover:bg-stone-800"
+                  >
+                    <Pencil size={13} /> Edit
                   </button>
                 </div>
+              </div>
+
+              <div className="space-y-3 px-4 py-4">
+                {b.address ? (
+                  <p className="flex gap-2 text-sm text-stone-600 dark:text-stone-300">
+                    <MapPin size={16} className="mt-0.5 shrink-0 text-stone-400" />
+                    <span>{b.address}</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-stone-400">No address set</p>
+                )}
+                {b.phone ? (
+                  <p className="flex gap-2 text-sm text-stone-600 dark:text-stone-300">
+                    <Phone size={16} className="shrink-0 text-stone-400" />
+                    <a href={`tel:${b.phone}`} className="hover:text-brand-600">{b.phone}</a>
+                  </p>
+                ) : (
+                  <p className="text-sm text-stone-400">No phone set</p>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="rounded-lg bg-stone-100 px-2.5 py-1 text-xs font-semibold text-stone-600 dark:bg-stone-800 dark:text-stone-300">
+                    {b._count?.members ?? 0} staff assigned
+                  </span>
+                  <Link
+                    href="/admin/staff"
+                    className="rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-800 hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-200"
+                  >
+                    Manage staff →
+                  </Link>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 border-t border-stone-100 bg-stone-50/50 px-4 py-3 dark:border-stone-800 dark:bg-stone-800/30">
+                {!b.isDefault && b.isActive && (
+                  <button
+                    type="button"
+                    className="rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200"
+                    onClick={() => setDefault(b)}
+                  >
+                    Make default
+                  </button>
+                )}
+                {b.isActive ? (
+                  <button
+                    type="button"
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                    onClick={() => setDeactivateTarget(b)}
+                  >
+                    Deactivate
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+                    onClick={() => activate(b)}
+                  >
+                    Activate
+                  </button>
+                )}
               </div>
             </li>
           ))}
         </ul>
       )}
+
+      {formOpen && (
+        <BranchFormSheet
+          open={formOpen}
+          mode={editTarget ? "edit" : "create"}
+          form={form}
+          setForm={setForm}
+          saving={saving}
+          error={formError}
+          onClose={closeForm}
+          onSubmit={onSubmit}
+        />
+      )}
+
+      <ConfirmSheet
+        open={Boolean(deactivateTarget)}
+        title={`Deactivate ${deactivateTarget?.name ?? "branch"}?`}
+        message="New orders won't be routed here. Staff can stay assigned; reactivate anytime. You cannot deactivate the default branch without choosing another default first."
+        confirmLabel="Deactivate"
+        danger
+        saving={deactivating}
+        onClose={() => setDeactivateTarget(null)}
+        onConfirm={() => void confirmDeactivate()}
+      />
     </div>
   );
 }
