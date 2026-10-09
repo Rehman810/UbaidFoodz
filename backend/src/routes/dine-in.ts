@@ -938,16 +938,17 @@ dineInRouter.patch("/waitlist/:id", requireAuth, requireRole(...FLOOR_ROLES), as
     const status = body.status;
     const data: {
       status?: WaitlistStatus;
-      notes?: string;
+      notes?: string | null;
       calledAt?: Date;
     } = {};
-    if (body.notes !== undefined) data.notes = body.notes?.trim() || null;
+    if (body.notes !== undefined) data.notes = body.notes.trim() || null;
     if (status === WaitlistStatus.CALLED && existing.status === WaitlistStatus.WAITING) {
       data.status = WaitlistStatus.CALLED;
       data.calledAt = new Date();
     } else if (
-      status &&
-      [WaitlistStatus.CANCELLED, WaitlistStatus.LEFT, WaitlistStatus.WAITING].includes(status)
+      status === WaitlistStatus.CANCELLED ||
+      status === WaitlistStatus.LEFT ||
+      status === WaitlistStatus.WAITING
     ) {
       data.status = status;
     }
@@ -986,7 +987,7 @@ dineInRouter.post("/waitlist/:id/seat", requireAuth, requireRole(...FLOOR_ROLES)
       guestName: entry.guestName,
       partySize: entry.partySize,
       waiterId: body.waiterId,
-      notes: entry.notes,
+      notes: entry.notes ?? undefined,
       force: body.force && ADMIN_LIKE.includes(req.user!.role),
     });
 
