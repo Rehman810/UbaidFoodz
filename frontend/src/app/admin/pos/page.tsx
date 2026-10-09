@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Banknote,
@@ -28,6 +29,8 @@ import { printReceipt } from "@/lib/print-receipt";
 import { pkr } from "@/lib/format";
 import { Deal, DeliveryArea, FulfillmentType, MenuItem, Order, PaymentMethod } from "@/lib/types";
 import { PosItemSheet } from "@/components/admin/PosItemSheet";
+import { fetchFloor, openTableSession, seatReservation, type FloorTable } from "@/modules/dine-in/api";
+import { useBranch } from "@/modules/branches/BranchContext";
 
 type PosMode = FulfillmentType;
 type MobileView = "menu" | "cart";
@@ -75,7 +78,10 @@ function PosProductCard({ item, onTap }: { item: MenuItem; onTap: () => void }) 
 
 export default function PosPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { selection } = useBranch();
   const { user, logout } = useAuth();
+  const isManager = user?.role === "ADMIN" || user?.role === "MANAGER";
   const lines = usePosCart((s) => s.lines);
   const addItem = usePosCart((s) => s.addItem);
   const addDeal = usePosCart((s) => s.addDeal);
@@ -92,6 +98,13 @@ export default function PosPage() {
   const [customerName, setCustomerName] = useState("Walk-in");
   const [customerPhone, setCustomerPhone] = useState("");
   const [tableNumber, setTableNumber] = useState("");
+  const [floorTables, setFloorTables] = useState<FloorTable[]>([]);
+  const [tableSessionId, setTableSessionId] = useState("");
+  const [diningTableId, setDiningTableId] = useState("");
+  const [waiterId, setWaiterId] = useState("");
+  const [floorWaiters, setFloorWaiters] = useState<{ id: string; name: string }[]>([]);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [walkInForce, setWalkInForce] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [areaId, setAreaId] = useState("");
   const [notes, setNotes] = useState("");
@@ -105,6 +118,29 @@ export default function PosPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [clock, setClock] = useState("");
   const [mobileView, setMobileView] = useState<MobileView>("menu");
+
+  const loadFloor = useCallback(async () => {
+    if (selection === "all") return;
+    try {
+      const data = await fetchFloor();
+      setFloorTables(data.tables);
+      setFloorWaiters(data.waiters);
+      const sessionParam = searchParams.get("session");
+      const tableParam = searchParams.get("table");
+      if (sessionParam && tableParam) {
+        setTableSessionId(sessionParam);
+        setDiningTableId(tableParam);
+        const t = data.tables.find((x) => x.id === tableParam);
+        if (t) setTableNumber(t.label);
+      }
+    } catch {
+      /* branch may be unset */
+    }
+  }, [selection, searchParams]);
+
+  useEffect(() => {
+    if (mode === "DINE_IN") void loadFloor();
+  }, [mode, loadFloor]);
 
   const load = useCallback(async () => {
     const [m, d, a, s] = await Promise.all([
@@ -185,6 +221,11 @@ export default function PosPage() {
       setError("Select a delivery area.");
       return;
     }
+    if (mode === "DINE_IN" && !tableSessionId) {
+      setError("Select an open table session for dine-in.");
+      setShowTablePicker(true);
+      return;
+    }
     setBusy(true);
     try {
       const payload = buildPosOrderPayload(lines);
@@ -198,6 +239,9 @@ export default function PosPage() {
           customerName,
           customerPhone: customerPhone || undefined,
           tableNumber: mode === "DINE_IN" ? tableNumber : undefined,
+          tableSessionId: mode === "DINE_IN" ? tableSessionId : undefined,
+          diningTableId: mode === "DINE_IN" ? diningTableId : undefined,
+          waiterId: mode === "DINE_IN" ? waiterId || undefined : undefined,
           notes,
           paymentMethod: payment,
           paymentStatus: "PAID",
@@ -264,7 +308,24 @@ export default function PosPage() {
           <input className="input h-9 text-sm" placeholder="Customer name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
           <input className="input h-9 text-sm" placeholder="Phone (optional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
           {mode === "DINE_IN" && (
-            <input className="input h-9 text-sm" placeholder="Table number" value={tableNumber} onChange={(e) => setTableNumber(e.target.value)} />
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowTablePicker(true)}
+                className="flex w-full items-center justify-between rounded-xl border border-brand-200 bg-brand-50/80 px-3 py-2 text-left text-sm font-semibold text-brand-900"
+              >
+                <span className="flex items-center gap-2">
+                  <LayoutGrid size={16} />
+                  {tableSessionId ? `Table ${tableNumber}` : "Select table"}
+                </span>
+                <ChevronRight size={16} />
+              </button>
+              {waiterId && (
+                <p className="text-[11px] text-stone-500">
+                  Waiter: {floorWaiters.find((w) => w.id === waiterId)?.name ?? "—"}
+                </p>
+              )}
+            </div>
           )}
           {mode === "DELIVERY" && (
             <>
@@ -592,6 +653,118 @@ export default function PosPage() {
               <ChevronRight size={18} />
             </span>
           </button>
+        </div>
+      )}
+
+      {showTablePicker && mode === "DINE_IN" && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-stone-950/50 p-4 sm:items-center">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:bg-stone-900">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-stone-900 dark:text-stone-50">Dine-in table</h3>
+              <button type="button" className="text-sm text-stone-500" onClick={() => setShowTablePicker(false)}>Close</button>
+            </div>
+            {selection === "all" ? (
+              <p className="mt-3 text-sm text-amber-700">Select one branch in the admin header first.</p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {floorTables.map((t) => (
+                  <li key={t.id} className="rounded-xl border border-stone-200 p-3 dark:border-stone-700">
+                    <p className="font-semibold">Table {t.label} · {t.status}</p>
+                    {t.activeSession ? (
+                      <button
+                        type="button"
+                        className="mt-2 w-full rounded-lg bg-brand-600 py-2 text-xs font-bold text-white"
+                        onClick={() => {
+                          setTableSessionId(t.activeSession!.id);
+                          setDiningTableId(t.id);
+                          setTableNumber(t.label);
+                          setWaiterId(
+                            t.activeSession!.waiter?.id || (user?.role === "WAITER" ? user.id : "") || ""
+                          );
+                          setShowTablePicker(false);
+                        }}
+                      >
+                        Use open session ({t.activeSession.guestName})
+                      </button>
+                    ) : (
+                      <div className="mt-2 space-y-2">
+                        {t.nextReservation && t.status === "RESERVED" && (
+                          <button
+                            type="button"
+                            className="w-full rounded-lg bg-violet-700 py-2 text-xs font-bold text-white"
+                            onClick={async () => {
+                              try {
+                                const res = await seatReservation(t.nextReservation!.id, {
+                                  tableId: t.id,
+                                  guestName: t.nextReservation!.customerName,
+                                  partySize: t.nextReservation!.partySize,
+                                  waiterId: user?.role === "WAITER" ? user.id : waiterId || undefined,
+                                });
+                                if (res.session) {
+                                  setTableSessionId(res.session.id);
+                                  setDiningTableId(t.id);
+                                  setTableNumber(t.label);
+                                  setShowTablePicker(false);
+                                  void loadFloor();
+                                }
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Could not seat booking");
+                              }
+                            }}
+                          >
+                            Seat booking ({t.nextReservation.customerName})
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border border-stone-300 py-2 text-xs font-semibold"
+                          disabled={t.status === "NEEDS_CLEANING"}
+                          onClick={async () => {
+                            try {
+                              const res = await openTableSession(t.id, {
+                                guestName: customerName,
+                                partySize: 2,
+                                waiterId: user?.role === "WAITER" ? user.id : undefined,
+                                force: walkInForce && isManager,
+                              });
+                              if (res.session) {
+                                setTableSessionId(res.session.id);
+                                setDiningTableId(t.id);
+                                setTableNumber(t.label);
+                                setWalkInForce(false);
+                                setShowTablePicker(false);
+                                void loadFloor();
+                              }
+                            } catch (err) {
+                              const message = err instanceof Error ? err.message : "Could not open table";
+                              if (isManager && message.toLowerCase().includes("soon")) {
+                                setWalkInForce(true);
+                                setError("Table is reserved soon — enable override below or seat the booking instead.");
+                              } else {
+                                setError(message);
+                              }
+                            }
+                          }}
+                        >
+                          Walk-in & seat
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {isManager && walkInForce && (
+              <label className="mt-3 flex items-center gap-2 text-xs text-amber-800">
+                <input type="checkbox" checked={walkInForce} onChange={(e) => setWalkInForce(e.target.checked)} />
+                Override “reserved soon” for walk-in
+              </label>
+            )}
+            <p className="mt-2 text-center text-[11px] text-stone-500">
+              Close tables from{" "}
+              <Link href="/admin/dine-in" className="font-semibold text-brand-600">Dine-in floor</Link> when the bill is done.
+            </p>
+          </div>
         </div>
       )}
 

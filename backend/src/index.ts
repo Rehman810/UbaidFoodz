@@ -21,6 +21,8 @@ import { staffRouter } from "./routes/staff";
 import { blocklistRouter } from "./routes/blocklist";
 import { posRouter } from "./routes/pos";
 import { branchesRouter } from "./routes/branches";
+import { dineInPublicRouter, dineInRouter } from "./routes/dine-in";
+import { startDineInJobScheduler } from "./lib/dine-in/jobs";
 import { UPLOAD_DIR } from "./lib/uploads";
 import { initRealtime } from "./lib/realtime";
 import { resolveRestaurantId, runWithRestaurant } from "./lib/prisma";
@@ -70,6 +72,8 @@ app.use("/deals", dealsRouter);
 app.use("/delivery-areas", deliveryAreasRouter);
 app.use("/settings", settingsRouter);
 app.use("/branches", branchesRouter);
+app.use("/dine-in", dineInPublicRouter);
+app.use("/admin/dine-in", dineInRouter);
 app.use("/orders", ordersRouter);
 app.use("/pos", posRouter);
 app.use("/rider", riderRouter);
@@ -94,4 +98,5 @@ server.on("error", (err: NodeJS.ErrnoException) => {
 
 server.listen(PORT, () => {
   console.log(`Restaurant OS API on http://localhost:${PORT}`);
+  startDineInJobScheduler();
 });

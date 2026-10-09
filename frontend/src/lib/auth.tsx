@@ -106,6 +106,7 @@ export function useAuth() {
 
 export function homeFor(role?: Role) {
   if (role === "ADMIN" || role === "MANAGER") return "/admin";
+  if (role === "WAITER") return "/admin/dine-in";
   if (role === "CHEF") return "/admin/kitchen";
   if (role === "CASHIER") return "/admin/pos";
   if (role === "RIDER") return "/rider";
@@ -113,12 +114,20 @@ export function homeFor(role?: Role) {
 }
 
 export function isStaffRole(role?: Role) {
-  return role === "ADMIN" || role === "MANAGER" || role === "CHEF" || role === "CASHIER" || role === "RIDER";
+  return (
+    role === "ADMIN" ||
+    role === "MANAGER" ||
+    role === "WAITER" ||
+    role === "CHEF" ||
+    role === "CASHIER" ||
+    role === "RIDER"
+  );
 }
 
 export function dashboardLabel(role: Role) {
   if (role === "ADMIN") return "Admin dashboard";
   if (role === "MANAGER") return "Manager dashboard";
+  if (role === "WAITER") return "Waiter · floor & POS";
   if (role === "CHEF") return "Kitchen board";
   if (role === "CASHIER") return "POS counter";
   if (role === "RIDER") return "Rider app";

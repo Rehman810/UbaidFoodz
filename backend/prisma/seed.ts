@@ -648,6 +648,53 @@ async function main() {
     });
   }
 
+  const indoorFloor = await prisma.diningFloor.upsert({
+    where: { branchId_name: { branchId: mainBranch.id, name: "Indoor" } },
+    create: { branchId: mainBranch.id, name: "Indoor", sortOrder: 0 },
+    update: { sortOrder: 0 },
+  });
+  const terraceFloor = await prisma.diningFloor.upsert({
+    where: { branchId_name: { branchId: mainBranch.id, name: "Terrace" } },
+    create: { branchId: mainBranch.id, name: "Terrace", sortOrder: 1 },
+    update: { sortOrder: 1 },
+  });
+  const takhtFloor = await prisma.diningFloor.upsert({
+    where: { branchId_name: { branchId: mainBranch.id, name: "Family hall (takht)" } },
+    create: { branchId: mainBranch.id, name: "Family hall (takht)", sortOrder: 2 },
+    update: { sortOrder: 2 },
+  });
+
+  const tableSpecs: { label: string; floorId: string; seatType: "TABLE" | "TAKHT" | "OUTDOOR"; zone: string; i: number }[] = [
+    { label: "T1", floorId: indoorFloor.id, seatType: "TABLE", zone: "Indoor", i: 0 },
+    { label: "T2", floorId: indoorFloor.id, seatType: "TABLE", zone: "Indoor", i: 1 },
+    { label: "T3", floorId: indoorFloor.id, seatType: "TABLE", zone: "Indoor", i: 2 },
+    { label: "T4", floorId: indoorFloor.id, seatType: "TABLE", zone: "Indoor", i: 3 },
+    { label: "T5", floorId: terraceFloor.id, seatType: "OUTDOOR", zone: "Terrace", i: 4 },
+    { label: "T6", floorId: terraceFloor.id, seatType: "OUTDOOR", zone: "Terrace", i: 5 },
+    { label: "TK1", floorId: takhtFloor.id, seatType: "TAKHT", zone: "Family hall (takht)", i: 6 },
+  ];
+  for (const spec of tableSpecs) {
+    await prisma.diningTable.upsert({
+      where: { branchId_label: { branchId: mainBranch.id, label: spec.label } },
+      create: {
+        branchId: mainBranch.id,
+        floorId: spec.floorId,
+        label: spec.label,
+        capacity: spec.seatType === "TAKHT" ? 8 : 4,
+        seatType: spec.seatType,
+        zone: spec.zone,
+        sortOrder: spec.i,
+      },
+      update: {
+        floorId: spec.floorId,
+        capacity: spec.seatType === "TAKHT" ? 8 : 4,
+        seatType: spec.seatType,
+        zone: spec.zone,
+        sortOrder: spec.i,
+      },
+    });
+  }
+
   await prisma.promoBanner.createMany({
     data: [
       {

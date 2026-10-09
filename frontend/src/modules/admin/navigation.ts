@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Flame,
   LayoutDashboard,
+  LayoutGrid,
   Map,
   MapPinned,
   Receipt,
@@ -33,6 +34,7 @@ export const ADMIN_NAV_SECTIONS: NavSection[] = [
       { href: "/admin/pos", label: "POS", icon: Receipt },
       { href: "/admin/orders", label: "Orders", icon: ClipboardList },
       { href: "/admin/tracking", label: "Live tracking", icon: Map },
+      { href: "/admin/dine-in", label: "Dine-in", icon: LayoutGrid },
     ],
   },
   {
@@ -74,8 +76,20 @@ const MANAGER_NAV_SECTIONS: NavSection[] = ADMIN_NAV_SECTIONS.map((section) => (
   ),
 })).filter((section) => section.items.length > 0);
 
+const WAITER_NAV_SECTIONS: NavSection[] = [
+  {
+    title: "Operations",
+    items: [
+      { href: "/admin/dine-in", label: "Dine-in floor", icon: LayoutGrid },
+      { href: "/admin/pos", label: "POS", icon: Receipt },
+      { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+    ],
+  },
+];
+
 export function navSectionsForRole(role: Role): NavSection[] {
   if (role === "MANAGER") return MANAGER_NAV_SECTIONS;
+  if (role === "WAITER") return WAITER_NAV_SECTIONS;
   if (role === "CHEF") {
     return [
       {
@@ -105,6 +119,11 @@ export function navSectionsForRole(role: Role): NavSection[] {
 
 export const MOBILE_NAV_FOR_ROLE: Record<Role, NavItem[]> = {
   ADMIN: ADMIN_MOBILE_NAV,
+  WAITER: [
+    { href: "/admin/dine-in", label: "Floor", icon: LayoutGrid },
+    { href: "/admin/pos", label: "POS", icon: Receipt },
+    { href: "/admin/kitchen", label: "Kitchen", icon: Flame },
+  ],
   MANAGER: [
     { href: "/admin", label: "Home", icon: LayoutDashboard },
     { href: "/admin/kitchen", label: "Kitchen", icon: Flame },

@@ -37,9 +37,17 @@ model Branch {
   isActive     Boolean    @default(true)
   isDefault    Boolean    @default(false)
   sortOrder    Int        @default(0)
+  timezone     String     @default("Asia/Karachi")
+  graceMin     Int        @default(15)
   createdAt    DateTime   @default(now())
-  orders       Order[]
-  members      BranchMember[]
+  orders         Order[]
+  auditLogs      AuditLog[]
+  members        BranchMember[]
+  diningFloors   DiningFloor[]
+  diningTables   DiningTable[]
+  tableSessions  TableSession[]
+  reservations   Reservation[]
+  waitlistEntries WaitlistEntry[]
 
   @@unique([restaurantId, code])
   @@index([restaurantId, isActive])
@@ -60,9 +68,48 @@ enum Role {
   CUSTOMER
   ADMIN
   MANAGER
+  WAITER
   RIDER
   CHEF
   CASHIER
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  NEEDS_CLEANING
+}
+
+enum SeatType {
+  TABLE
+  TAKHT
+  BOOTH
+  HIGH_TOP
+  OUTDOOR
+}
+
+enum TableSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  SEATED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+}
+
+enum WaitlistStatus {
+  WAITING
+  CALLED
+  SEATED
+  CANCELLED
+  LEFT
 }
 
 enum OrderSource {
@@ -114,10 +161,162 @@ model User {
   passwordResetExpires DateTime?
   createdAt            DateTime  @default(now())
 
-  orders         Order[] @relation("CustomerOrders")
-  assignedOrders Order[] @relation("RiderOrders")
-  posOrders      Order[] @relation("PosOrders")
-  branchMembers  BranchMember[]
+  orders          Order[]        @relation("CustomerOrders")
+  assignedOrders  Order[]        @relation("RiderOrders")
+  posOrders       Order[]        @relation("PosOrders")
+  waiterOrders    Order[]        @relation("WaiterOrders")
+  waiterSessions       TableSession[] @relation("WaiterSessions")
+  branchMembers        BranchMember[]
+  confirmedReservations Reservation[] @relation("ReservationConfirmedBy")
+  auditLogs            AuditLog[]
+}
+
+model DiningFloor {
+  id        String        @id @default(uuid())
+  branchId  String
+  branch    Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+  tables    DiningTable[]
+
+  @@unique([branchId, name])
+  @@index([branchId, sortOrder])
+}
+
+model DiningTable {
+  id           String      @id @default(uuid())
+  branchId     String
+  branch       Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  floorId      String?
+  floor        DiningFloor? @relation(fields: [floorId], references: [id], onDelete: SetNull)
+  label        String
+  capacity     Int         @default(4)
+  seatType     SeatType    @default(TABLE)
+  zone         String      @default("")
+  status       TableStatus @default(AVAILABLE)
+  sortOrder    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  sessions     TableSession[]
+  reservations Reservation[]
+  orders       Order[]
+  waitlistPreferred WaitlistEntry[] @relation("WaitlistPreferredTable")
+
+  @@unique([branchId, label])
+  @@index([branchId, status])
+  @@index([floorId])
+}
+
+model TableSession {
+  id            String             @id @default(uuid())
+  branchId      String
+  branch        Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableId       String
+  table         DiningTable        @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  waiterId      String?
+  waiter        User?              @relation("WaiterSessions", fields: [waiterId], references: [id])
+  guestName     String             @default("Walk-in")
+  partySize     Int                @default(2)
+  status        TableSessionStatus @default(OPEN)
+  notes         String?
+  openedAt      DateTime           @default(now())
+  closedAt      DateTime?
+  reservationId String?            @unique
+  reservation   Reservation?       @relation(fields: [reservationId], references: [id])
+  orders        Order[]
+
+  @@index([branchId, status])
+  @@index([tableId, status])
+}
+
+model Reservation {
+  id                 String            @id @default(uuid())
+  branchId           String
+  branch             Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableId            String?
+  table              DiningTable?      @relation(fields: [tableId], references: [id])
+  guestName          String
+  guestPhone         String
+  guestEmail         String
+  emailMissingLegacy Boolean           @default(false)
+  partySize          Int               @default(2)
+  startsAt           DateTime
+  durationMin        Int               @default(90)
+  status             ReservationStatus @default(PENDING)
+  notes              String?
+  confirmedAt        DateTime?
+  confirmedById      String?
+  confirmedBy        User?             @relation("ReservationConfirmedBy", fields: [confirmedById], references: [id])
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  noShowAt           DateTime?
+  cancelledAt        DateTime?
+  confirmationToken  String            @unique
+  idempotencyKey     String?           @unique
+  reminderSentAt     DateTime?
+  followUpSentAt     DateTime?
+  createdAt          DateTime          @default(now())
+  session            TableSession?
+  emailLogs          EmailLog[]
+
+  @@index([branchId, startsAt])
+  @@index([branchId, status])
+  @@index([branchId, status, startsAt])
+}
+
+model WaitlistEntry {
+  id                 String         @id @default(uuid())
+  branchId           String
+  branch             Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  queueDate          String
+  queueNumber        Int
+  guestName          String
+  guestPhone         String?
+  partySize          Int            @default(2)
+  preferredSeatType  SeatType?
+  preferredTableId   String?
+  preferredTable     DiningTable?   @relation("WaitlistPreferredTable", fields: [preferredTableId], references: [id], onDelete: SetNull)
+  status             WaitlistStatus @default(WAITING)
+  notes              String?
+  createdAt          DateTime       @default(now())
+  calledAt           DateTime?
+  seatedAt           DateTime?
+  tableSessionId     String?        @unique
+
+  @@unique([branchId, queueDate, queueNumber])
+  @@index([branchId, status, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([branchId, createdAt])
+  @@index([entity, entityId])
+}
+
+model EmailLog {
+  id            String       @id @default(uuid())
+  reservationId String
+  reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  type          String
+  toEmail       String
+  status        String       @default("PENDING")
+  error         String?
+  attempts      Int          @default(0)
+  sentAt        DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@index([reservationId, type])
+  @@index([status, createdAt])
 }
 
 model Category {
@@ -321,6 +520,12 @@ model Order {
   guestAccessToken String?         @unique
   riderId          String?
   rider            User?           @relation("RiderOrders", fields: [riderId], references: [id])
+  diningTableId    String?
+  diningTable      DiningTable?    @relation(fields: [diningTableId], references: [id])
+  tableSessionId   String?
+  tableSession     TableSession?   @relation(fields: [tableSessionId], references: [id])
+  waiterId         String?
+  waiter           User?           @relation("WaiterOrders", fields: [waiterId], references: [id])
   status           OrderStatus     @default(PENDING_CONFIRMATION)
   orderSource      OrderSource     @default(ONLINE)
   paymentMethod    PaymentMethod?

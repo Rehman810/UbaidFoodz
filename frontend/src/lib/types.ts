@@ -1,6 +1,6 @@
 import { canTransition } from "./order-machine";
 
-export type Role = "CUSTOMER" | "ADMIN" | "MANAGER" | "RIDER" | "CHEF" | "CASHIER";
+export type Role = "CUSTOMER" | "ADMIN" | "MANAGER" | "WAITER" | "RIDER" | "CHEF" | "CASHIER";
 
 export type User = {
   id: string;

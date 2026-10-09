@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Bike, Briefcase, ChefHat, Plus, Receipt, UserPlus, X } from "lucide-react";
+import { Bike, Briefcase, ChefHat, Plus, Receipt, UserPlus, UserRound, X } from "lucide-react";
 import { Role } from "@/lib/types";
 import { BranchSelectField, type BranchSelectOption } from "@/components/admin/BranchSelectField";
 import { ASSIGNABLE_ROLES } from "./StaffTable";
@@ -28,6 +28,7 @@ export type StaffFormData = {
 
 const ROLE_ICONS = {
   MANAGER: Briefcase,
+  WAITER: UserRound,
   CHEF: ChefHat,
   RIDER: Bike,
   CASHIER: Receipt,
@@ -162,7 +163,7 @@ export function StaffFormSheet({
             </div>
             <div>
               <p className="mb-1.5 text-xs font-medium text-stone-500">Role</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {ASSIGNABLE_ROLES.map((role) => {
                   const Icon = ROLE_ICONS[role.value as keyof typeof ROLE_ICONS] ?? ChefHat;
                   const active = form.role === role.value;

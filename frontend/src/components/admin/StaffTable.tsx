@@ -8,6 +8,7 @@ import {
   Receipt,
   Shield,
   ShieldCheck,
+  UserRound,
 } from "lucide-react";
 import { Role } from "@/lib/types";
 import { formatWhen } from "@/lib/format";
@@ -28,6 +29,7 @@ export type BranchOption = { id: string; name: string };
 
 export const ASSIGNABLE_ROLES: { value: Role; label: string }[] = [
   { value: "MANAGER", label: "Manager" },
+  { value: "WAITER", label: "Waiter" },
   { value: "CHEF", label: "Chef" },
   { value: "RIDER", label: "Rider" },
   { value: "CASHIER", label: "Cashier" },
@@ -36,6 +38,7 @@ export const ASSIGNABLE_ROLES: { value: Role; label: string }[] = [
 const ROLE_STYLES: Record<Role, string> = {
   ADMIN: "bg-violet-50 text-violet-800 ring-violet-100 dark:bg-violet-950/50 dark:text-violet-200 dark:ring-violet-800",
   MANAGER: "bg-indigo-50 text-indigo-800 ring-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-200 dark:ring-indigo-800",
+  WAITER: "bg-fuchsia-50 text-fuchsia-800 ring-fuchsia-100 dark:bg-fuchsia-950/50 dark:text-fuchsia-200 dark:ring-fuchsia-800",
   CHEF: "bg-orange-50 text-orange-800 ring-orange-100 dark:bg-orange-950/50 dark:text-orange-200 dark:ring-orange-800",
   RIDER: "bg-sky-50 text-sky-800 ring-sky-100 dark:bg-sky-950/50 dark:text-sky-200 dark:ring-sky-800",
   CASHIER: "bg-emerald-50 text-emerald-800 ring-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-800",
@@ -45,6 +48,7 @@ const ROLE_STYLES: Record<Role, string> = {
 const ROLE_LABEL: Record<Role, string> = {
   ADMIN: "Admin",
   MANAGER: "Manager",
+  WAITER: "Waiter",
   CHEF: "Chef",
   RIDER: "Rider",
   CASHIER: "Cashier",
@@ -54,6 +58,7 @@ const ROLE_LABEL: Record<Role, string> = {
 const ROLE_ICONS: Partial<Record<Role, typeof Shield>> = {
   ADMIN: Shield,
   MANAGER: Briefcase,
+  WAITER: UserRound,
   CHEF: ChefHat,
   RIDER: Bike,
   CASHIER: Receipt,
@@ -220,6 +225,7 @@ export function StaffTable({
                   <td className="px-4 py-3.5 align-top text-xs text-stone-500 dark:text-stone-400">
                     {isAdmin && "Owner · role locked"}
                     {s.role === "MANAGER" && "Branch operations · no system settings"}
+                    {s.role === "WAITER" && "Floor · dine-in tables & POS"}
                     {s.role === "CHEF" && (
                       <span className="inline-flex items-center gap-1">
                         <Flame size={12} className="text-brand-500" /> Kitchen

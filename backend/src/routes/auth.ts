@@ -192,7 +192,8 @@ authRouter.post("/forgot-password", authLimiter, async (req, res) => {
       user.role === Role.CHEF ||
       user.role === Role.RIDER ||
       user.role === Role.CASHIER ||
-      user.role === Role.MANAGER)
+      user.role === Role.MANAGER ||
+      user.role === Role.WAITER)
   ) {
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 60 * 60 * 1000);

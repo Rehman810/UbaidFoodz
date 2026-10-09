@@ -17,7 +17,7 @@ import { STAFF_DIRECTORY_ROLES } from "../lib/roles";
 export const staffRouter = Router();
 
 const STAFF_ROLES = STAFF_DIRECTORY_ROLES;
-const ASSIGNABLE_ROLES: Role[] = [Role.MANAGER, Role.CHEF, Role.RIDER, Role.CASHIER];
+const ASSIGNABLE_ROLES: Role[] = [Role.MANAGER, Role.WAITER, Role.CHEF, Role.RIDER, Role.CASHIER];
 
 function generateStaffPassword() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";

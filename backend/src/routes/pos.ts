@@ -5,6 +5,7 @@ import {
   OrderStatus,
   PaymentMethod,
   Role,
+  TableSessionStatus,
 } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { findOrderBlock } from "../lib/blocklist";
@@ -32,7 +33,7 @@ function normalizePhone(phone: string) {
   return cleaned.length >= 10 ? cleaned : "";
 }
 
-posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CASHIER), async (req, res) => {
+posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CASHIER, Role.WAITER), async (req, res) => {
   const storeSettings = await getStoreSettings();
   const storeAddress = `${storeNameFrom(storeSettings)} — ${storeSettings.address}`;
 
@@ -46,6 +47,9 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CAS
     customerPhone,
     notes,
     tableNumber,
+    tableSessionId,
+    diningTableId,
+    waiterId,
     paymentMethod,
     paymentStatus,
   } = req.body as {
@@ -65,6 +69,9 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CAS
     customerPhone?: string;
     notes?: string;
     tableNumber?: string;
+    tableSessionId?: string;
+    diningTableId?: string;
+    waiterId?: string;
     paymentMethod?: PaymentMethod;
     paymentStatus?: "PAID" | "UNPAID";
   };
@@ -79,9 +86,22 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CAS
   const built = await buildOrderLines(items ?? [], deals ?? []);
   if (!built.ok) return res.status(built.status).json({ error: built.error });
 
+  let scope;
+  try {
+    scope = await resolveBranchScope(req);
+  } catch (err) {
+    return branchScopeError(res, err);
+  }
+  const resolvedBranchId = scope.allBranches ? await getDefaultBranchId() : scope.branchId!;
+
   let deliveryCharge = 0;
   let areaId: string | null = null;
   let address = storeAddress;
+  let dineSession: { id: string; tableId: string; table: { label: string }; waiterId: string | null } | null = null;
+  let resolvedTableNumber: string | null = null;
+  let resolvedDiningTableId: string | null = diningTableId || null;
+  let resolvedSessionId: string | null = tableSessionId || null;
+  let resolvedWaiterId: string | null = waiterId || null;
 
   if (mode === FulfillmentType.DELIVERY) {
     if (!deliveryAreaId) {
@@ -101,9 +121,22 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CAS
       deliveryCharge = 0;
     }
   } else if (mode === FulfillmentType.DINE_IN) {
-    address = tableNumber?.trim()
-      ? `Dine-in · Table ${tableNumber.trim()}`
-      : "Dine-in · Counter";
+    let tableLabel = tableNumber?.trim() || "";
+    if (tableSessionId) {
+      dineSession = await prisma.tableSession.findFirst({
+        where: { id: tableSessionId, status: TableSessionStatus.OPEN, branchId: resolvedBranchId },
+        include: { table: true },
+      });
+      if (!dineSession) {
+        return res.status(400).json({ error: "Invalid or closed table session." });
+      }
+      tableLabel = dineSession.table.label;
+      resolvedDiningTableId = dineSession.tableId;
+      resolvedSessionId = dineSession.id;
+      if (!resolvedWaiterId && dineSession.waiterId) resolvedWaiterId = dineSession.waiterId;
+    }
+    resolvedTableNumber = tableLabel || null;
+    address = tableLabel ? `Dine-in · Table ${tableLabel}` : "Dine-in · Counter";
   } else {
     address = storeAddress;
   }
@@ -129,14 +162,6 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CAS
     });
   }
 
-  let scope;
-  try {
-    scope = await resolveBranchScope(req);
-  } catch (err) {
-    return branchScopeError(res, err);
-  }
-  const resolvedBranchId = scope.allBranches ? await getDefaultBranchId() : scope.branchId!;
-
   const order = await prisma.order.create({
     data: {
       orderNumber: await nextOrderNumber(),
@@ -152,7 +177,10 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CAS
       total: quoted.total,
       deliveryAddress: address,
       notes: notes ? cleanText(notes, 400) || null : null,
-      tableNumber: mode === FulfillmentType.DINE_IN ? tableNumber?.trim() || null : null,
+      tableNumber: mode === FulfillmentType.DINE_IN ? resolvedTableNumber : null,
+      diningTableId: mode === FulfillmentType.DINE_IN ? resolvedDiningTableId : null,
+      tableSessionId: mode === FulfillmentType.DINE_IN ? resolvedSessionId : null,
+      waiterId: mode === FulfillmentType.DINE_IN ? resolvedWaiterId : null,
       customerName: name,
       customerPhone: phone,
       paymentMethod: payMethod,
@@ -170,7 +198,7 @@ posRouter.post("/", posLimiter, requireAuth, requireRole(...ADMIN_LIKE, Role.CAS
 posRouter.get(
   "/receipt/:orderId",
   requireAuth,
-  requireRole(...ADMIN_LIKE, Role.CASHIER),
+  requireRole(...ADMIN_LIKE, Role.CASHIER, Role.WAITER),
   async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: req.params.orderId },

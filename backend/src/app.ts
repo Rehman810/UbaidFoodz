@@ -1,0 +1,69 @@
+import express from "express";
+import cors from "cors";
+import { authRouter } from "./routes/auth";
+import { menuRouter } from "./routes/menu";
+import { ordersRouter } from "./routes/orders";
+import { riderRouter } from "./routes/rider";
+import { adminRouter } from "./routes/admin";
+import { invoicesRouter } from "./routes/invoices";
+import { uploadRouter } from "./routes/upload";
+import { categoriesRouter } from "./routes/categories";
+import { dealsRouter } from "./routes/deals";
+import { deliveryAreasRouter } from "./routes/delivery-areas";
+import { settingsRouter } from "./routes/settings";
+import { staffRouter } from "./routes/staff";
+import { blocklistRouter } from "./routes/blocklist";
+import { posRouter } from "./routes/pos";
+import { branchesRouter } from "./routes/branches";
+import { dineInPublicRouter, dineInRouter } from "./routes/dine-in";
+import { UPLOAD_DIR } from "./lib/uploads";
+import { resolveRestaurantId, runWithRestaurant } from "./lib/prisma";
+import {
+  allowedOrigins,
+  errorHandler,
+  globalLimiter,
+  notFound,
+  securityHeaders,
+} from "./middleware/security";
+
+export function createApp() {
+  const app = express();
+  app.set("trust proxy", 1);
+  app.disable("x-powered-by");
+  app.use(async (req, _res, next) => {
+    try {
+      const id = await resolveRestaurantId(req.hostname);
+      runWithRestaurant(id, () => next());
+    } catch (err) {
+      next(err);
+    }
+  });
+  app.use(securityHeaders());
+  app.use(cors({ origin: allowedOrigins(), credentials: true }));
+  app.use(express.json({ limit: "1mb" }));
+  app.use(globalLimiter);
+  app.use("/uploads", express.static(UPLOAD_DIR));
+
+  app.get("/health", (_req, res) => res.json({ ok: true }));
+  app.use("/upload", uploadRouter);
+  app.use("/auth", authRouter);
+  app.use("/menu", menuRouter);
+  app.use("/categories", categoriesRouter);
+  app.use("/deals", dealsRouter);
+  app.use("/delivery-areas", deliveryAreasRouter);
+  app.use("/settings", settingsRouter);
+  app.use("/branches", branchesRouter);
+  app.use("/dine-in", dineInPublicRouter);
+  app.use("/admin/dine-in", dineInRouter);
+  app.use("/orders", ordersRouter);
+  app.use("/pos", posRouter);
+  app.use("/rider", riderRouter);
+  app.use("/admin/staff", staffRouter);
+  app.use("/admin/blocks", blocklistRouter);
+  app.use("/admin", adminRouter);
+  app.use("/invoices", invoicesRouter);
+
+  app.use(notFound);
+  app.use(errorHandler);
+  return app;
+}

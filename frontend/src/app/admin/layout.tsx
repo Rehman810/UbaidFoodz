@@ -9,6 +9,7 @@ import { StoreLogo } from "@/components/StoreLogo";
 import { AdminThemeToggle } from "@/components/admin/AdminThemeToggle";
 import { BranchSwitcher } from "@/components/admin/BranchSwitcher";
 import { MOBILE_NAV_FOR_ROLE, navSectionsForRole } from "@/modules/admin/navigation";
+import { fetchPendingBookingsCount } from "@/modules/dine-in/api";
 import { BranchProvider } from "@/modules/branches/BranchContext";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -28,6 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [kitchenOpen, setKitchenOpen] = useState<boolean | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingDineIn, setPendingDineIn] = useState(0);
   const { theme, toggle: toggleTheme } = useAdminTheme();
 
   useEffect(() => {
@@ -53,6 +55,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => window.removeEventListener("store-refresh", load);
   }, [path]);
 
+  useEffect(() => {
+    if (!user || (user.role !== "ADMIN" && user.role !== "MANAGER")) return;
+    const refresh = () => {
+      void fetchPendingBookingsCount()
+        .then((r) => setPendingDineIn(r.count))
+        .catch(() => setPendingDineIn(0));
+    };
+    refresh();
+    const onPending = (e: Event) => {
+      const n = (e as CustomEvent<number>).detail;
+      if (typeof n === "number") setPendingDineIn(n);
+    };
+    window.addEventListener("dine-in-pending", onPending);
+    const id = window.setInterval(refresh, 45_000);
+    return () => {
+      window.removeEventListener("dine-in-pending", onPending);
+      window.clearInterval(id);
+    };
+  }, [user, path]);
+
   const isStaffLogin = path === "/admin/login";
 
   useEffect(() => {
@@ -72,6 +94,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (!allowedPath) router.replace("/admin/pos");
       return;
     }
+    if (user.role === "WAITER") {
+      const allowedPath = ["/admin/dine-in", "/admin/pos", "/admin/kitchen"].some(
+        (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+      );
+      if (!allowedPath) router.replace("/admin/dine-in");
+      return;
+    }
     if (user.role === "MANAGER") {
       const allowedPath = [
         "/admin",
@@ -84,6 +113,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         "/admin/areas",
         "/admin/customers",
         "/admin/riders",
+        "/admin/dine-in",
       ].some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
       if (!allowedPath) router.replace("/admin");
       return;
@@ -109,6 +139,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const allowed =
     user?.role === "ADMIN" ||
     user?.role === "MANAGER" ||
+    user?.role === "WAITER" ||
     user?.role === "CHEF" ||
     user?.role === "CASHIER";
 
@@ -178,7 +209,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       key={n.href}
                       href={n.href}
                       title={n.label}
-                      className={`flex shrink-0 items-center rounded-xl text-sm font-semibold transition ${
+                      className={`relative flex shrink-0 items-center rounded-xl text-sm font-semibold transition ${
                         collapsed ? "lg:justify-center lg:px-0 lg:py-3" : "gap-2.5 px-3 py-2.5"
                       } ${
                         active
@@ -188,6 +219,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <Icon size={18} className={active ? "text-brand-600" : ""} />
                       <span className={collapsed ? "lg:hidden" : ""}>{n.label}</span>
+                      {n.href === "/admin/dine-in" && pendingDineIn > 0 && (
+                        <span
+                          className={`ml-auto grid min-w-[1.25rem] place-items-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white ${
+                            collapsed ? "lg:absolute lg:right-1 lg:top-1 lg:ml-0" : ""
+                          }`}
+                        >
+                          {pendingDineIn > 99 ? "99+" : pendingDineIn}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -353,7 +393,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     active ? "text-brand-700 dark:text-brand-400" : "text-stone-400 dark:text-stone-500"
                   }`}
                 >
-                  <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+                  <span className="relative">
+                    <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+                    {n.href === "/admin/dine-in" && pendingDineIn > 0 && (
+                      <span className="absolute -right-2 -top-1 grid h-4 min-w-[1rem] place-items-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
+                        {pendingDineIn > 9 ? "9+" : pendingDineIn}
+                      </span>
+                    )}
+                  </span>
                   {n.label}
                 </Link>
               );
