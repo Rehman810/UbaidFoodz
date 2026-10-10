@@ -21,8 +21,7 @@ type AuthCtx = {
 
 const Ctx = createContext<AuthCtx | null>(null);
 
-function persistSession(token: string, user: User, setUser: (u: User) => void) {
-  localStorage.setItem("uff_token", token);
+function persistSession(user: User, setUser: (u: User) => void) {
   setUser(user);
   reconnectLiveSocket();
 }
@@ -32,15 +31,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("uff_token");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    api<User>("/auth/me")
+    void api<User>("/auth/me")
       .then(setUser)
-      .catch(() => localStorage.removeItem("uff_token"))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
+    void api("/auth/csrf").catch(() => null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("uff_token");
+    }
   }, []);
 
   const value = useMemo<AuthCtx>(
@@ -55,29 +53,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (res.requiresTwoFactor && res.challengeToken) {
           return { requiresTwoFactor: true, challengeToken: res.challengeToken };
         }
-        if (!res.token || !res.user) throw new Error("Login failed");
-        persistSession(res.token, res.user, setUser);
+        if (!res.user) throw new Error("Login failed");
+        persistSession(res.user, setUser);
         return { user: res.user };
       },
       verifyTwoFactor: async (challengeToken, code) => {
-        const res = await api<{ token: string; user: User }>("/auth/login/2fa", {
+        const res = await api<{ user: User }>("/auth/login/2fa", {
           method: "POST",
           body: JSON.stringify({ challengeToken, code }),
         });
-        persistSession(res.token, res.user, setUser);
+        persistSession(res.user, setUser);
         return res.user;
       },
       register: async (data) => {
-        const res = await api<{ token: string; user: User }>("/auth/register", {
+        const res = await api<{ user: User }>("/auth/register", {
           method: "POST",
           body: JSON.stringify(data),
         });
-        persistSession(res.token, res.user, setUser);
+        persistSession(res.user, setUser);
         return res.user;
       },
       logout: () => {
         void api("/auth/logout", { method: "POST" }).catch(() => null);
-        localStorage.removeItem("uff_token");
         setUser(null);
         reconnectLiveSocket();
       },
@@ -87,7 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           /* clear the local session even if the API is unreachable */
         }
-        localStorage.removeItem("uff_token");
         setUser(null);
         reconnectLiveSocket();
       },

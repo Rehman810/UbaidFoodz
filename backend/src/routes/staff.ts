@@ -144,7 +144,7 @@ staffRouter.post("/", requireAuth, requireRole(Role.ADMIN), async (req, res) => 
   const generated = Boolean(autoGeneratePassword);
   const plainPassword = password?.trim() || generateStaffPassword();
   if (plainPassword.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters." });
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
   }
 
   const user = await prisma.user.create({
@@ -226,8 +226,8 @@ staffRouter.patch("/:id", requireAuth, requireRole(Role.ADMIN), async (req, res)
   if (body.role && existing.role !== Role.ADMIN && !ASSIGNABLE_ROLES.includes(body.role)) {
     return res.status(400).json({ error: "Role must be CHEF, RIDER, or CASHIER." });
   }
-  if (body.password && body.password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  if (body.password && body.password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
   }
 
   const bumpSession = body.isActive === false || Boolean(body.password);

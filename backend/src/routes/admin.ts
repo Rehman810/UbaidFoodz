@@ -585,7 +585,7 @@ adminRouter.post("/riders", requireAuth, requireRole(Role.ADMIN), async (req, re
 
   const plainPassword = password?.trim() || crypto.randomBytes(9).toString("base64url");
   if (plainPassword.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters." });
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
   }
 
   const rider = await prisma.user.create({

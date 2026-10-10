@@ -33,6 +33,7 @@ import {
   notFound,
   securityHeaders,
 } from "./middleware/security";
+import { csrfProtection } from "./middleware/csrf";
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -60,8 +61,17 @@ app.use(async (req, _res, next) => {
 app.use(securityHeaders());
 app.use(cors({ origin: allowedOrigins(), credentials: true }));
 app.use(express.json({ limit: "1mb" }));
+app.use(csrfProtection);
 app.use(globalLimiter);
-app.use("/uploads", express.static(UPLOAD_DIR));
+app.use(
+  "/uploads",
+  express.static(UPLOAD_DIR, {
+    setHeaders(res) {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'");
+    },
+  })
+);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/upload", uploadRouter);

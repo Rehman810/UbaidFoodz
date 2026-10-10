@@ -6,6 +6,7 @@ import { allowedOrigins } from "../middleware/security";
 import { prisma } from "./prisma";
 
 import { jwtSecret } from "./jwt-secret";
+import { readSessionCookie } from "./session-cookie";
 
 const JWT_SECRET = jwtSecret();
 
@@ -20,17 +21,21 @@ export function initRealtime(httpServer: HttpServer) {
   });
 
   io.use(async (socket, next) => {
-    const token = String(socket.handshake.auth?.token || "");
+    const token =
+      String(socket.handshake.auth?.token || "") ||
+      readSessionCookie(socket.handshake.headers.cookie) ||
+      "";
     if (!token) return next();
     try {
-      const payload = jwt.verify(token, JWT_SECRET) as SocketUser;
+      const payload = jwt.verify(token, JWT_SECRET) as SocketUser & { tv?: number; typ?: string };
       const account = await prisma.user.findUnique({
         where: { id: payload.id },
-        select: { isActive: true, role: true },
+        select: { isActive: true, role: true, tokenVersion: true },
       });
-      if (account?.isActive) {
-        socket.data.user = { id: payload.id, role: account.role };
-      }
+      if (!account?.isActive) return next();
+      const tv = typeof payload.tv === "number" ? payload.tv : 0;
+      if (tv !== account.tokenVersion) return next();
+      socket.data.user = { id: payload.id, role: account.role };
       next();
     } catch {
       next();

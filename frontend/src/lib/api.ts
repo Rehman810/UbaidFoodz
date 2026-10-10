@@ -1,6 +1,8 @@
 // Production (Vercel): use same-origin proxy — avoids CORS & dead Cloudflare tunnel URLs.
 // Set API_PROXY_TARGET=http://YOUR_ORACLE_IP:4000 on Vercel (server env).
 // Optional: NEXT_PUBLIC_API_URL=https://your-https-api.com for direct API + websockets.
+import { readCsrfFromDocument } from "./csrf";
+
 function isLocalApiUrl(url: string) {
   return /localhost|127\.0\.0\.1/i.test(url);
 }
@@ -32,16 +34,27 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("uff_token") : null;
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function buildHeaders(options: RequestInit, jsonBody: boolean) {
   const branch =
     typeof window !== "undefined" ? localStorage.getItem("uff-admin-branch") || undefined : undefined;
   const headers: Record<string, string> = {
-    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...(jsonBody ? { "Content-Type": "application/json" } : {}),
     ...(options.headers as Record<string, string> | undefined),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const method = (options.method || "GET").toUpperCase();
+  if (MUTATING.has(method)) {
+    const csrf = readCsrfFromDocument();
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+  }
   if (branch) headers["X-Branch-Id"] = branch;
+  return headers;
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const jsonBody = Boolean(options.body && typeof options.body === "string");
+  const headers = buildHeaders(options, jsonBody);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
@@ -73,13 +86,14 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 }
 
 export async function apiUpload(path: string, file: File): Promise<{ url: string }> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("uff_token") : null;
   const body = new FormData();
   body.append("image", file);
+  const csrf = readCsrfFromDocument();
 
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: csrf ? { "X-CSRF-Token": csrf } : {},
+    credentials: "include",
     body,
   });
 
@@ -104,10 +118,7 @@ export function invoiceUrl(orderId: string, guestToken?: string | null) {
 }
 
 export async function downloadInvoice(orderId: string, guestToken?: string | null) {
-  const token = localStorage.getItem("uff_token");
-  const res = await fetch(invoiceUrl(orderId, guestToken), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await fetch(invoiceUrl(orderId, guestToken), { credentials: "include" });
   if (!res.ok) throw new Error("Could not download invoice");
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

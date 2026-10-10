@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { safeErrorForLog } from "../lib/safe-log";
 
 export function securityHeaders() {
   return helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     contentSecurityPolicy: false,
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    hsts: process.env.NODE_ENV === "production" ? { maxAge: 31536000, includeSubDomains: true } : false,
   });
 }
 
@@ -57,7 +60,7 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   if (err instanceof SyntaxError) {
     return res.status(400).json({ error: "Invalid JSON body." });
   }
-  console.error(err);
+  console.error(safeErrorForLog(err));
   res.status(500).json({ error: "Something went wrong." });
 }
 
@@ -79,7 +82,8 @@ export function allowedOrigins():
 
   return (origin, callback) => {
     if (!origin) {
-      callback(null, true);
+      // Allow same-origin / server-to-server; block anonymous cross-site browser calls in production.
+      callback(null, process.env.NODE_ENV !== "production");
       return;
     }
     const normalized = origin.replace(/\/$/, "");

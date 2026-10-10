@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "crypto";
 import { PrismaClient, OrderStatus, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import fs from "fs";
@@ -408,8 +409,14 @@ async function main() {
     return;
   }
 
-  const adminPassword = "admin";
-  const hash = await bcrypt.hash(adminPassword, 10);
+  const adminPassword =
+    process.env.SEED_ADMIN_PASSWORD ||
+    (process.env.NODE_ENV === "production"
+      ? (() => {
+          throw new Error("Set SEED_ADMIN_PASSWORD before seeding production.");
+        })()
+      : crypto.randomBytes(12).toString("base64url"));
+  const hash = await bcrypt.hash(adminPassword, 12);
 
   await prisma.invoice.deleteMany();
   await prisma.orderItem.deleteMany();

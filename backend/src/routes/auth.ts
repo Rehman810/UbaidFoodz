@@ -19,6 +19,7 @@ import {
   nextLockState,
 } from "../lib/login-guard";
 import { createRecoveryCodes, matchRecoveryCode } from "../lib/recovery-codes";
+import { clearCsrfCookie, issueCsrfCookie } from "../lib/csrf-cookie";
 import { clearSessionCookie, cookieSecure, sessionCookie } from "../lib/session-cookie";
 
 const JWT_SECRET = jwtSecret();
@@ -39,8 +40,18 @@ function issueSession(res: import("express").Response, req: import("express").Re
     name: user.name,
     tv: user.tokenVersion,
   });
-  res.setHeader("Set-Cookie", sessionCookie(token, cookieSecure(req.header("x-forwarded-proto") || undefined)));
+  const secure = cookieSecure(req.header("x-forwarded-proto") || undefined);
+  res.setHeader("Set-Cookie", sessionCookie(token, secure));
+  issueCsrfCookie(res, secure);
   return token;
+}
+
+function authResponseBody(token: string, user: Parameters<typeof publicUser>[0]) {
+  const body: { user: ReturnType<typeof publicUser>; token?: string } = { user: publicUser(user) };
+  if (process.env.NODE_ENV !== "production" || process.env.AUTH_TOKEN_IN_BODY === "1") {
+    body.token = token;
+  }
+  return body;
 }
 
 export const authRouter = Router();
@@ -73,8 +84,8 @@ authRouter.post("/register", authLimiter, async (req, res) => {
   if (!name || !email || !password) {
     return res.status(400).json({ error: "Name, email and password are required." });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  if (password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
   }
   const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   if (exists) return res.status(409).json({ error: "An account with this email already exists." });
@@ -102,7 +113,7 @@ authRouter.post("/register", authLimiter, async (req, res) => {
   }
 
   const token = issueSession(res, req, user);
-  res.json({ token, user: publicUser(user) });
+  res.json(authResponseBody(token, user));
 });
 
 authRouter.post("/login", authLimiter, async (req, res) => {
@@ -131,7 +142,27 @@ authRouter.post("/login", authLimiter, async (req, res) => {
   }
 
   const token = issueSession(res, req, user);
-  res.json({ token, user: publicUser(user) });
+  res.json(authResponseBody(token, user));
+});
+
+authRouter.get("/csrf", (req, res) => {
+  const secure = cookieSecure(req.header("x-forwarded-proto") || undefined);
+  const token = issueCsrfCookie(res, secure);
+  res.json({ csrfToken: token });
+});
+
+authRouter.get("/socket-token", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    select: { id: true, role: true, email: true, name: true, tokenVersion: true, isActive: true },
+  });
+  if (!user?.isActive) return res.status(401).json({ error: "Session expired." });
+  const token = jwt.sign(
+    { id: user.id, role: user.role, email: user.email, name: user.name, tv: user.tokenVersion, typ: "ws" },
+    JWT_SECRET,
+    { expiresIn: "15m" }
+  );
+  res.json({ token });
 });
 
 authRouter.post("/login/2fa", authLimiter, async (req, res) => {
@@ -159,14 +190,14 @@ authRouter.post("/login/2fa", authLimiter, async (req, res) => {
         data: { recoveryCodes: recovery.remaining, failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
       });
       const token = issueSession(res, req, user);
-      return res.json({ token, user: publicUser(user) });
+      return res.json(authResponseBody(token, user));
     }
     await prisma.user.update({
       where: { id: user.id },
       data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() },
     });
     const token = issueSession(res, req, user);
-    res.json({ token, user: publicUser(user) });
+    res.json(authResponseBody(token, user));
   } catch {
     return res.status(401).json({ error: "Challenge expired. Sign in again." });
   }
@@ -213,8 +244,8 @@ authRouter.post("/reset-password", authLimiter, async (req, res) => {
   if (!token?.trim() || !password) {
     return res.status(400).json({ error: "Token and new password are required." });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  if (password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
   }
 
   const user = await prisma.user.findFirst({
@@ -249,7 +280,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   res.json(publicUser(user));
 });
 
-authRouter.post("/2fa/setup", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+authRouter.post("/2fa/setup", requireAuth, requireRole(Role.ADMIN, Role.MANAGER), async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
   if (!user) return res.status(404).json({ error: "User not found" });
   if (user.totpEnabled) {
@@ -263,7 +294,7 @@ authRouter.post("/2fa/setup", requireAuth, requireRole(Role.ADMIN), async (req, 
   res.json({ secret, otpauth, qrDataUrl });
 });
 
-authRouter.post("/2fa/enable", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+authRouter.post("/2fa/enable", requireAuth, requireRole(Role.ADMIN, Role.MANAGER), async (req, res) => {
   const { code } = req.body as { code?: string };
   const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
   if (!user?.totpSecret) return res.status(400).json({ error: "Set up authenticator first." });
@@ -278,7 +309,7 @@ authRouter.post("/2fa/enable", requireAuth, requireRole(Role.ADMIN), async (req,
   res.json({ ok: true, totpEnabled: true, recoveryCodes: recovery.plain });
 });
 
-authRouter.post("/2fa/disable", requireAuth, requireRole(Role.ADMIN), async (req, res) => {
+authRouter.post("/2fa/disable", requireAuth, requireRole(Role.ADMIN, Role.MANAGER), async (req, res) => {
   const { code, password } = req.body as { code?: string; password?: string };
   const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
   if (!user) return res.status(404).json({ error: "User not found" });
@@ -296,8 +327,10 @@ authRouter.post("/2fa/disable", requireAuth, requireRole(Role.ADMIN), async (req
   res.json({ ok: true, totpEnabled: false });
 });
 
-authRouter.post("/logout", (_req, res) => {
-  res.setHeader("Set-Cookie", clearSessionCookie(cookieSecure(_req.header("x-forwarded-proto") || undefined)));
+authRouter.post("/logout", (req, res) => {
+  const secure = cookieSecure(req.header("x-forwarded-proto") || undefined);
+  res.setHeader("Set-Cookie", clearSessionCookie(secure));
+  res.append("Set-Cookie", clearCsrfCookie(secure));
   res.json({ ok: true });
 });
 
@@ -306,6 +339,8 @@ authRouter.post("/logout-all", requireAuth, async (req, res) => {
     where: { id: req.user!.id },
     data: { tokenVersion: { increment: 1 } },
   });
-  res.setHeader("Set-Cookie", clearSessionCookie(cookieSecure(req.header("x-forwarded-proto") || undefined)));
+  const secure = cookieSecure(req.header("x-forwarded-proto") || undefined);
+  res.setHeader("Set-Cookie", clearSessionCookie(secure));
+  res.append("Set-Cookie", clearCsrfCookie(secure));
   res.json({ ok: true });
 });

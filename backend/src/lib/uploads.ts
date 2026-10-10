@@ -12,9 +12,8 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 export const imageUpload = multer({
   storage: multer.diskStorage({
     destination: UPLOAD_DIR,
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-      const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+    filename: (_req, _file, cb) => {
+      const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.upload`;
       cb(null, safe);
     },
   }),

@@ -41,7 +41,7 @@ function initials(name: string) {
 export async function fetchGoogleReviews(placeId: string | null | undefined): Promise<GoogleReviewsPayload | null> {
   const apiKey = (process.env.GOOGLE_PLACES_API_KEY || "").trim();
   const pid = (placeId || "").trim();
-  if (!apiKey || !pid) return null;
+  if (!apiKey || !pid || !/^[\w-]{10,200}$/.test(pid)) return null;
 
   const cacheKey = `${pid}:${apiKey.slice(-6)}`;
   if (cache.data && cache.key === cacheKey && Date.now() - cache.at < CACHE_MS) {

@@ -2,44 +2,65 @@
 
 import { useEffect } from "react";
 import { io, Socket } from "socket.io-client";
-import { SOCKET_URL } from "@/lib/api";
+import { api, SOCKET_URL } from "@/lib/api";
 
 let socket: Socket | null = null;
+let socketTokenPromise: Promise<string> | null = null;
 
-function getSocket(): Socket | null {
+async function fetchSocketToken() {
+  if (!socketTokenPromise) {
+    socketTokenPromise = api<{ token: string }>("/auth/socket-token")
+      .then((r) => r.token)
+      .catch(() => "");
+  }
+  return socketTokenPromise;
+}
+
+async function ensureSocket(): Promise<Socket | null> {
   if (!SOCKET_URL) return null;
-  if (socket) return socket;
-  const token = typeof window !== "undefined" ? localStorage.getItem("uff_token") : null;
-  socket = io(SOCKET_URL, {
-    path: "/socket.io",
-    transports: ["websocket", "polling"],
-    auth: token ? { token } : {},
-    autoConnect: true,
-  });
+  if (socket?.connected) return socket;
+  const token = await fetchSocketToken();
+  if (!socket) {
+    socket = io(SOCKET_URL, {
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+      auth: token ? { token } : {},
+      withCredentials: true,
+      autoConnect: true,
+    });
+  } else if (token) {
+    socket.auth = { token };
+    socket.connect();
+  }
   return socket;
 }
 
 export function useLiveOrders(onChange: () => void, orderId?: string, guestToken?: string | null) {
   useEffect(() => {
-    const s = getSocket();
-    if (!s) return;
-    const handler = () => onChange();
-    s.on("order:created", handler);
-    s.on("order:updated", handler);
-    if (orderId) {
-      s.emit("watch-order", guestToken ? { orderId, token: guestToken } : orderId);
-    }
+    let s: Socket | null = null;
+    void ensureSocket().then((sock) => {
+      s = sock;
+      if (!s) return;
+      const handler = () => onChange();
+      s.on("order:created", handler);
+      s.on("order:updated", handler);
+      if (orderId) {
+        s.emit("watch-order", guestToken ? { orderId, token: guestToken } : orderId);
+      }
+    });
     return () => {
-      s.off("order:created", handler);
-      s.off("order:updated", handler);
+      if (!s) return;
+      s.off("order:created", onChange);
+      s.off("order:updated", onChange);
     };
   }, [onChange, orderId, guestToken]);
 }
 
 export function reconnectLiveSocket() {
+  socketTokenPromise = null;
   if (socket) {
-    socket.auth = { token: localStorage.getItem("uff_token") || "" };
     socket.disconnect();
-    socket.connect();
+    socket = null;
   }
+  void ensureSocket();
 }
